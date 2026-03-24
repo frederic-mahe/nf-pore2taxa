@@ -153,7 +153,7 @@ clean_up() {
         -mindepth 1 \
         -type d \
         ! -name "fastq_pass" \
-        -exec rm -rf '{}' \;
+        -exec echo rm -rf '{}' \;
 }
 
 
