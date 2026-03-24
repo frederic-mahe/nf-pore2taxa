@@ -1,19 +1,19 @@
 process BASECALL {
     tag "basecall"
-
-    // publishDir "${params.results_dir}/fastq", mode: 'link', overwrite: true
+    publishDir params.fastq_dir, mode: 'link', overwrite: true,
+               saveAs: { filename -> filename }  // preserves subdirectory structure
 
     input:
     path pod5_dir
 
     output:
-    path params.fastq_dir, emit: fastq_dir
+    path 'fastq_pass/**', emit: fastq_dir   // glob captures the full hierarchy
 
     script:
     """
     bash \\
-    basecall_pod5_files.sh \\
-        --input-dir "${pod5_dir}" \\
-        --output-dir "${params.fastq_dir}"
+    basecall_pod5_files.sh \
+        --input-dir "${pod5_dir}" \
+        --output-dir "./"
     """
 }
