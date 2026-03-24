@@ -37,7 +37,7 @@ validate_inputs() {
     # result is zero, which would trigger set -e when the first
     # increment goes from 0 to 1. The pattern "|| true" suppresses
     # that.
-    
+
     # required arguments
     if [[ -z "${INPUT_DIR}" ]] ; then
         echo "Error: --input-dir is required." 1>&2
