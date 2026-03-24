@@ -1,7 +1,7 @@
 process BASECALL {
     tag "basecall"
 
-    publishDir "${params.results_dir}/fastq", mode: 'copy', overwrite: true
+    // publishDir "${params.results_dir}/fastq", mode: 'link', overwrite: true
 
     input:
     path pod5_dir
