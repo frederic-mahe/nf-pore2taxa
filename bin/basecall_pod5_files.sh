@@ -100,6 +100,8 @@ download_model() {
     # flowcell version: r10.4.1
     # adaptor: e8.2
     # e stands for engine (motor protein)
+    [[ -d "${model_dir}" ]] || \
+        mkdir -p "${model_dir}"
     dorado \
         download \
         --model "${model}" \
