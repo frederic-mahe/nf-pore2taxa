@@ -5,6 +5,11 @@ include { BASECALL    } from './modules/basecall'
 include { SINTAX      } from './modules/sintax'
 include { BUILD_TABLE } from './modules/build_table'
 
+if (params.version) {
+    log.info "nf-pore2taxa v${workflow.manifest.version}"
+    exit 0
+}
+
 workflow {
 
     references_ch = Channel.fromPath(params.sintax_silva, type: 'file', checkIfExists: true)
