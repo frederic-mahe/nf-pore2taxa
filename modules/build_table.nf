@@ -12,7 +12,7 @@ process BUILD_TABLE {
     script:
     """
     Rscript --no-save --no-restore \\
-        build_occurrence_table.R \\
+        ${projectDir}/bin/build_occurrence_table.R \\
         --input-dir "${fastq_dir}" \\
         --output "${params.results_table}"
     """
