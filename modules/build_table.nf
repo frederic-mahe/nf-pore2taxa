@@ -1,19 +1,20 @@
 process BUILD_TABLE {
     tag "build_table"
 
-    publishDir "${params.results_dir}", mode: 'copy', overwrite: true
+    publishDir "${params.results_dir}", mode: 'link', overwrite: true
 
     input:
-    path fastq_dir
+    val fastq_dir  // pass absolute path as a value, no staging
 
     output:
     path "*.tsv", emit: results_table
 
     script:
+    def output_file = file(params.results_table).name  // extract filename only
     """
     Rscript --no-save --no-restore \\
         ${projectDir}/bin/build_occurrence_table.R \\
         --input-dir "${fastq_dir}" \\
-        --output "${params.results_table}"
+        --output "${output_file}"
     """
 }
