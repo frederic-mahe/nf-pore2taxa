@@ -9,7 +9,8 @@ process SINTAX {
 
     output:
     val  fastq_dir,    emit: fastq_dir
-    path '*.sintax',   emit: sintax_files  // captured and published
+    path 'done.txt'
+    // path '*.sintax',   emit: sintax_files  // captured and published
 
     script:
     """
@@ -19,5 +20,6 @@ process SINTAX {
         --references "${references}" \\
         --forward-primer "${params.primer_f}" \\
         --reverse-primer "${params.primer_r}"
+    echo "done" > done.txt
     """
 }
