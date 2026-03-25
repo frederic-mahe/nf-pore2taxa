@@ -141,13 +141,13 @@ compress_fastq() {
 clean_up() {
     # fish out the fastq_pass directory
     find \
-        "${OUTPUT_DIR}" \
+        . \
         -name "fastq_pass" \
         -type d \
         -exec mv '{}' "${OUTPUT_DIR}" \;
     # remove everything else
     find \
-        "${OUTPUT_DIR}" \
+        . \
         -maxdepth 1 \
         -mindepth 1 \
         -type d \
