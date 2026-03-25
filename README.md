@@ -5,6 +5,7 @@ quick taxonomic assignment of Nanopore metabarding data
 ## road map
 
 - [X] eliminate variability due to sintax? not currently possible
+- [ ] are log files properly generated in work and linked?
 - [ ] add a module that checks parameters, do we need to pass
       parameters that are not used? for instance, if we skip
       basecalling, do we need to pass the path to pod5 files?
