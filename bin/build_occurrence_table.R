@@ -74,6 +74,13 @@ get_list_of_barcodes <- function(directory, pattern) {
 }
 
 
+abort_if_empty_file_list <- function(barcodes) {
+    if (length(barcodes) == 0) {
+        stop("No sintax files found. Aborting.")
+    }
+}
+
+
 keep_non_empty_barcodes <- function(barcodes) {
   barcodes |>
     purrr::keep(is_non_empty)
@@ -158,6 +165,9 @@ export_table <- function(df, output) {
 ## ----------------------------------------------------------------------- main
 
 validate_args(opt)
+
+get_list_of_barcodes(opt$inputdir, opt$pattern) |>
+    abort_if_empty_file_list()
 
 ## get list of empty barcodes, if any
 get_list_of_barcodes(opt$inputdir, opt$pattern) |>
