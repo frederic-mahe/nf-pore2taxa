@@ -146,7 +146,8 @@ convert_fastq_to_fasta() {
     local -r fastq="${1}"
     local -ir encoding=33
 
-    # use SHA1 values as sequence names
+    # Note: use SHA1 values as sequence names
+
     "${VSEARCH}" \
         --fastq_filter "${fastq}" \
         --fastq_ascii "${encoding}" \
