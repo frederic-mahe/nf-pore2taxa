@@ -198,11 +198,18 @@ trim_primers() {
 
 
 taxonomic_assignment_with_sintax() {
+    local -r sintax_cutoff=0.9
+    local -ri randseed=42
+
+    # Note: when multithreading, sintax results are not exactly
+    # replicable, even when using a fix seed for the random generator
+
     "${VSEARCH}" \
         --sintax - \
+        --randseed "${randseed}" \
         --dbmask none \
         --db "${REFERENCES}" \
-        --sintax_cutoff 0.9 \
+        --sintax_cutoff "${sintax_cutoff}" \
         --quiet \
         --tabbedout -
 }
