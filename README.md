@@ -82,12 +82,12 @@ nextflow \
     -c /path/to/myproject.config
 ```
 
-Parameters can also be passed via the command-line if need be.
+Parameters can also be passed via the command-line, if need be.
 
 
 ## Pipeline output
 
-A tab-separated table with identified taxa as rows and barcode IDs
+A tab-separated table with identified taxa as rows, and barcode IDs
 (i.e, samples) as columns. The first line is the header line (column
 names). An additional column with the total number of reads for each
 taxa is also provided (column number 2). Barcodes without any
@@ -98,6 +98,8 @@ assignments are grouped at the far-right of the table.
 
 - [X] eliminate variability due to sintax? not currently possible
 - [ ] are log files properly generated in `work` and `linked`?
+- [ ] add a module that checks if binaries (cutadapt, vsearch, dorado)
+      are in PATH
 - [ ] `assign_with_sintax.sh` eliminate fastq to fasta conversion,
       cutadapt can read fastq.gz directly
 - [ ] add a module that checks parameters, do we need to pass
