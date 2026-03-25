@@ -131,7 +131,7 @@ basecall() {
 
 compress_fastq() {
     find \
-        "${OUTPUT_DIR}" \
+        . \
         -name "*.fastq" \
         -type f \
         -exec pigz '{}' \;
