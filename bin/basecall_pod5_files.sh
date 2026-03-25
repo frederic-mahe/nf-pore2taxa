@@ -142,7 +142,6 @@ clean_up() {
     # fish out the fastq_pass directory
     find \
         "${OUTPUT_DIR}" \
-        -maxdepth 3 \
         -name "fastq_pass" \
         -type d \
         -exec mv '{}' "${OUTPUT_DIR}" \;
@@ -153,7 +152,7 @@ clean_up() {
         -mindepth 1 \
         -type d \
         ! -name "fastq_pass" \
-        -exec echo rm -rf '{}' \;
+        -exec rm -rf '{}' \;
 }
 
 
