@@ -1,12 +1,15 @@
 process SINTAX {
     tag "sintax"
 
+    publishDir params.fastq_dir, mode: 'link', overwrite: true
+
     input:
-    path fastq_dir
+    val  fastq_dir
     path references
 
     output:
-    path fastq_dir, emit: fastq_dir   // assign_with_sintax.sh writes results back into fastq_dir
+    val  fastq_dir,    emit: fastq_dir
+    path '*.sintax',   emit: sintax_files  // captured and published
 
     script:
     """
