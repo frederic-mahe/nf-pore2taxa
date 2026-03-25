@@ -1,7 +1,7 @@
 process BUILD_TABLE {
     tag "build_table"
 
-    publishDir "${params.results_dir}", mode: 'link', overwrite: true
+    publishDir "${file(params.results_table).parent}", mode: 'link', overwrite: true
 
     input:
     val fastq_dir  // pass absolute path as a value, no staging
