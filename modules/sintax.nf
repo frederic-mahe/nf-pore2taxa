@@ -8,7 +8,7 @@ process SINTAX {
     path references
 
     output:
-    val  fastq_dir,  emit: fastq_dir
+    val  fastq_dir, emit: fastq_dir
     path 'done_sintax.txt', emit: done  // sentinel so Nextflow can cache this step
 
     script:
