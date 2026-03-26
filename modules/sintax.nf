@@ -9,7 +9,7 @@ process SINTAX {
     path references
 
     output:
-    path 'fastq_pass/**/*.sintax',      emit: sintax_files
+    path '${fastq_dir}/**/*.sintax',      emit: sintax_files
     path 'done_sintax.txt',  emit: done
 
     script:
