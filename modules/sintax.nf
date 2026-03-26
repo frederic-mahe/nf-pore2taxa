@@ -14,7 +14,7 @@ process SINTAX {
 
     script:
     """
-    cp -r "${fastq_dir}" ./fastq_pass
+    cp --archive --link "${fastq_dir}" ./fastq_pass
     bash \\
     assign_with_sintax.sh \\
         --input-dir "./fastq_pass" \\
