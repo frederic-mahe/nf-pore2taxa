@@ -1,14 +1,16 @@
 process SINTAX {
     tag "sintax"
 
-    publishDir params.fastq_dir, mode: 'link', overwrite: true
+    publishDir params.fastq_dir, mode: 'link', overwrite: true,
+               saveAs: { filename -> filename }  // preserves subdirectory structure
 
     input:
     val  fastq_dir
     path references
 
     output:
-    path 'done_sintax.txt', emit: done  // sentinel so Nextflow can cache this step
+    path '**/*.sintax',      emit: sintax_files  // adjust glob to match actual output filenames
+    path 'done_sintax.txt',  emit: done
 
     script:
     """

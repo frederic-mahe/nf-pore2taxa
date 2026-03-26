@@ -20,6 +20,5 @@ workflow {
     }
 
     SINTAX(fastq_ch, references_ch)
-    BUILD_TABLE(SINTAX.out.done.map { "${params.fastq_dir}" })
-
+    BUILD_TABLE(SINTAX.out.done.map { it.parent.toString() })  // it.parent = module's work directory
 }
