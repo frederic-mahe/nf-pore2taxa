@@ -9,7 +9,7 @@ process SINTAX {
 
     output:
     val  fastq_dir,  emit: fastq_dir
-    path 'done.txt', emit: done  // sentinel so Nextflow can cache this step
+    path 'done_sintax.txt', emit: done  // sentinel so Nextflow can cache this step
 
     script:
     """
@@ -19,6 +19,6 @@ process SINTAX {
         --references "${references}" \\
         --forward-primer "${params.primer_f}" \\
         --reverse-primer "${params.primer_r}"
-    echo "done" > done.txt
+    echo "done" > done_sintax.txt
     """
 }

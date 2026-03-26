@@ -20,6 +20,6 @@ workflow {
     }
 
     SINTAX(fastq_ch, references_ch)
-    BUILD_TABLE(SINTAX.out.fastq_dir)
+    BUILD_TABLE(SINTAX.out.done.map { "${params.fastq_dir}" })
 
 }
