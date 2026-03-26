@@ -10,7 +10,6 @@ process SINTAX {
     output:
     val  fastq_dir,    emit: fastq_dir
     path 'done.txt'  // sentinel so Nextflow can cache this step
-    // path '*.sintax',   emit: sintax_files  // captured and published
 
     script:
     """
