@@ -142,8 +142,9 @@ clean_up() {
     # fish out the fastq_pass directory
     find \
         . \
-        -name "fastq_pass" \
         -type d \
+        -name "fastq_pass" \
+        -prune \
         -exec mv '{}' . \;
     # remove everything else
     find \
@@ -152,7 +153,7 @@ clean_up() {
         -mindepth 1 \
         -type d \
         ! -name "fastq_pass" \
-        -exec echo rm -rf '{}' \;
+        -exec rm -rf '{}' \;
 }
 
 
