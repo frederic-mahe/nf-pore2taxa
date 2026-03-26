@@ -16,7 +16,7 @@ workflow {
     } else {
         pod5_dir_ch = Channel.fromPath(params.pod5_dir, type: 'dir', checkIfExists: true)
         BASECALL(pod5_dir_ch)
-        fastq_ch = BASECALL.out.done.map { "${params.fastq_dir}/fastq_pass" }
+        fastq_ch = BASECALL.out.done.map { it.parent.resolve("fastq_pass").toString() }
     }
 
     SINTAX(fastq_ch, references_ch)
