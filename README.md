@@ -79,7 +79,7 @@ Now, you can run the pipeline using:
 ```bash
 nextflow \
     run main.nf \
-    -c /path/to/myproject.config
+    -config /path/to/myproject.config
 ```
 
 Parameters can also be passed via the command-line, if need be.
