@@ -8,8 +8,8 @@ set -euo pipefail
 
 ## ----------------------------------------------------------- global variables
 
-declare -r CUTADAPT="${HOME}/.local/bin/cutadapt"
-declare -r VSEARCH="${HOME}/Documents/src/vsearch/bin/vsearch"
+declare -r CUTADAPT="$(which cutadapt)"
+declare -r VSEARCH="$(which vsearch)"
 
 
 ## ------------------------------------------------------------------ functions
