@@ -106,18 +106,18 @@ identified taxa:
 ## Road-map
 
 - [X] eliminate variability due to sintax? not currently possible
-- [ ] add a module that checks if binaries (cutadapt, vsearch, dorado)
-      are in PATH
-- [ ] `assign_with_sintax.sh` eliminate fastq to fasta conversion,
-      cutadapt can read fastq.gz directly
-- [ ] add a module that checks parameters, do we need to pass
-      parameters that are not used? for instance, if we skip
-      basecalling, do we need to pass the path to pod5 files?
-- [ ] eliminate dependency to R and tidyverse, rewrite script in
-      python?
 - [ ] refactor `assign_with_sintax.sh`. Use `nextflow` to find and
       loop over the `fastq.gz` files. Operate on each file
       independently, publish back the results in the same directory
+- [ ] add a module that checks if binaries (cutadapt, vsearch, dorado)
+      are in PATH? already done by the different scripts
+- [ ] `assign_with_sintax.sh` eliminate fastq to fasta conversion,
+      cutadapt can read `fastq.gz` directly
+- [ ] add a module that checks parameters, do we need to pass
+      parameters that are not used? for instance, if we skip
+      basecalling, do we need to pass the path to `pod5` files?
+- [ ] eliminate dependency to `R` and the `tidyverse` package, rewrite
+      script in python?
 
 ## See also
 
