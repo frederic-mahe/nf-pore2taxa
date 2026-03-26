@@ -9,7 +9,7 @@ process SINTAX {
     path references
 
     output:
-    path '**/*.sintax',      emit: sintax_files  // adjust glob to match actual output filenames
+    path '**/*.sintax',      emit: sintax_files
     path 'done_sintax.txt',  emit: done
 
     script:
