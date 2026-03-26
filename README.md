@@ -93,6 +93,15 @@ names). An additional column with the total number of reads for each
 taxa is also provided (column number 2). Barcodes without any
 assignments are grouped at the far-right of the table.
 
+Here is a tiny output table example with only two barcodes, and two
+identified taxa:
+
+| taxonomy        | total | barcode03 | barcode01 |
+|-----------------|------:|----------:|----------:|
+| d:Fungi ...     |  1234 |      1234 |         0 |
+| d:Viridiplantae |    42 |        42 |         0 |
+
+`barcode01` is empty (no assigned reads), so it appears last.
 
 ## Road-map
 
