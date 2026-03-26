@@ -144,7 +144,7 @@ clean_up() {
         . \
         -name "fastq_pass" \
         -type d \
-        -exec mv '{}' "${OUTPUT_DIR}" \;
+        -exec mv '{}' . \;
     # remove everything else
     find \
         . \
