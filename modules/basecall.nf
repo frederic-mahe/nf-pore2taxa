@@ -9,6 +9,7 @@ process BASECALL {
 
     output:
     path 'fastq_pass/**', emit: fastq_dir   // glob captures the full hierarchy
+    path 'done.txt', emit: done  // sentinel so Nextflow can cache this step
 
     script:
     """
@@ -16,5 +17,6 @@ process BASECALL {
     basecall_pod5_files.sh \
         --input-dir "${pod5_dir}" \
         --output-dir "./"
+    echo "done" > done.txt
     """
 }
