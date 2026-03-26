@@ -106,7 +106,6 @@ identified taxa:
 ## Road-map
 
 - [X] eliminate variability due to sintax? not currently possible
-- [ ] are log files properly generated in `work` and `linked`?
 - [ ] add a module that checks if binaries (cutadapt, vsearch, dorado)
       are in PATH
 - [ ] `assign_with_sintax.sh` eliminate fastq to fasta conversion,
