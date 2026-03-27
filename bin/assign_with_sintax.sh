@@ -244,7 +244,7 @@ find \
         SAMPLE_NAME="$(trim_extension "${FASTQ}")"
         LOG="${SAMPLE_NAME}.log"
         TABLE="${SAMPLE_NAME}.sintax"
-        trim_primers "${FASTQ}""${LOG}" | \
+        trim_primers "${FASTQ}" "${LOG}" | \
             taxonomic_assignment_with_sintax > "${TABLE}"
         unset SAMPLE_NAME LOG TABLE
     done
