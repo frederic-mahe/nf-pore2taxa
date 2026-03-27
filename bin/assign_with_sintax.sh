@@ -158,12 +158,12 @@ trim_primers() {
     local -ir min_r=$(( ${#REVERSE_PRIMER} * 2 / 3 ))
 
     # Note: cutadapt adds ' rc' at the end of reverse-complemented
-    # reads, use --rename="{header}" to prevent that
+    # reads, use --rename="{id}" to keep only header before the first whitespace
 
     "${CUTADAPT}" \
         ${cutadapt_options} \
         --revcomp \
-        --rename="{header}" \
+        --rename="{id}" \
         --front "${FORWARD_PRIMER};rightmost" \
         --overlap "${min_f}" \
         --discard-untrimmed \
