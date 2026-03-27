@@ -245,7 +245,9 @@ unset input_dir references forward_primer reverse_primer
 validate_inputs
 check_commands
 
-find "${INPUT_DIR}" -name "*.fastq.gz" -type f | \
+
+# Note: capture files with a .fastq or a .fastq.(bz2|gz|xz) extension
+find "${INPUT_DIR}" -regextype posix-egrep -regex ".*\.fastq(|\.(bz2|gz|xz))$" -type f | \
     while read -r FASTQ ; do
         echo "${FASTQ}"
         SAMPLE_NAME="$(trim_extension "${FASTQ}")"
