@@ -247,7 +247,11 @@ check_commands
 
 
 # Note: capture files with a .fastq or a .fastq.(bz2|gz|xz) extension
-find "${INPUT_DIR}" -regextype posix-egrep -regex ".*\.fastq(|\.(bz2|gz|xz))$" -type f | \
+find \
+    "${INPUT_DIR}" \
+    -type f \
+    -regextype posix-egrep \
+    -regex ".*\.fastq(|\.(bz2|gz|xz))$" | \
     while read -r FASTQ ; do
         echo "${FASTQ}"
         SAMPLE_NAME="$(trim_extension "${FASTQ}")"
