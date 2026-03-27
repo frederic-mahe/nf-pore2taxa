@@ -87,19 +87,6 @@ validate_inputs() {
         elif [[ ! -r "${REFERENCES}" ]] ; then
             echo "Error: reference file is not readable: ${REFERENCES}" 1>&2
             (( errors++ )) || true
-        else
-            # accept plain fasta or compressed fasta (gzip, bzip2)
-            local magic
-            magic=$(file --brief --mime-type "${REFERENCES}")
-            case "${magic}" in
-                text/plain | application/gzip | application/x-gzip | application/x-bzip2)
-                    # all good, do nothing
-                    ;;
-                *)
-                    echo "Error: reference file does not appear to be fasta, gzip, or bzip2: ${REFERENCES}" 1>&2
-                    (( errors++ )) || true
-                    ;;
-            esac
         fi
     fi
 
