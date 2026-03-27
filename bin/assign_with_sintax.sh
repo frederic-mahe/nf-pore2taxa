@@ -248,12 +248,12 @@ check_commands
 find "${INPUT_DIR}" -name "*.fastq.gz" -type f | \
     while read -r FASTQ ; do
         echo "${FASTQ}"
-        SAMPLE="$(trim_extension "${FASTQ}")"
-        LOG="${SAMPLE}.log"
-        TABLE="${SAMPLE}.sintax"
+        SAMPLE_NAME="$(trim_extension "${FASTQ}")"
+        LOG="${SAMPLE_NAME}.log"
+        TABLE="${SAMPLE_NAME}.sintax"
         trim_primers "${FASTQ}""${LOG}" | \
             taxonomic_assignment_with_sintax > "${TABLE}"
-        unset SAMPLE LOG TABLE
+        unset SAMPLE_NAME LOG TABLE
     done
 
 exit 0
