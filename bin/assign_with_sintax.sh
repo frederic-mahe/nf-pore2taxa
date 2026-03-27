@@ -255,12 +255,14 @@ unset input_dir references forward_primer reverse_primer
 find "${INPUT_DIR}" -name "*.fastq.gz" -type f | \
     while read -r FASTQ ; do
         echo "${FASTQ}"
-        LOG="${FASTQ/\.fastq\.gz/.log}"
-        TABLE="${FASTQ/\.fastq\.gz/.sintax}"
+        PEEL_EXT=$(sed -r 's/[.](gz|bz2|xz)$//' <<< "${FASTQ}")
+        SAMPLE="${PEEL_EXT%%\.fastq}"
+        LOG="${SAMPLE}.log"
+        TABLE="${SAMPLE}.sintax"
         convert_fastq_to_fasta "${FASTQ}" | \
             trim_primers "${LOG}" | \
             taxonomic_assignment_with_sintax > "${TABLE}"
-        unset LOG TABLE
+        unset PEEL_EXT SAMPLE LOG TABLE
     done
 
 exit 0
