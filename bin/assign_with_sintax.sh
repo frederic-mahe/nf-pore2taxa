@@ -235,6 +235,8 @@ declare -r FORWARD_PRIMER="${forward_primer}"
 declare -r REVERSE_PRIMER="${reverse_primer}"
 unset input_dir references forward_primer reverse_primer
 
+validate_inputs
+check_commands
 
 find "${INPUT_DIR}" -name "*.fastq.gz" -type f | \
     while read -r FASTQ ; do
