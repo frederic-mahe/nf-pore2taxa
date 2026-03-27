@@ -171,7 +171,8 @@ reverse_complement() {
 
 
 trim_primers() {
-    local -r log="${1}"
+    local -r fastq="${1}"
+    local -r log="${2}"
     local -ir min_length=32
     local -r error_rate="0.2"
     local -r cutadapt_options="--minimum-length ${min_length} --error-rate ${error_rate}"
@@ -189,7 +190,7 @@ trim_primers() {
         --front "${FORWARD_PRIMER};rightmost" \
         --overlap "${min_f}" \
         --discard-untrimmed \
-        - 2> "${log}" | \
+        "${fastq}" 2> "${log}" | \
         "${CUTADAPT}" \
             ${cutadapt_options} \
             --adapter "${anti_primer_r}" \
@@ -259,8 +260,7 @@ find "${INPUT_DIR}" -name "*.fastq.gz" -type f | \
         SAMPLE="${PEEL_EXT%%\.fastq}"
         LOG="${SAMPLE}.log"
         TABLE="${SAMPLE}.sintax"
-        convert_fastq_to_fasta "${FASTQ}" | \
-            trim_primers "${LOG}" | \
+        trim_primers "${FASTQ}""${LOG}" | \
             taxonomic_assignment_with_sintax > "${TABLE}"
         unset PEEL_EXT SAMPLE LOG TABLE
     done
