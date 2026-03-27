@@ -194,8 +194,8 @@ declare -r KIT_NAME="${kit_name:-${DEFAULT_KIT_NAME}}"
 unset input_dir output_dir model kit_name
 
 validate_inputs
-create_output_folder
 check_commands
+create_output_folder
 download_model
 basecall
 compress_fastq
