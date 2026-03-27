@@ -111,13 +111,31 @@ identified taxa:
       independently, publish back the results in the same directory
 - [ ] add a module that checks if binaries (cutadapt, vsearch, dorado)
       are in PATH? already done by the different scripts
-- [ ] `assign_with_sintax.sh` eliminate fastq to fasta conversion,
+- [X] `assign_with_sintax.sh` eliminate fastq to fasta conversion,
       cutadapt can read `fastq.gz` directly
-- [ ] add a module that checks parameters, do we need to pass
+- [ ] add a module that checks parameters? do we need to pass
       parameters that are not used? for instance, if we skip
       basecalling, do we need to pass the path to `pod5` files?
 - [ ] eliminate dependency to `R` and the `tidyverse` package, rewrite
       script in python?
+- [ ] issue when skipping basecall on a project where the data folder
+      is already populated. The `fastq_pass` folder is duplicated!?
+
+```
+.
+├── data
+│   └── run_fake
+│       └── fastq_pass
+│           ├── barcode02
+...
+│           ├── barcode96
+│           ├── fastq_pass
+│           │   ├── barcode02
+...
+│           │   ├── barcode96
+│           │   └── unclassified
+│           └── unclassified
+```
 
 ## See also
 
