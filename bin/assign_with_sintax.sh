@@ -142,6 +142,13 @@ check_commands() {
 }
 
 
+trim_extension() {
+    local -r sample="${1}"
+    # Note: remove right-most .fastq and .(bz2|gz|xz) if any
+    sed -r 's/[.](gz|bz2|xz)$// ; s/[.]fastq$//' <<< "${sample}"
+}
+
+
 reverse_complement() {
     # reverse-complement a DNA/RNA IUPAC string
     # note: N is its own complement, no need to include it
@@ -241,13 +248,12 @@ check_commands
 find "${INPUT_DIR}" -name "*.fastq.gz" -type f | \
     while read -r FASTQ ; do
         echo "${FASTQ}"
-        PEEL_EXT=$(sed -r 's/[.](gz|bz2|xz)$//' <<< "${FASTQ}")
-        SAMPLE="${PEEL_EXT%%\.fastq}"
+        SAMPLE="$(trim_extension "${FASTQ}")"
         LOG="${SAMPLE}.log"
         TABLE="${SAMPLE}.sintax"
         trim_primers "${FASTQ}""${LOG}" | \
             taxonomic_assignment_with_sintax > "${TABLE}"
-        unset PEEL_EXT SAMPLE LOG TABLE
+        unset SAMPLE LOG TABLE
     done
 
 exit 0
