@@ -142,23 +142,6 @@ check_commands() {
 }
 
 
-convert_fastq_to_fasta() {
-    local -r fastq="${1}"
-    local -ir encoding=33
-
-    # Note: use SHA1 values as sequence names
-
-    "${VSEARCH}" \
-        --fastq_filter "${fastq}" \
-        --fastq_ascii "${encoding}" \
-        --fastq_qmax 93 \
-        --quiet \
-        --relabel_sha1 \
-        --fasta_width 0 \
-        --fastaout -
-}
-
-
 reverse_complement() {
     # reverse-complement a DNA/RNA IUPAC string
     # note: N is its own complement, no need to include it
