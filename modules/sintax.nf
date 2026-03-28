@@ -10,7 +10,7 @@ process SINTAX {
 
     output:
     path 'fastq_pass/**/*.{sintax,log}'  // declare output files for publishDir
-    path 'done_sintax.txt',        emit: done
+    path 'done_sintax.txt', emit: done
 
     script:
     """
@@ -21,6 +21,6 @@ process SINTAX {
         --references "${references}" \\
         --forward-primer "${params.primer_f}" \\
         --reverse-primer "${params.primer_r}"
-    echo "done" > done_sintax.txt
+    touch done_sintax.txt
     """
 }
