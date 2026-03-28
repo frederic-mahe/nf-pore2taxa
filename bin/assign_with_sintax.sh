@@ -90,9 +90,9 @@ validate_inputs() {
         fi
     fi
 
-    # --- primer sequence checks (IUPAC DNA alphabet only + N)
+    # --- primer sequence checks (IUPAC DNA alphabet only + N + I)
 
-    local -r iupac_re='^[ACGTURYKMBDHVSWNacgturykmdbdhvswn]+$'
+    local -r iupac_re='^[ACGTURYKMBDHVSWNIacgturykmdbdhvswni]+$'
     for PRIMER in "${FORWARD_PRIMER}" "${REVERSE_PRIMER}" ; do
         if [[ -n "${PRIMER}" && ! "${PRIMER}" =~ ${iupac_re} ]] ; then
             echo "Error: primer contains non-IUPAC characters: ${PRIMER}" 1>&2
