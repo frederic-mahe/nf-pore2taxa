@@ -138,7 +138,7 @@ trim_extension() {
 
 reverse_complement() {
     # reverse-complement a DNA/RNA IUPAC string
-    # note: N is its own complement, no need to include it
+    # Note: N and I are their own complements, no need to include them
     [[ -z "${1}" ]] && { echo "Error: empty string" 1>&2 ; exit 1 ; }
     local -r nucleotides="acgturykmbdhvswACGTURYKMBDHVSW"
     local -r complements="tgcaayrmkvhdbswTGCAAYRMKVHDBSW"
@@ -158,7 +158,9 @@ trim_primers() {
     local -ir min_r=$(( ${#REVERSE_PRIMER} * 2 / 3 ))
 
     # Note: cutadapt adds ' rc' at the end of reverse-complemented
-    # reads, use --rename="{id}" to keep only header before the first whitespace
+    # reads, use --rename="{id}" to keep only header before the first
+    # whitespace
+    # Note: cutadapt replaces I (inosine) with N
 
     "${CUTADAPT}" \
         ${cutadapt_options} \
