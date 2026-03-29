@@ -109,15 +109,19 @@ identified taxa:
 - [ ] refactor `assign_with_sintax.sh`. Use `nextflow` to find and
       loop over the `fastq.gz` files. Operate on each file
       independently, publish back the results in the same directory
-- [ ] add a module that checks if binaries (cutadapt, vsearch, dorado)
+- [X] add a module that checks if binaries (cutadapt, vsearch, dorado)
       are in PATH? already done by the different scripts
 - [X] `assign_with_sintax.sh` eliminate fastq to fasta conversion,
       cutadapt can read `fastq.gz` directly
+- [ ] 2nd `build_table` module that uses the `full taxa` results from
+      sintax, not just the taxa that pass the 0.9 filter (conservative
+      vs. optimistic)
 - [ ] add a module that checks parameters? do we need to pass
       parameters that are not used? for instance, if we skip
       basecalling, do we need to pass the path to `pod5` files?
 - [ ] eliminate dependency to `R` and the `tidyverse` package, rewrite
       script in python?
+
 
 ## See also
 
