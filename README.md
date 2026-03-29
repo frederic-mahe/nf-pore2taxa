@@ -71,8 +71,9 @@ params {
 }
 ```
 
-> [!NOTE] Intermediate files are linked (hardlinks), so it is
-> important for workDir and fastq_dir to be on the same filesystem.
+> [!NOTE]
+> Intermediate files are linked (hardlinks), so it is important for
+> workDir and fastq_dir to be on the same filesystem.
 
 Now, you can run the pipeline using:
 
