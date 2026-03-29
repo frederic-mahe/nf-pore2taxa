@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### `Fixed`
 
+- issue when skipping basecall for projects where the fastq file in
+  the data folder are not distributed into subfolders. The
+  `fastq_pass` folder was duplicated.
+
 ### `Dependencies`
 
 ### `Removed`
