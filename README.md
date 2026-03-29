@@ -118,24 +118,6 @@ identified taxa:
       basecalling, do we need to pass the path to `pod5` files?
 - [ ] eliminate dependency to `R` and the `tidyverse` package, rewrite
       script in python?
-- [ ] issue when skipping basecall on a project where the data folder
-      is already populated. The `fastq_pass` folder is duplicated!?
-
-```
-.
-├── data
-│   └── run_fake
-│       └── fastq_pass
-│           ├── barcode02
-...
-│           ├── barcode96
-│           ├── fastq_pass
-│           │   ├── barcode02
-...
-│           │   ├── barcode96
-│           │   └── unclassified
-│           └── unclassified
-```
 
 ## See also
 
