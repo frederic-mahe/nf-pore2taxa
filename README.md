@@ -19,16 +19,16 @@ ITS, COI, etc.), as long as it is properly formated (fasta file, with
 headers in sintax format).
 
 > [!NOTE]
-> **sintax format**: the reference database (fasta) must contain
-> taxonomic information in the header of each sequence in the form of
-> a string starting with ";tax=" and followed by a comma-separated
-> list of up to nine taxonomic identifiers. Each taxonomic identifier
-> must start with an indication of the rank by one of the letters d
-> (for domain) k (kingdom), p (phylum), c (class), o (order), f
-> (family), g (genus), s (species), or t (strain). The letter is
-> followed by a colon (:) and the name of that rank. Commas and
-> semicolons are not allowed in the name of the rank. Non-ascii
-> characters should be avoided in the names.
+> **sintax format**: the reference database (in fasta format) must
+> contain taxonomic information in the header of each sequence in the
+> form of a string starting with `;tax=` and followed by a
+> comma-separated list of up to nine taxonomic identifiers. Each
+> taxonomic identifier must start with an indication of the rank by
+> one of the letters `d` (for domain), `k` (kingdom), `p` (phylum),
+> `c` (class), `o` (order), `f` (family), `g` (genus), `s` (species),
+> or `t` (strain). The letter is followed by a colon (`:`) and the
+> name of that rank. Commas and semicolons are not allowed in the name
+> of the rank. Non-ascii characters should be avoided in the names.
 
 
 ## Pipeline summary
