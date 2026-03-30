@@ -108,6 +108,7 @@ identified taxa:
 ## Road-map
 
 - [X] eliminate variability due to sintax? not currently possible
+- [ ] write unit tests using nextflow's tooling
 - [ ] refactor `assign_with_sintax.sh`. Use `nextflow` to find and
       loop over the `fastq.gz` files. Operate on each file
       independently, publish back the results in the same directory
