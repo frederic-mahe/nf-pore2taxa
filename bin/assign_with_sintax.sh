@@ -152,7 +152,6 @@ trim_primers() {
     local -r log="${2}"
     local -ir min_length=32
     local -r error_rate="0.2"
-    local -r cutadapt_options="--minimum-length ${min_length} --error-rate ${error_rate}"
     local -r anti_primer_r="$(reverse_complement "${REVERSE_PRIMER}")"
     local -ir min_f=$(( ${#FORWARD_PRIMER} * 2 / 3 ))
     local -ir min_r=$(( ${#REVERSE_PRIMER} * 2 / 3 ))
@@ -163,7 +162,8 @@ trim_primers() {
     # Note: cutadapt replaces I (inosine) with N
 
     "${CUTADAPT}" \
-        ${cutadapt_options} \
+        --minimum-length "${min_length}" \
+        --error-rate "${error_rate}" \
         --revcomp \
         --rename="{id}" \
         --front "${FORWARD_PRIMER};rightmost" \
@@ -171,7 +171,8 @@ trim_primers() {
         --discard-untrimmed \
         "${fastq}" 2> "${log}" | \
         "${CUTADAPT}" \
-            ${cutadapt_options} \
+            --minimum-length "${min_length}" \
+            --error-rate "${error_rate}" \
             --adapter "${anti_primer_r}" \
             --overlap "${min_r}" \
             -  2>> "${log}"
