@@ -182,16 +182,18 @@ export_table <- function(df, output) {
 
 validate_args(opt)
 
-get_list_of_barcodes(opt$inputdir, opt$pattern) |>
+barcodes <- get_list_of_barcodes(opt$inputdir, opt$pattern)
+
+barcodes |>
     abort_if_empty_file_list()
 
 ## get list of empty barcodes, if any
-get_list_of_barcodes(opt$inputdir, opt$pattern) |>
+barcodes |>
   keep_empty_barcodes() |>
   trim_empty_barcode_names(barcode_pattern) -> empty_barcodes
 
 ## process all non-empty barcodes, if any
-get_list_of_barcodes(opt$inputdir, opt$pattern) |>
+barcodes |>
   keep_non_empty_barcodes() |>
   process_all_barcodes(header) |>
   trim_barcode_names(barcode_pattern) |>
@@ -204,7 +206,7 @@ get_list_of_barcodes(opt$inputdir, opt$pattern) |>
 
 ## produce optimistic output table
 optimistic_output <- name_optimistic_output(opt$output)
-get_list_of_barcodes(opt$inputdir, opt$pattern) |>
+barcodes |>
     keep_non_empty_barcodes() |>
     process_all_barcodes(header) |>
     trim_barcode_names(barcode_pattern) |>
