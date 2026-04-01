@@ -209,30 +209,15 @@ barcodes |>
   keep_empty_barcodes() |>
   trim_empty_barcode_names(barcode_pattern) -> empty_barcodes
 
-## process all non-empty barcodes, if any
-barcodes |>
-  keep_non_empty_barcodes() |>
-  process_all_barcodes(header) |>
-  trim_barcode_names(barcode_pattern) |>
-  mark_unassigned_reads() |>
-  dereplicate_per_barcode() |>
-  dereplicate_globally() |>
-  format_table() |>
-  append_empty_barcodes(empty_barcodes) |>
-  export_table(opt$output)
+## produce filtered output table
+build_table(barcodes, empty_barcodes,
+            header, barcode_pattern) |>
+    export_table(opt$output)
 
 ## produce optimistic output table
-optimistic_output <- name_optimistic_output(opt$output)
-barcodes |>
-    keep_non_empty_barcodes() |>
-    process_all_barcodes(header) |>
-    trim_barcode_names(barcode_pattern) |>
-    select_full_taxonomy() |>
-    mark_unassigned_reads() |>
-    dereplicate_per_barcode() |>
-    dereplicate_globally() |>
-    format_table() |>
-    append_empty_barcodes(empty_barcodes) |>
-    export_table(optimistic_output)
+build_table(barcodes, empty_barcodes,
+            header, barcode_pattern,
+            select_full_taxonomy) |>
+    export_table(name_optimistic_output(opt$output))
 
 quit(save = "no")
