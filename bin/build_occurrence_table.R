@@ -174,6 +174,22 @@ append_empty_barcodes <- function(df, list_of_empty_barcodes) {
 }
 
 
+build_table <- function(barcodes, empty_barcodes,
+                        col_names, pattern,
+                        pick_taxonomy = identity) {
+  barcodes |>
+    keep_non_empty_barcodes() |>
+    process_all_barcodes(col_names) |>
+    trim_barcode_names(pattern) |>
+    pick_taxonomy() |>
+    mark_unassigned_reads() |>
+    dereplicate_per_barcode() |>
+    dereplicate_globally() |>
+    format_table() |>
+    append_empty_barcodes(empty_barcodes)
+}
+
+
 export_table <- function(df, output) {
   write_tsv(df, output)
 }
