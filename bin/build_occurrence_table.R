@@ -128,7 +128,8 @@ trim_barcode_names <- function(df, pattern) {
 }
 
 
-remove_probability_values <- function(df) {
+select_full_taxonomy <- function(df) {
+    ## remove probability values
     df |>
         mutate(taxonomy = str_remove_all(full_taxonomy,
                                          "\\([:digit:]+\\.[:digit:]+\\)")) |>
@@ -210,7 +211,7 @@ barcodes |>
     keep_non_empty_barcodes() |>
     process_all_barcodes(header) |>
     trim_barcode_names(barcode_pattern) |>
-    remove_probability_values() |>
+    select_full_taxonomy() |>
     mark_unassigned_reads() |>
     dereplicate_per_barcode() |>
     dereplicate_globally() |>
