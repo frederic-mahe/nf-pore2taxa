@@ -97,7 +97,7 @@ process_a_barcode <- function(a_barcode, col_names) {
   read_tsv(a_barcode,
            col_names = col_names,
            show_col_types = FALSE) |>
-    select(taxonomy)
+    select(full_taxonomy, taxonomy)
 }
 
 
