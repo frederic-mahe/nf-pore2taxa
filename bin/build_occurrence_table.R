@@ -56,6 +56,13 @@ validate_args <- function(opt) {
 }
 
 
+name_optimistic_output <- function(output_name) {
+    extension <- str_extract(output_name, "\\.[[:alpha:]]+$")
+    new_extension <- str_c("_optimistic", extension)
+    str_replace(output_name, fixed(extension), fixed(new_extension))
+}
+
+
 is_empty <- function(file) {
   file.info(file)$size == 0
 }
@@ -118,6 +125,14 @@ trim_empty_barcode_names <- function(barcodes, pattern) {
 trim_barcode_names <- function(df, pattern) {
   df |>
     mutate(barcode = str_extract(barcode, pattern))
+}
+
+
+remove_probability_values <- function(df) {
+    df |>
+        mutate(taxonomy = str_remove_all(full_taxonomy,
+                                         "\\([:digit:]+\\.[:digit:]+\\)")) |>
+        select(-full_taxonomy)
 }
 
 
@@ -186,5 +201,19 @@ get_list_of_barcodes(opt$inputdir, opt$pattern) |>
   format_table() |>
   append_empty_barcodes(empty_barcodes) |>
   export_table(opt$output)
+
+## produce optimistic output table
+optimistic_output <- name_optimistic_output(opt$output)
+get_list_of_barcodes(opt$inputdir, opt$pattern) |>
+    keep_non_empty_barcodes() |>
+    process_all_barcodes(header) |>
+    trim_barcode_names(barcode_pattern) |>
+    remove_probability_values() |>
+    mark_unassigned_reads() |>
+    dereplicate_per_barcode() |>
+    dereplicate_globally() |>
+    format_table() |>
+    append_empty_barcodes(empty_barcodes) |>
+    export_table(opt$output)
 
 quit(save = "no")
