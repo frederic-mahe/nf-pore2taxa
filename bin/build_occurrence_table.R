@@ -153,7 +153,8 @@ format_table <- function(df) {
 
 append_empty_barcodes <- function(df, list_of_empty_barcodes) {
   list_of_empty_barcodes |>
-    purrr::reduce(\(acc, barcode) add_column(acc, !!barcode := 0), .init = df)
+      purrr::reduce(\(acc, barcode) add_column(acc, !!barcode := 0),
+                    .init = df)
 }
 
 
