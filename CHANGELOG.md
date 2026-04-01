@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### `Added`
 
+- secondary result table with *optimistic* taxonomic assignments
+  (assignments with a probability below 0.9 are conserved)
 - support for uncompressed fastq files, as well as fastq files
   compressed with `bzip2` or `xz`
 - runtime checks for user-defined parameters
