@@ -201,6 +201,7 @@ validate_args(opt)
 
 barcodes <- get_list_of_barcodes(opt$inputdir, opt$pattern)
 
+## expect at least one barcode
 barcodes |>
     abort_if_empty_file_list()
 
