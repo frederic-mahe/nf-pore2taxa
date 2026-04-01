@@ -179,6 +179,16 @@ trim_primers() {
 }
 
 
+append_read_length() {
+    # add ";length=n" to read headers
+    "${VSEARCH}" \
+        --fastx_filter - \
+        --quiet \
+        --lengthout \
+        --fastaout -
+}
+
+
 taxonomic_assignment_with_sintax() {
     local -r sintax_cutoff=0.9
     # local -ri randseed=42
@@ -248,6 +258,7 @@ find \
         LOG="${SAMPLE_NAME}.log"
         TABLE="${SAMPLE_NAME}.sintax"
         trim_primers "${FASTQ}" "${LOG}" | \
+            append_read_length | \
             taxonomic_assignment_with_sintax > "${TABLE}"
         unset SAMPLE_NAME LOG TABLE
     done
