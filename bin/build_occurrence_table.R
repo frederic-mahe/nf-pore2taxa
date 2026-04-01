@@ -199,7 +199,7 @@ export_table <- function(df, output) {
 
 validate_args(opt)
 
-barcodes <- get_list_of_barcodes(opt$inputdir, opt$pattern)
+get_list_of_barcodes(opt$inputdir, opt$pattern) -> barcodes
 
 ## expect at least one barcode
 barcodes |>
