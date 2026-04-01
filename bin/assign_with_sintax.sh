@@ -169,12 +169,14 @@ trim_primers() {
         --front "${FORWARD_PRIMER};rightmost" \
         --overlap "${min_f}" \
         --discard-untrimmed \
+        --fasta \
         "${fastq}" 2> "${log}" | \
         "${CUTADAPT}" \
             --minimum-length "${min_length}" \
             --error-rate "${error_rate}" \
             --adapter "${anti_primer_r}" \
             --overlap "${min_r}" \
+            --fasta \
             -  2>> "${log}"
 }
 
@@ -183,7 +185,6 @@ append_read_length() {
     # add ";length=n" to read headers
     "${VSEARCH}" \
         --fastx_filter - \
-        --fastq_qmax 93 \
         --quiet \
         --lengthout \
         --fastaout -
