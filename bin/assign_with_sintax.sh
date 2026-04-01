@@ -183,6 +183,7 @@ append_read_length() {
     # add ";length=n" to read headers
     "${VSEARCH}" \
         --fastx_filter - \
+        --fastq_qmax 93 \
         --quiet \
         --lengthout \
         --fastaout -
