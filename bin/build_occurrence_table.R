@@ -214,6 +214,6 @@ get_list_of_barcodes(opt$inputdir, opt$pattern) |>
     dereplicate_globally() |>
     format_table() |>
     append_empty_barcodes(empty_barcodes) |>
-    export_table(opt$output)
+    export_table(optimistic_output)
 
 quit(save = "no")
