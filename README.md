@@ -89,7 +89,7 @@ Parameters can also be passed via the command-line, if need be.
 
 ## Pipeline output
 
-A tab-separated table with identified taxa as rows, and barcode IDs
+Two tab-separated tables with identified taxa as rows, and barcode IDs
 (i.e, samples) as columns. The first line is the header line (column
 names). An additional column with the total number of reads for each
 taxa is also provided (column number 2). Barcodes without any
@@ -105,6 +105,11 @@ identified taxa:
 
 `barcode01` is empty (no assigned reads), so it appears last.
 
+The second output table, marked as *optimistic*, has the same
+structure as the first table. It contains full taxonomic assignments,
+including assignments that are below the probability threshold (0.9).
+
+
 ## Road-map
 
 - [X] eliminate variability due to sintax? not currently possible
@@ -116,9 +121,6 @@ identified taxa:
       are in PATH? already done by the different scripts
 - [X] `assign_with_sintax.sh` eliminate fastq to fasta conversion,
       cutadapt can read `fastq.gz` directly
-- [ ] 2nd `build_table` module that uses the `full taxa` results from
-      sintax, not just the taxa that pass the 0.9 filter (conservative
-      vs. optimistic)
 - [ ] add a module that checks parameters? do we need to pass
       parameters that are not used? for instance, if we skip
       basecalling, do we need to pass the path to `pod5` files?
