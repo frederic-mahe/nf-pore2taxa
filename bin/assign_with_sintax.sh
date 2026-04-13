@@ -25,6 +25,7 @@ Options:
   -d, --references      FILE   Reference sequences in fasta format (required)
   -f, --forward-primer  STR    Sequence of the forward primer (required)
   -r, --reverse-primer  STR    Sequence of the reverse primer (required)
+  -t, --threads         INT    Number of threads for vsearch (default: 1)
   -h, --help                   Show this help message and exit
 EOF
     exit 0
@@ -56,8 +57,13 @@ validate_inputs() {
     if [[ -z "${REVERSE_PRIMER}" ]] ; then
         echo "Error: --reverse-primer is required." 1>&2
         (( errors++ )) || true
-    fi    
-    
+    fi
+
+    if ! [[ "${THREADS}" =~ ^[1-9][0-9]*$ ]] ; then
+        echo "Error: --threads must be a positive integer: ${THREADS}" 1>&2
+        (( errors++ )) || true
+    fi
+
     # --- input directory checks
 
     if [[ -n "${INPUT_DIR}" ]] ; then
@@ -204,6 +210,7 @@ taxonomic_assignment_with_sintax() {
         --dbmask none \
         --db "${REFERENCES}" \
         --sintax_cutoff "${sintax_cutoff}" \
+        --threads "${THREADS}" \
         --quiet \
         --tabbedout -
 }
@@ -217,6 +224,7 @@ input_dir=""
 references=""
 forward_primer=""
 reverse_primer=""
+threads=1
 
 while [[ $# -gt 0 ]] ; do
     case "${1}" in
@@ -224,6 +232,7 @@ while [[ $# -gt 0 ]] ; do
         -d | --references)      references="${2}";     shift 2 ;;
         -f | --forward-primer)  forward_primer="${2}"; shift 2 ;;
         -r | --reverse-primer)  reverse_primer="${2}"; shift 2 ;;
+        -t | --threads)         threads="${2}";        shift 2 ;;
         -h | --help)            usage                          ;;
         --) shift; break                                       ;;
         *) echo "Unknown option: ${1}" 1>&2; exit 1            ;;
@@ -242,7 +251,8 @@ declare -r INPUT_DIR="${input_dir}"
 declare -r REFERENCES="${references}"
 declare -r FORWARD_PRIMER="${forward_primer}"
 declare -r REVERSE_PRIMER="${reverse_primer}"
-unset input_dir references forward_primer reverse_primer
+declare -ri THREADS="${threads}"
+unset input_dir references forward_primer reverse_primer threads
 
 validate_inputs
 check_commands

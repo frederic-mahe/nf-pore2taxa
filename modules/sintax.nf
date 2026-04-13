@@ -21,7 +21,8 @@ process SINTAX {
         --input-dir "./fastq_pass" \\
         --references "${references}" \\
         --forward-primer "${params.primer_f}" \\
-        --reverse-primer "${params.primer_r}"
+        --reverse-primer "${params.primer_r}" \\
+        --threads "${task.cpus}"
     touch done_sintax.txt
     """
 }
