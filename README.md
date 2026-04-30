@@ -113,17 +113,21 @@ including assignments that are below the probability threshold (0.9).
 ## Road-map
 
 - [X] eliminate variability due to sintax? not currently possible
+- [X] `assign_with_sintax.sh` eliminate fastq to fasta conversion,
+      cutadapt can read `fastq.gz` directly
 - [ ] write unit tests using nextflow's tooling
 - [ ] refactor `assign_with_sintax.sh`. Use `nextflow` to find and
       loop over the `fastq.gz` files. Operate on each file
       independently, publish back the results in the same directory
 - [X] add a module that checks if binaries (cutadapt, vsearch, dorado)
-      are in PATH? already done by the different scripts
-- [X] `assign_with_sintax.sh` eliminate fastq to fasta conversion,
-      cutadapt can read `fastq.gz` directly
-- [ ] add a module that checks parameters? do we need to pass
-      parameters that are not used? for instance, if we skip
-      basecalling, do we need to pass the path to `pod5` files?
+      are in PATH? already done by the different scripts, but should
+      be done earlier
+- [ ] add a module that checks parameters and dependencies before
+      running any computation. Do we need to pass parameters that are
+      not used? for instance, if we skip basecalling, do we need to
+      pass the path to `pod5` files?
+- [ ] add a cleanup module (remove `done.txt` files, work sub-folders,
+      etc.
 - [ ] eliminate dependency to `R` and the `tidyverse` package, rewrite
       script in python?
 
