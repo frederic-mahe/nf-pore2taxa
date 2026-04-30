@@ -4,6 +4,7 @@ set -euo pipefail
 
 ## ----------------------------------------------------------- global constants
 
+declare -r MIN_VSEARCH_VERSION="2.31.0"
 
 
 ## ----------------------------------------------------------- global variables
@@ -130,6 +131,19 @@ check_commands() {
     done
     if (( ${#missing[@]} > 0 )) ; then
         echo "Error: required command(s) not found in PATH: ${missing[*]}" 1>&2
+        exit 1
+    fi
+
+    # vsearch --version writes "vsearch vX.Y.Z_..." to stderr
+    local vsearch_version
+    vsearch_version=$("${VSEARCH}" --version 2>&1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 | tr -d 'v')
+    if [[ -z "${vsearch_version}" ]] ; then
+        echo "Error: could not parse vsearch version from '${VSEARCH} --version'" 1>&2
+        exit 1
+    fi
+    # sort -V -C exits 0 iff input is in ascending version order
+    if ! printf '%s\n%s\n' "${MIN_VSEARCH_VERSION}" "${vsearch_version}" | sort -V -C ; then
+        echo "Error: vsearch ${vsearch_version} is older than required ${MIN_VSEARCH_VERSION}" 1>&2
         exit 1
     fi
 }
