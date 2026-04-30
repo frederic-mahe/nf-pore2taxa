@@ -1,6 +1,8 @@
 process SINTAX {
     tag "sintax"
 
+    // TODO: once conda-based distribution lands, replace the in-script
+    //       version check with `conda 'bioconda::vsearch>=2.31.0'`
     publishDir params.fastq_dir, mode: 'link', overwrite: true,
                saveAs: { filename -> filename }
 
