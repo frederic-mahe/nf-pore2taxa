@@ -12,11 +12,13 @@ taxonomic assignment with the [sintax](https://doi.org/10.1101/074161)
 method, as implemented in
 [vsearch](https://github.com/torognes/vsearch), and produces an
 occurrence table (identified taxa vs. barcode ID). Read processing is
-minimal: a simple primer trimming and conversion to fasta. Read are
-then grouped based on their taxonomic assignments (sintax cutoff:
-0.90). Any taxonomic reference dataset can be used (16S/18S SSU rRNA,
-ITS, COI, etc.), as long as it is properly formated (fasta file, with
-headers in sintax format).
+minimal: a simple primer trimming and conversion to fasta
+([cutadapt](https://cutadapt.readthedocs.io/en/stable/), [Martin
+2011](http://dx.doi.org/10.14806/ej.17.1.200)). Read are then grouped
+based on their taxonomic assignments (sintax cutoff: 0.90). Any
+taxonomic reference dataset can be used (16S/18S SSU rRNA, ITS, COI,
+etc.), as long as it is properly formated (fasta file, with headers in
+sintax format).
 
 > [!NOTE]
 > **sintax format**: the reference database (in fasta format) must
