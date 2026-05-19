@@ -33,6 +33,22 @@ EOF
 }
 
 
+check_readable() {
+    # kind: "dir" or "file"
+    local -r kind="${1}" path="${2}" label="${3}"
+    local flag="-f"
+    [[ "${kind}" == "dir" ]] && flag="-d"
+    if ! test "${flag}" "${path}" ; then
+        echo "Error: ${label} not found: ${path}" 1>&2
+        return 1
+    fi
+    if [[ ! -r "${path}" ]] ; then
+        echo "Error: ${label} is not readable: ${path}" 1>&2
+        return 1
+    fi
+}
+
+
 require_arg() {
     local -r name="${1}" value="${2}"
     if [[ -z "${value}" ]] ; then
@@ -65,33 +81,22 @@ validate_inputs() {
     # --- input directory checks
 
     if [[ -n "${INPUT_DIR}" ]] ; then
-        if [[ ! -d "${INPUT_DIR}" ]] ; then
-            echo "Error: input directory not found: ${INPUT_DIR}" 1>&2
-            (( errors++ )) || true
-        elif [[ ! -r "${INPUT_DIR}" ]] ; then
-            echo "Error: input directory is not readable: ${INPUT_DIR}" 1>&2
-            (( errors++ )) || true
-        else
-            # check that at least one fastq.gz file is present
+        if check_readable dir "${INPUT_DIR}" "input directory" ; then
             local -i fastq_count
             fastq_count=$(find "${INPUT_DIR}" -name "*.fastq.gz" -type f | wc -l)
             if (( fastq_count == 0 )) ; then
                 echo "Error: no *.fastq.gz files found in: ${INPUT_DIR}" 1>&2
                 (( errors++ )) || true
             fi
+        else
+            (( errors++ )) || true
         fi
     fi
 
     # --- reference file checks
 
     if [[ -n "${REFERENCES}" ]] ; then
-        if [[ ! -f "${REFERENCES}" ]] ; then
-            echo "Error: reference file not found: ${REFERENCES}" 1>&2
-            (( errors++ )) || true
-        elif [[ ! -r "${REFERENCES}" ]] ; then
-            echo "Error: reference file is not readable: ${REFERENCES}" 1>&2
-            (( errors++ )) || true
-        fi
+        check_readable file "${REFERENCES}" "reference file" || (( errors++ )) || true
     fi
 
     # --- primer checks: IUPAC alphabet + minimum length
