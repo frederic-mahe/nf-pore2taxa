@@ -33,6 +33,15 @@ EOF
 }
 
 
+require_arg() {
+    local -r name="${1}" value="${2}"
+    if [[ -z "${value}" ]] ; then
+        echo "Error: ${name} is required." 1>&2
+        return 1
+    fi
+}
+
+
 validate_inputs() {
     local -i errors=0
 
@@ -40,25 +49,13 @@ validate_inputs() {
     # result is zero, which would trigger set -e when the first
     # increment goes from 0 to 1. The pattern "|| true" suppresses
     # that.
-    
+
     # --- required arguments
 
-    if [[ -z "${INPUT_DIR}" ]] ; then
-        echo "Error: --input-dir is required." 1>&2
-        (( errors++ )) || true
-    fi
-    if [[ -z "${REFERENCES}" ]] ; then
-        echo "Error: --references is required." 1>&2
-        (( errors++ )) || true
-    fi
-    if [[ -z "${FORWARD_PRIMER}" ]] ; then
-        echo "Error: --forward-primer is required." 1>&2
-        (( errors++ )) || true
-    fi
-    if [[ -z "${REVERSE_PRIMER}" ]] ; then
-        echo "Error: --reverse-primer is required." 1>&2
-        (( errors++ )) || true
-    fi
+    require_arg "--input-dir"      "${INPUT_DIR}"      || (( errors++ )) || true
+    require_arg "--references"     "${REFERENCES}"     || (( errors++ )) || true
+    require_arg "--forward-primer" "${FORWARD_PRIMER}" || (( errors++ )) || true
+    require_arg "--reverse-primer" "${REVERSE_PRIMER}" || (( errors++ )) || true
 
     if ! [[ "${THREADS}" =~ ^[1-9][0-9]*$ ]] ; then
         echo "Error: --threads must be a positive integer: ${THREADS}" 1>&2
