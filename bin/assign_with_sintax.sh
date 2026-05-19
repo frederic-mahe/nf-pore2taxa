@@ -15,6 +15,10 @@ declare -r VSEARCH="$(which vsearch)"
 
 ## ------------------------------------------------------------------ functions
 
+# shellcheck source=lib/validation.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/validation.sh"
+
+
 usage() {
     cat << EOF
 Usage: $(basename "$0") [OPTIONS]
@@ -40,25 +44,13 @@ validate_inputs() {
     # result is zero, which would trigger set -e when the first
     # increment goes from 0 to 1. The pattern "|| true" suppresses
     # that.
-    
+
     # --- required arguments
 
-    if [[ -z "${INPUT_DIR}" ]] ; then
-        echo "Error: --input-dir is required." 1>&2
-        (( errors++ )) || true
-    fi
-    if [[ -z "${REFERENCES}" ]] ; then
-        echo "Error: --references is required." 1>&2
-        (( errors++ )) || true
-    fi
-    if [[ -z "${FORWARD_PRIMER}" ]] ; then
-        echo "Error: --forward-primer is required." 1>&2
-        (( errors++ )) || true
-    fi
-    if [[ -z "${REVERSE_PRIMER}" ]] ; then
-        echo "Error: --reverse-primer is required." 1>&2
-        (( errors++ )) || true
-    fi
+    require_arg "--input-dir"      "${INPUT_DIR}"      || (( errors++ )) || true
+    require_arg "--references"     "${REFERENCES}"     || (( errors++ )) || true
+    require_arg "--forward-primer" "${FORWARD_PRIMER}" || (( errors++ )) || true
+    require_arg "--reverse-primer" "${REVERSE_PRIMER}" || (( errors++ )) || true
 
     if ! [[ "${THREADS}" =~ ^[1-9][0-9]*$ ]] ; then
         echo "Error: --threads must be a positive integer: ${THREADS}" 1>&2
@@ -68,50 +60,35 @@ validate_inputs() {
     # --- input directory checks
 
     if [[ -n "${INPUT_DIR}" ]] ; then
-        if [[ ! -d "${INPUT_DIR}" ]] ; then
-            echo "Error: input directory not found: ${INPUT_DIR}" 1>&2
-            (( errors++ )) || true
-        elif [[ ! -r "${INPUT_DIR}" ]] ; then
-            echo "Error: input directory is not readable: ${INPUT_DIR}" 1>&2
-            (( errors++ )) || true
-        else
-            # check that at least one fastq.gz file is present
+        if check_readable dir "${INPUT_DIR}" "input directory" ; then
             local -i fastq_count
             fastq_count=$(find "${INPUT_DIR}" -name "*.fastq.gz" -type f | wc -l)
             if (( fastq_count == 0 )) ; then
                 echo "Error: no *.fastq.gz files found in: ${INPUT_DIR}" 1>&2
                 (( errors++ )) || true
             fi
+        else
+            (( errors++ )) || true
         fi
     fi
 
     # --- reference file checks
 
     if [[ -n "${REFERENCES}" ]] ; then
-        if [[ ! -f "${REFERENCES}" ]] ; then
-            echo "Error: reference file not found: ${REFERENCES}" 1>&2
-            (( errors++ )) || true
-        elif [[ ! -r "${REFERENCES}" ]] ; then
-            echo "Error: reference file is not readable: ${REFERENCES}" 1>&2
-            (( errors++ )) || true
-        fi
+        check_readable file "${REFERENCES}" "reference file" || (( errors++ )) || true
     fi
 
-    # --- primer sequence checks (IUPAC DNA alphabet only + N + I)
+    # --- primer checks: IUPAC alphabet + minimum length
 
     local -r iupac_re='^[ACGTURYKMBDHVSWNIacgturykmdbdhvswni]+$'
+    local -ir min_primer_len=10
     for PRIMER in "${FORWARD_PRIMER}" "${REVERSE_PRIMER}" ; do
-        if [[ -n "${PRIMER}" && ! "${PRIMER}" =~ ${iupac_re} ]] ; then
+        [[ -z "${PRIMER}" ]] && continue
+        if ! [[ "${PRIMER}" =~ ${iupac_re} ]] ; then
             echo "Error: primer contains non-IUPAC characters: ${PRIMER}" 1>&2
             (( errors++ )) || true
         fi
-    done
-
-    # --- sanity-check primer lengths (very short primers are likely mistakes)
-
-    local -ir min_primer_len=10
-    for PRIMER in "${FORWARD_PRIMER}" "${REVERSE_PRIMER}" ; do
-        if [[ -n "${PRIMER}" ]] && (( ${#PRIMER} < min_primer_len )) ; then
+        if (( ${#PRIMER} < min_primer_len )) ; then
             echo "Warning: primer is unusually short (${#PRIMER} bp): ${PRIMER}" 1>&2
         fi
     done
