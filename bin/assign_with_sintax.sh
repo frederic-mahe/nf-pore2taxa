@@ -97,21 +97,17 @@ validate_inputs() {
         fi
     fi
 
-    # --- primer sequence checks (IUPAC DNA alphabet only + N + I)
+    # --- primer checks: IUPAC alphabet + minimum length
 
     local -r iupac_re='^[ACGTURYKMBDHVSWNIacgturykmdbdhvswni]+$'
+    local -ir min_primer_len=10
     for PRIMER in "${FORWARD_PRIMER}" "${REVERSE_PRIMER}" ; do
-        if [[ -n "${PRIMER}" && ! "${PRIMER}" =~ ${iupac_re} ]] ; then
+        [[ -z "${PRIMER}" ]] && continue
+        if ! [[ "${PRIMER}" =~ ${iupac_re} ]] ; then
             echo "Error: primer contains non-IUPAC characters: ${PRIMER}" 1>&2
             (( errors++ )) || true
         fi
-    done
-
-    # --- sanity-check primer lengths (very short primers are likely mistakes)
-
-    local -ir min_primer_len=10
-    for PRIMER in "${FORWARD_PRIMER}" "${REVERSE_PRIMER}" ; do
-        if [[ -n "${PRIMER}" ]] && (( ${#PRIMER} < min_primer_len )) ; then
+        if (( ${#PRIMER} < min_primer_len )) ; then
             echo "Warning: primer is unusually short (${#PRIMER} bp): ${PRIMER}" 1>&2
         fi
     done
