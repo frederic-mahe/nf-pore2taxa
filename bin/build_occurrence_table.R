@@ -89,7 +89,7 @@ keep_non_empty_barcodes <- function(barcodes) {
 }
 
 
-keep_empty_barcodes <- function(barcodes, pattern) {
+keep_empty_barcodes <- function(barcodes) {
   barcodes |>
     purrr::keep(is_empty)
 }
