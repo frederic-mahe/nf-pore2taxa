@@ -11,7 +11,10 @@ require_arg() {
 
 check_readable() {
     # kind: "dir" or "file"
-    local -r kind="${1}" path="${2}" label="${3}"
+    local -r kind="${1}"
+    local -r path="${2}"
+    local -r label="${3}"
+
     local flag="-f"
     [[ "${kind}" == "dir" ]] && flag="-d"
     if ! test "${flag}" "${path}" ; then
