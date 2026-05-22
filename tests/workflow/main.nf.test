@@ -1,0 +1,139 @@
+// Pipeline-level test, with skip_basecall=true.
+//
+// Drives the full workflow (SINTAX + BUILD_TABLE) against the
+// committed fixture. Asserts structural invariants on the published
+// TSV files, not exact taxonomic content.
+//
+// NOTE: this test requires `Rscript` with the `tidyverse` and
+// `optparse` packages installed, since BUILD_TABLE shells out to R.
+// On a machine without those, this test will fail at BUILD_TABLE; run
+// the module-level SINTAX test in isolation instead.
+//
+// Hermeticity: the pipeline publishes to params.fastq_dir. Pointing
+// that at the committed fixture would pollute the source tree, so we
+// copy the fixture into outputDir/fastq_dir on each run.
+
+nextflow_pipeline {
+
+    name "Workflow (skip_basecall=true)"
+    script "main.nf"
+
+    test("happy path: produces filtered + optimistic TSV with expected structure") {
+
+        setup {
+            // Copy the read-only fixture into a per-test scratch
+            // location that the pipeline can publish into.
+            new File("${outputDir}/fastq_dir").mkdirs()
+            ["cp", "-r",
+             "${projectDir}/tests/fixtures/fastq_dir/fastq_pass",
+             "${outputDir}/fastq_dir/"].execute().waitFor()
+        }
+
+        when {
+            params {
+                skip_basecall = true
+                fastq_dir     = "${outputDir}/fastq_dir"
+                sintax_silva  = "${projectDir}/tests/fixtures/references.fasta"
+                results_table = "${outputDir}/sintax.tsv"
+                primer_f      = "GTACACACCGCCCGTCG"
+                primer_r      = "CGCCTSCSCTTANTDATATGC"
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            // WF-06: exactly two TSV files are produced: the
+            // filtered table and its '_optimistic' sibling.
+            def filtered   = file("${outputDir}/sintax.tsv")
+            def optimistic = file("${outputDir}/sintax_optimistic.tsv")
+            assert filtered.exists()
+            assert optimistic.exists()
+
+            // BT-10: header line shape.
+            def header = filtered.readLines()[0].split("\t", -1)
+            assert header[0] == "taxonomy"
+            assert header[1] == "total"
+            // Remaining columns are barcode names from the fixture.
+            assert (header.drop(2) as Set) == (["barcode01", "barcode02", "barcode03"] as Set)
+
+            // BT-13: empty barcode (barcode03) is the right-most column.
+            assert header[-1] == "barcode03"
+
+            // BT-11: 'total' equals the row-wise sum of barcode columns.
+            filtered.readLines().drop(1).each { row ->
+                def cols = row.split("\t", -1)
+                def total       = cols[1].toInteger()
+                def barcode_sum = cols.drop(2).collect { it.toInteger() }.sum()
+                assert total == barcode_sum : "row '${cols[0]}': total=${total} != sum=${barcode_sum}"
+            }
+
+            // The fixture is deterministic: 5 reads per non-empty
+            // barcode survive primer trimming and are confidently
+            // assigned to distinct taxa.
+            assert filtered.readLines().size() >= 2 + 1  // header + at least 2 taxa rows
+
+            // BT-20: optimistic table has the same header shape.
+            def opt_header = optimistic.readLines()[0].split("\t", -1)
+            assert opt_header[0] == "taxonomy"
+            assert opt_header[1] == "total"
+            assert (opt_header.drop(2) as Set) == (header.drop(2) as Set)
+
+            // BT-22: keeping low-confidence assignments cannot lose
+            // reads. The grand total in the optimistic table must be
+            // >= the grand total in the filtered table.
+            def grand_total = { f ->
+                f.readLines().drop(1).collect { it.split("\t", -1)[1].toInteger() }.sum()
+            }
+            assert grand_total(optimistic) >= grand_total(filtered)
+
+            // BT-23: no probability annotations leak into the
+            // taxonomy column (e.g. 'd:Fungi(0.99)' should never
+            // appear).
+            [filtered, optimistic].each { f ->
+                f.readLines().drop(1).each { row ->
+                    def tax = row.split("\t", -1)[0]
+                    assert !(tax =~ /\([0-9]+\.[0-9]+\)/) : "probability leaked in ${f.name}: '${tax}'"
+                }
+            }
+        }
+    }
+
+    test("aborts when sintax_silva references file is missing") {
+
+        when {
+            params {
+                skip_basecall = true
+                fastq_dir     = "${projectDir}/tests/fixtures/fastq_dir"
+                sintax_silva  = "${projectDir}/tests/fixtures/__does_not_exist__.fasta"
+                results_table = "${outputDir}/sintax.tsv"
+                primer_f      = "GTACACACCGCCCGTCG"
+                primer_r      = "CGCCTSCSCTTANTDATATGC"
+            }
+        }
+
+        then {
+            // WF-03: pipeline must abort before any process runs.
+            assert workflow.failed
+        }
+    }
+
+    test("aborts when fastq_dir is missing and skip_basecall=true") {
+
+        when {
+            params {
+                skip_basecall = true
+                fastq_dir     = "${projectDir}/tests/fixtures/__no_such_dir__"
+                sintax_silva  = "${projectDir}/tests/fixtures/references.fasta"
+                results_table = "${outputDir}/sintax.tsv"
+                primer_f      = "GTACACACCGCCCGTCG"
+                primer_r      = "CGCCTSCSCTTANTDATATGC"
+            }
+        }
+
+        then {
+            // WF-04
+            assert workflow.failed
+        }
+    }
+}

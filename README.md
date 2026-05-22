@@ -112,12 +112,32 @@ structure as the first table. It contains full taxonomic assignments,
 including assignments that are below the probability threshold (0.9).
 
 
+## Testing
+
+The repository ships with a test suite covering the pipeline's
+custom code (driver shell scripts, R script, Nextflow modules and
+workflow). External tools (`dorado`, `cutadapt`, `vsearch`) are not
+re-tested. See [`tests/SPECIFICATIONS.md`](tests/SPECIFICATIONS.md)
+for the catalogue of behaviours under test, and
+[`tests/README.md`](tests/README.md) for the layout.
+
+```bash
+bash tests/run_all.sh           # bats + nf-test
+bats tests/bin/                 # shell + R unit tests only
+nf-test test tests/             # pipeline tests only
+```
+
+Test dependencies: `bats >= 1.5`, `nf-test`, and the runtime
+dependencies of the pipeline itself (`cutadapt`, `vsearch >= 2.31.0`,
+`Rscript` with `tidyverse` + `optparse`).
+
+
 ## Road-map
 
 - [X] eliminate variability due to sintax? not currently possible
 - [X] `assign_with_sintax.sh` eliminate fastq to fasta conversion,
       cutadapt can read `fastq.gz` directly
-- [ ] write unit tests using nextflow's tooling
+- [X] write unit tests using nextflow's tooling (see `tests/`)
 - [ ] refactor `assign_with_sintax.sh`. Use `nextflow` to find and
       loop over the `fastq.gz` files. Operate on each file
       independently, publish back the results in the same directory

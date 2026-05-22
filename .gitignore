@@ -1,2 +1,7 @@
 *~
 .nextflow.log*
+
+# nf-test runtime artefacts
+.nf-test/
+.nf-test.log
+tests/.nf-test/

@@ -1,0 +1,77 @@
+// Module-level tests for the SINTAX process.
+//
+// Scope: verify that our orchestration (cutadapt + vsearch driver
+// script) produces the expected output *shape* for each input
+// barcode. We do NOT assert exact taxonomic assignments — that would
+// pin behaviour of vsearch, which has its own test suite.
+//
+// Hermeticity: SINTAX publishes to params.fastq_dir, so we copy the
+// fixture into a per-test scratch dir to avoid polluting the source
+// tree with .sintax / .log / done_sintax.txt artefacts.
+
+nextflow_process {
+
+    name "SINTAX module"
+    script "modules/sintax.nf"
+    process "SINTAX"
+
+    test("produces one .sintax + one .log per fastq, with the expected structure") {
+
+        setup {
+            new File("${outputDir}/fastq_dir").mkdirs()
+            ["cp", "-r",
+             "${projectDir}/tests/fixtures/fastq_dir/fastq_pass",
+             "${outputDir}/fastq_dir/"].execute().waitFor()
+        }
+
+        when {
+            params {
+                primer_f      = "GTACACACCGCCCGTCG"
+                primer_r      = "CGCCTSCSCTTANTDATATGC"
+                fastq_dir     = "${outputDir}/fastq_dir"
+            }
+            process {
+                """
+                input[0] = "${outputDir}/fastq_dir"
+                input[1] = file("${projectDir}/tests/fixtures/references.fasta")
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            // SX-30: every barcode directory contains exactly one
+            // .sintax and one .log file alongside its fastq.gz
+            def published = file("${outputDir}/fastq_dir/fastq_pass")
+            def barcodes  = ["barcode01", "barcode02", "barcode03"]
+            barcodes.each { bc ->
+                def sintax_files = file("${published}/${bc}").list().findAll { it.endsWith(".sintax") }
+                def log_files    = file("${published}/${bc}").list().findAll { it.endsWith(".log") }
+                assert sintax_files.size() == 1 : "expected 1 .sintax in ${bc}, got ${sintax_files}"
+                assert log_files.size()    == 1 : "expected 1 .log in ${bc}, got ${log_files}"
+            }
+
+            // SX-31: every row in a non-empty sintax file has 4
+            // tab-separated fields.
+            // SX-32: column 1 carries a ;length=N annotation.
+            ["barcode01", "barcode02"].each { bc ->
+                def lines = file("${published}/${bc}/reads.sintax").readLines()
+                assert lines.size() > 0 : "${bc}/reads.sintax should not be empty"
+                lines.each { line ->
+                    def cols = line.split("\t", -1)
+                    assert cols.size() == 4 : "${bc}: expected 4 tab-separated fields, got ${cols.size()} in line '${line}'"
+                    assert cols[0] =~ /;length=\d+$/ : "${bc}: query '${cols[0]}' missing ;length=N annotation"
+                }
+            }
+
+            // SX-33: barcode with no primer match produces an empty
+            // .sintax file (0 bytes).
+            assert file("${published}/barcode03/reads.sintax").size() == 0
+
+            // SX-34: sentinel file is produced.
+            assert process.out.done.size() == 1
+            assert file(process.out.done[0]).name == "done_sintax.txt"
+        }
+    }
+}
