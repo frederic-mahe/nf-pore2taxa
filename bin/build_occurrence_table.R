@@ -68,7 +68,7 @@ is_empty <- function(file) {
 }
 
 
-is_non_empty <- function(file) {
+is_not_empty <- function(file) {
   file.info(file)$size > 0
 }
 
@@ -90,11 +90,11 @@ abort_if_empty_file_list <- function(barcodes) {
 
 keep_non_empty_barcodes <- function(barcodes) {
   barcodes |>
-    purrr::keep(is_non_empty)
+    purrr::keep(is_not_empty)
 }
 
 
-keep_empty_barcodes <- function(barcodes, pattern) {
+keep_empty_barcodes <- function(barcodes) {
   barcodes |>
     purrr::keep(is_empty)
 }

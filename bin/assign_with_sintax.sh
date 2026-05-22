@@ -15,6 +15,10 @@ declare -r VSEARCH="$(which vsearch)"
 
 ## ------------------------------------------------------------------ functions
 
+# shellcheck source=lib/validation.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/validation.sh"
+
+
 usage() {
     cat << EOF
 Usage: $(basename "$0") [OPTIONS]

@@ -11,6 +11,10 @@ declare -r DEFAULT_KIT_NAME="EXP-PBC096"
 
 ## ------------------------------------------------------------------ functions
 
+# shellcheck source=lib/validation.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/validation.sh"
+
+
 usage() {
     cat << EOF
 Usage: $(basename "$0") [OPTIONS]
@@ -39,19 +43,12 @@ validate_inputs() {
     # that.
 
     # required arguments
-    if [[ -z "${INPUT_DIR}" ]] ; then
-        echo "Error: --input-dir is required." 1>&2
-        (( errors++ )) || true
-    fi
-    if [[ -z "${OUTPUT_DIR}" ]] ; then
-        echo "Error: --output-dir is required." 1>&2
-        (( errors++ )) || true
-    fi
+    require_arg "--input-dir"  "${INPUT_DIR}"  || (( errors++ )) || true
+    require_arg "--output-dir" "${OUTPUT_DIR}" || (( errors++ )) || true
 
-    # input directory must exist
-    if [[ -n "${INPUT_DIR}" && ! -d "${INPUT_DIR}" ]] ; then
-        echo "Error: input directory not found: ${INPUT_DIR}" 1>&2
-        (( errors++ )) || true
+    # input directory must exist and be readable
+    if [[ -n "${INPUT_DIR}" ]] ; then
+        check_readable dir "${INPUT_DIR}" "input directory" || (( errors++ )) || true
     fi
 
     # model must match expected dorado format: <speed>@v<version>
