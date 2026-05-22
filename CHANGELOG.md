@@ -3,6 +3,16 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### `Fixed`
+
+- `assign_with_sintax.sh` rejected input directories that contained
+  only uncompressed `.fastq` or `.fastq.{bz2,xz}` files, despite
+  v1.1.0 having advertised support for those formats. Validation now
+  uses the same regex as the main processing loop.
+
+
 ## v1.1.0 - 2026-04-02
 
 ### `Added`

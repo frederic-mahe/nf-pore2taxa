@@ -64,7 +64,7 @@ asserting:
 | SX-02  | Missing `--input-dir`, `--references`, `--forward-primer`, or `--reverse-primer` each yield a clear stderr error and a non-zero exit code.             |
 | SX-03  | Non-integer or non-positive `--threads` yields a clear error.                                                                                          |
 | SX-04  | `--input-dir` that does not exist or is not readable yields a clear error.                                                                             |
-| SX-05  | `--input-dir` containing no `*.fastq.gz` files yields `Error: no *.fastq.gz files found in: ...` (note: this currently only checks `.fastq.gz`; uncompressed/`.bz2`/`.xz` are accepted later by `find` — see Spec OBS-01). |
+| SX-05  | `--input-dir` is accepted iff it contains at least one file with a supported fastq extension (`.fastq`, `.fastq.gz`, `.fastq.bz2`, or `.fastq.xz`). A directory with none of these yields `Error: no fastq files (.fastq[.gz\|.bz2\|.xz]) found in: ...`. |
 | SX-06  | `--references` that does not exist or is not readable yields a clear error.                                                                            |
 | SX-07  | A primer containing non-IUPAC characters yields an error.                                                                                              |
 | SX-08  | A primer shorter than 10 nt emits a *warning* to stderr but does not abort.                                                                            |
@@ -167,7 +167,7 @@ fine granularity.
 
 | ID     | Note                                                                                                                                                   |
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| OBS-01 | `validate_inputs` in `assign_with_sintax.sh` counts only `*.fastq.gz` when deciding whether the input dir is empty, even though the script later processes `.fastq`, `.fastq.bz2`, `.fastq.xz` too. A dir containing only `.fastq` files will be rejected up front. Likely a small bug; once fixed, update SX-05 and add a positive case. |
+| ~~OBS-01~~ | **Resolved.** `validate_inputs` in `assign_with_sintax.sh` originally counted only `*.fastq.gz` when deciding whether the input dir was empty, contradicting the script's main loop and the v1.1.0 CHANGELOG. Validation now uses the same `FASTQ_REGEX` constant as the main loop. Covered by SX-05 + the `SX-05-{gz,plain,bz2,xz,empty}` cases in `tests/bin/assign_with_sintax_cli.bats`. |
 | OBS-02 | `trim_extension` uses `sed -r` and only strips one of each suffix, right-most. The README does not document multi-suffix behaviour; SX-21 pins it.    |
 | OBS-03 | `SINTAX` runs vsearch with `--threads > 1`, which is non-deterministic. SX-3x tests must therefore be structural (counts, columns) rather than exact. |
 | OBS-04 | The R script silently creates the output parent directory (`build_occurrence_table.R` line 50). BT-05 pins this behaviour; flag if you want it to fail loudly instead. |

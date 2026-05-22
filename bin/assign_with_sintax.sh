@@ -6,6 +6,10 @@ set -euo pipefail
 
 declare -r MIN_VSEARCH_VERSION="2.31.0"
 
+# posix-egrep regex matching every fastq extension we support:
+# .fastq, .fastq.gz, .fastq.bz2, .fastq.xz
+declare -r FASTQ_REGEX='.*\.fastq(|\.(bz2|gz|xz))$'
+
 
 ## ----------------------------------------------------------- global variables
 
@@ -87,9 +91,12 @@ validate_inputs() {
     if [[ -n "${INPUT_DIR}" ]] ; then
         if check_readable dir "${INPUT_DIR}" "input directory" ; then
             local -i fastq_count
-            fastq_count=$(find "${INPUT_DIR}" -name "*.fastq.gz" -type f | wc -l)
+            fastq_count=$(find "${INPUT_DIR}" \
+                -type f \
+                -regextype posix-egrep \
+                -regex "${FASTQ_REGEX}" | wc -l)
             if (( fastq_count == 0 )) ; then
-                echo "Error: no *.fastq.gz files found in: ${INPUT_DIR}" 1>&2
+                echo "Error: no fastq files (.fastq[.gz|.bz2|.xz]) found in: ${INPUT_DIR}" 1>&2
                 (( errors++ )) || true
             fi
         else
@@ -274,12 +281,11 @@ validate_inputs
 check_commands
 
 
-# Note: capture files with a .fastq or a .fastq.(bz2|gz|xz) extension
 find \
     "${INPUT_DIR}" \
     -type f \
     -regextype posix-egrep \
-    -regex ".*\.fastq(|\.(bz2|gz|xz))$" | \
+    -regex "${FASTQ_REGEX}" | \
     while read -r FASTQ ; do
         echo "${FASTQ}"
         SAMPLE_NAME="$(trim_extension "${FASTQ}")"
