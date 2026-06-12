@@ -162,3 +162,27 @@ happy_path_setup() {
         | grep -cE '\([0-9]+\.[0-9]+\)' || true)
     [ "${leaks}" -eq 0 ]
 }
+
+# Regression: a non-empty .sintax whose filtered (4th) column is blank on
+# every row used to make read_tsv guess the column type as logical, so the
+# downstream replace_na(taxonomy, "unknown") aborted with:
+#   Can't convert `replace` <character> to match type of `data` <logical>.
+# Forcing col_types = cols(.default = "c") keeps the column character.
+@test "BT-24 all-blank filtered column does not abort and maps to 'unknown'" {
+    local dir="${BATS_TEST_TMPDIR}/blank_filtered/fastq_pass/barcode01"
+    mkdir -p "${dir}"
+    # full_taxonomy present, strand present, filtered taxonomy (4th col) empty
+    printf 'read1_b01;length=160\td:Synthetica(0.30),p:Foo(0.20)\t+\t\n' \
+        > "${dir}/reads.sintax"
+    printf 'read2_b01;length=160\td:Synthetica(0.40),p:Bar(0.10)\t+\t\n' \
+        >> "${dir}/reads.sintax"
+
+    run run_build --input-dir "${BATS_TEST_TMPDIR}/blank_filtered/fastq_pass" \
+                  --output "${OUT}"
+    [ "${status}" -eq 0 ]
+    [ -s "${OUT}" ]
+    # both reads collapse into a single 'unknown' taxon for barcode01
+    local row
+    row="$(awk -F'\t' '$1=="unknown"' "${OUT}")"
+    [[ "${row}" == unknown$'\t'2$'\t'2 ]]
+}

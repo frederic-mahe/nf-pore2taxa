@@ -103,6 +103,7 @@ keep_empty_barcodes <- function(barcodes) {
 process_a_barcode <- function(a_barcode, col_names) {
   read_tsv(a_barcode,
            col_names = col_names,
+           col_types = cols(.default = "c"),
            show_col_types = FALSE) |>
     select(full_taxonomy, taxonomy)
 }
