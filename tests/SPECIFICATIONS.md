@@ -27,7 +27,7 @@ changes accidentally, the corresponding test should catch it.
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | WF-01 | When `skip_basecall = true`, the workflow does not instantiate `BASECALL` and reads from `params.fastq_dir`.                                                 |
 | WF-02 | When `skip_basecall = false`, `BASECALL` runs and its sentinel `done_basecalling.txt` is the upstream signal for `SINTAX`.                                   |
-| WF-03 | The pipeline aborts if `params.sintax_silva` does not exist (`checkIfExists: true`).                                                                         |
+| WF-03 | The pipeline aborts if `params.sintax_references` does not exist (`checkIfExists: true`).                                                                    |
 | WF-04 | The pipeline aborts if `params.fastq_dir` does not exist when `skip_basecall = true`.                                                                        |
 | WF-05 | The pipeline aborts if `params.pod5_dir` does not exist when `skip_basecall = false`.                                                                        |
 | WF-06 | With a valid fixture, the workflow produces exactly two TSV files at `params.results_table`: the filtered table and a sibling `<name>_optimistic.<ext>` one. |

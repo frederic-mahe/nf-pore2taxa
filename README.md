@@ -61,16 +61,16 @@ your project.
 workDir = "/big/drive/projects/project_ID/work"
 
 params {
-    pod5_dir      = "/big/drive/runs/run_ID/pod5"
-    fastq_dir     = "/big/drive/projects/project_ID/data/run_ID"
-    sintax_silva  = "/safe/data/references.fasta.gz"
-    results_table = "/big/drive/projects/project_ID/results/sintax.tsv"
+    pod5_dir          = "/big/drive/runs/run_ID/pod5"
+    fastq_dir         = "/big/drive/projects/project_ID/data/run_ID"
+    sintax_references = "/safe/data/references.fasta.gz"
+    results_table     = "/big/drive/projects/project_ID/results/sintax.tsv"
     primer_f = "GTACACACCGCCCGTCG"
     primer_r = "CGCCTSCSCTTANTDATATGC"
 
     // Set to true if basecalling was already done
     // and fastq_dir already exists
-    skip_basecall = false
+    skip_basecall     = false
 }
 ```
 

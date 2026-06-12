@@ -30,12 +30,12 @@ nextflow_pipeline {
 
         when {
             params {
-                skip_basecall = true
-                fastq_dir     = "${outputDir}/fastq_dir"
-                sintax_silva  = "${projectDir}/tests/fixtures/references.fasta"
-                results_table = "${outputDir}/sintax.tsv"
-                primer_f      = "GTACACACCGCCCGTCG"
-                primer_r      = "CGCCTSCSCTTANTDATATGC"
+                skip_basecall     = true
+                fastq_dir         = "${outputDir}/fastq_dir"
+                sintax_references = "${projectDir}/tests/fixtures/references.fasta"
+                results_table     = "${outputDir}/sintax.tsv"
+                primer_f          = "GTACACACCGCCCGTCG"
+                primer_r          = "CGCCTSCSCTTANTDATATGC"
             }
         }
 
@@ -98,16 +98,16 @@ nextflow_pipeline {
         }
     }
 
-    test("aborts when sintax_silva references file is missing") {
+    test("aborts when sintax_references references file is missing") {
 
         when {
             params {
-                skip_basecall = true
-                fastq_dir     = "${projectDir}/tests/fixtures/fastq_dir"
-                sintax_silva  = "${projectDir}/tests/fixtures/__does_not_exist__.fasta"
-                results_table = "${outputDir}/sintax.tsv"
-                primer_f      = "GTACACACCGCCCGTCG"
-                primer_r      = "CGCCTSCSCTTANTDATATGC"
+                skip_basecall     = true
+                fastq_dir         = "${projectDir}/tests/fixtures/fastq_dir"
+                sintax_references = "${projectDir}/tests/fixtures/__does_not_exist__.fasta"
+                results_table     = "${outputDir}/sintax.tsv"
+                primer_f          = "GTACACACCGCCCGTCG"
+                primer_r          = "CGCCTSCSCTTANTDATATGC"
             }
         }
 
@@ -121,12 +121,12 @@ nextflow_pipeline {
 
         when {
             params {
-                skip_basecall = true
-                fastq_dir     = "${projectDir}/tests/fixtures/__no_such_dir__"
-                sintax_silva  = "${projectDir}/tests/fixtures/references.fasta"
-                results_table = "${outputDir}/sintax.tsv"
-                primer_f      = "GTACACACCGCCCGTCG"
-                primer_r      = "CGCCTSCSCTTANTDATATGC"
+                skip_basecall     = true
+                fastq_dir         = "${projectDir}/tests/fixtures/__no_such_dir__"
+                sintax_references = "${projectDir}/tests/fixtures/references.fasta"
+                results_table     = "${outputDir}/sintax.tsv"
+                primer_f          = "GTACACACCGCCCGTCG"
+                primer_r          = "CGCCTSCSCTTANTDATATGC"
             }
         }
 

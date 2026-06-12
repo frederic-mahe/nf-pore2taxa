@@ -8,7 +8,7 @@ include { BUILD_TABLE } from './modules/build_table'
 
 workflow {
 
-    references_ch = Channel.fromPath(params.sintax_silva, type: 'file', checkIfExists: true)
+    references_ch = Channel.fromPath(params.sintax_references, type: 'file', checkIfExists: true)
 
     if (params.skip_basecall) {
         // fastq_dir must already exist on disk — point directly at it
