@@ -140,6 +140,7 @@ byte-for-byte compatible with the former R implementation.
 | BT-21  | The optimistic `taxonomy` column is derived from `full_taxonomy` (column 2 of `.sintax`), retaining low-confidence levels that the filtered table drops. |
 | BT-22  | Total reads in the optimistic table ≥ total reads in the filtered table when both contain assignments (no reads are lost when keeping low-confidence). |
 | BT-23  | The probability annotations are still stripped (no `(0.xx)` substrings remain in the `taxonomy` column).                                               |
+| BT-25  | A barcode with at least one non-empty `.sintax` chunk is never re-added as an empty column; only barcodes whose every chunk is empty appear, once, as zero-filled right-most columns. |
 
 ### 4.4 Pure helper functions (unit-testable via `python3 -m unittest`)
 

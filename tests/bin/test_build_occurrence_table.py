@@ -104,7 +104,7 @@ class BuildTable(unittest.TestCase):
     def setUp(self) -> None:
         files = bot.find_sintax_files(FIXTURE, r"\.sintax$")
         self.non_empty, empty = bot.partition_by_size(files)
-        self.empty_barcodes = [bot.extract_barcode(str(p)) for p in empty]
+        self.empty_barcodes = bot.resolve_empty_barcodes(self.non_empty, empty)
 
     def _filtered(self) -> str:
         return bot.build_table(self.non_empty, self.empty_barcodes, bot.select_filtered)
@@ -168,6 +168,50 @@ class BlankFilteredRegression(unittest.TestCase):
         rows = {ln.split("\t")[0]: ln.split("\t") for ln in table.splitlines()[1:]}
         self.assertIn("unknown", rows)
         self.assertEqual(rows["unknown"][1:], ["2", "2"])  # total=2, barcode01=2
+
+
+class MultiChunkEmptyRegression(unittest.TestCase):
+    """BT-25 — an empty chunk of a non-empty barcode is not a phantom sample.
+
+    Real Nanopore barcodes hold many fastq chunks; a chunk yielding no
+    surviving reads produces a 0-byte ``.sintax`` file. Such a file must
+    not spawn a duplicate, count-cloned column for its (otherwise
+    non-empty) barcode. Only barcodes whose every chunk is empty appear as
+    zero-filled, right-most columns.
+    """
+
+    def test_empty_chunk_does_not_duplicate_barcode(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "fastq_pass"
+            # barcode33: one chunk with reads + two empty chunks
+            b33 = root / "barcode33"
+            b33.mkdir(parents=True)
+            (b33 / "FAX_pass_barcode33_0.sintax").write_text(
+                "r1\td:Bacteria(0.99)\t+\td:Bacteria\n"
+                "r2\td:Bacteria(0.99)\t+\td:Bacteria\n"
+            )
+            (b33 / "FAX_pass_barcode33_1.sintax").write_text("")
+            (b33 / "FAX_pass_barcode33_2.sintax").write_text("")
+            # barcode35: genuinely empty (its only chunk is empty)
+            b35 = root / "barcode35"
+            b35.mkdir(parents=True)
+            (b35 / "FAX_pass_barcode35_0.sintax").write_text("")
+
+            files = bot.find_sintax_files(root, r"\.sintax$")
+            non_empty, empty = bot.partition_by_size(files)
+            empty_barcodes = bot.resolve_empty_barcodes(non_empty, empty)
+            table = bot.build_table(non_empty, empty_barcodes, bot.select_filtered)
+
+        header = table.splitlines()[0].split("\t")
+        # barcode33 appears exactly once; barcode35 is the lone empty column.
+        self.assertEqual(empty_barcodes, ["barcode35"])
+        self.assertEqual(header.count("barcode33"), 1)
+        self.assertEqual(header, ["taxonomy", "total", "barcode33", "barcode35"])
+        # barcode35's reads are zero, not a clone of barcode33's.
+        row = table.splitlines()[1].split("\t")  # d:Bacteria, total=2
+        self.assertEqual(row, ["d:Bacteria", "2", "2", "0"])
 
 
 class CliValidation(unittest.TestCase):

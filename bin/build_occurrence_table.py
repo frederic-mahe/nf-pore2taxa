@@ -107,6 +107,27 @@ def partition_by_size(files: list[Path]) -> tuple[list[Path], list[Path]]:
     return non_empty, empty
 
 
+def resolve_empty_barcodes(
+    non_empty: list[Path], empty: list[Path]
+) -> list[str]:
+    """Barcodes that produced no reads at all, as a sorted, de-duplicated list.
+
+    A barcode is *empty* only when every one of its ``.sintax`` files is
+    empty. A barcode with at least one non-empty file — e.g. a multi-chunk
+    Nanopore barcode where a single chunk yielded no surviving reads — is
+    excluded: its reads are already counted, so re-adding it here would
+    duplicate the column and copy its counts into a phantom sample.
+    """
+    has_reads = {bc for p in non_empty if (bc := extract_barcode(str(p)))}
+    return sorted(
+        {
+            bc
+            for p in empty
+            if (bc := extract_barcode(str(p))) and bc not in has_reads
+        }
+    )
+
+
 # ------------------------------------------------------------- table assembly
 
 
@@ -210,7 +231,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     non_empty, empty = partition_by_size(files)
-    empty_barcodes = [bc for p in empty if (bc := extract_barcode(str(p)))]
+    empty_barcodes = resolve_empty_barcodes(non_empty, empty)
 
     Path(args.output).write_text(
         build_table(non_empty, empty_barcodes, select_filtered), encoding="utf-8"
