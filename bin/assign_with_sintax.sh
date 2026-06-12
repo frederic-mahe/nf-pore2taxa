@@ -197,7 +197,6 @@ trim_primers() {
         --rename="{id}" \
         --front "${FORWARD_PRIMER};rightmost" \
         --overlap "${min_f}" \
-        --discard-untrimmed \
         --fasta \
         "${fastq}" 2> "${log}" | \
         "${CUTADAPT}" \
