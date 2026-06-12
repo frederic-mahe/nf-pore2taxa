@@ -43,8 +43,8 @@ By default, the pipeline currently performs the following:
   [cutadapt](https://cutadapt.readthedocs.io/en/stable/)
 - taxonomic assignment with
   [vsearch](https://github.com/torognes/vsearch) (sintax)
-- build an occurrence table (using [R](https://cran.r-project.org/)
-  and the [tidyverse](https://tidyverse.org/) package)
+- build an occurrence table (using a dependency-free
+  [Python](https://www.python.org/) 3 script; standard library only)
 
 The basecalling step can be skipped if `fastq` files are already
 available.
@@ -115,21 +115,22 @@ including assignments that are below the probability threshold (0.9).
 ## Testing
 
 The repository ships with a test suite covering the pipeline's
-custom code (driver shell scripts, R script, Nextflow modules and
-workflow). External tools (`dorado`, `cutadapt`, `vsearch`) are not
-re-tested. See [`tests/SPECIFICATIONS.md`](tests/SPECIFICATIONS.md)
+custom code (driver shell scripts, the Python table builder, Nextflow
+modules and workflow). External tools (`dorado`, `cutadapt`, `vsearch`)
+are not re-tested. See [`tests/SPECIFICATIONS.md`](tests/SPECIFICATIONS.md)
 for the catalogue of behaviours under test, and
 [`tests/README.md`](tests/README.md) for the layout.
 
 ```bash
-bash tests/run_all.sh           # bats + nf-test
-bats tests/bin/                 # shell + R unit tests only
+bash tests/run_all.sh           # python + bats + nf-test
+python3 -m unittest discover -s tests/bin -p 'test_*.py'  # python unit tests
+bats tests/bin/                 # shell + Python CLI integration tests
 nf-test test tests/             # pipeline tests only
 ```
 
-Test dependencies: `bats >= 1.5`, `nf-test`, and the runtime
-dependencies of the pipeline itself (`cutadapt`, `vsearch >= 2.31.0`,
-`Rscript` with `tidyverse` + `optparse`).
+Test dependencies: `python3` (standard library only), `bats >= 1.5`,
+`nf-test`, and the runtime dependencies of the pipeline itself
+(`cutadapt`, `vsearch >= 2.31.0`).
 
 
 ## Road-map
@@ -150,8 +151,9 @@ dependencies of the pipeline itself (`cutadapt`, `vsearch >= 2.31.0`,
       pass the path to `pod5` files?
 - [ ] add a cleanup module (remove `done.txt` files, work sub-folders,
       etc.
-- [ ] eliminate dependency to `R` and the `tidyverse` package, rewrite
-      script in python?
+- [X] eliminate dependency to `R` and the `tidyverse` package, rewrite
+      script in python (`bin/build_occurrence_table.py`, standard
+      library only)
 
 
 ## See also

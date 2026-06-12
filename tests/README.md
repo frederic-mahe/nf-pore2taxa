@@ -19,11 +19,12 @@ tests/
 │   ├── generate.sh
 │   ├── references.fasta
 │   ├── fastq_dir/        ← inputs for SINTAX module + workflow tests
-│   └── sintax_dir/       ← pre-computed inputs for the R-script tests
-├── bin/                  ← bats tests for bin/ scripts
+│   └── sintax_dir/       ← pre-computed inputs for the table-builder tests
+├── bin/                  ← bats tests for bin/ scripts + python unittest
 │   ├── assign_with_sintax_cli.bats
 │   ├── assign_with_sintax_helpers.bats
 │   ├── build_occurrence_table.bats
+│   ├── test_build_occurrence_table.py
 │   └── validation.bats
 ├── modules/              ← nf-test files for individual processes
 │   └── sintax.nf.test
@@ -33,12 +34,12 @@ tests/
 
 ## Dependencies
 
-| Layer            | Required tools                                       |
-| ---------------- | ---------------------------------------------------- |
-| bats unit tests  | `bats` (>= 1.5), `awk`, `grep`                       |
-| R-script tests   | `Rscript` + `tidyverse` + `optparse` (auto-skip if missing) |
-| SINTAX module    | `nextflow`, `nf-test`, `cutadapt`, `vsearch >= 2.31.0` |
-| Workflow         | all of the above                                     |
+| Layer                | Required tools                                       |
+| -------------------- | ---------------------------------------------------- |
+| python unit tests    | `python3` (standard library only)                    |
+| bats unit tests      | `bats` (>= 1.5), `python3`, `awk`, `grep`            |
+| SINTAX module        | `nextflow`, `nf-test`, `cutadapt`, `vsearch >= 2.31.0` |
+| Workflow             | all of the above                                     |
 
 ## Running
 
@@ -57,6 +58,9 @@ bats tests/bin/
 # A single bats file
 bats tests/bin/assign_with_sintax_helpers.bats
 
+# python unit + integration tests for the table builder
+python3 -m unittest discover -s tests/bin -p 'test_*.py'
+
 # nf-test, all suites
 nf-test test tests/
 
@@ -72,7 +76,8 @@ nf-test test tests/workflow/main.nf.test
 | `bin/validation.bats`                  | VL-01, VL-02, VL-03, VL-04                                |
 | `bin/assign_with_sintax_cli.bats`      | SX-05                                                     |
 | `bin/assign_with_sintax_helpers.bats`  | SX-20, SX-21, SX-22, SX-23, SX-24                         |
-| `bin/build_occurrence_table.bats`      | BT-01..BT-04, BT-06, BT-07, BT-10..BT-13, BT-21..BT-23    |
+| `bin/build_occurrence_table.bats`      | BT-01..BT-04, BT-06, BT-07, BT-10..BT-13, BT-21..BT-24    |
+| `bin/test_build_occurrence_table.py`   | BT-01..BT-07, BT-10..BT-17, BT-20..BT-24, BT-30, BT-32..BT-34 |
 | `modules/sintax.nf.test`               | SX-30, SX-31, SX-32, SX-33, SX-34                         |
 | `workflow/main.nf.test`                | WF-03, WF-04, WF-06, BT-10, BT-11, BT-13, BT-20, BT-22, BT-23 |
 
@@ -85,12 +90,12 @@ The current suite is a starting point. Specs not yet covered:
 - The remaining CLI validation specs for `assign_with_sintax.sh`
   (SX-01..SX-04, SX-06..SX-11). Add as new cases in
   `bin/assign_with_sintax_cli.bats`.
-- R helper-function unit tests with `testthat` (BT-30..BT-38). Will
-  require refactoring `build_occurrence_table.R` to separate library
-  functions from the `main` routine, or sourcing it in a fresh R
-  environment at test time.
 - `SINTAX` with `-resume` (SX-35) and uncompressed/`.bz2`/`.xz` inputs
   (SX-36).
+
+The table-builder helper-function specs (BT-30, BT-32..BT-34) are now
+covered directly by `bin/test_build_occurrence_table.py`, which imports
+`bin/build_occurrence_table.py` and exercises its pure functions.
 
 ## Regenerating fixtures
 

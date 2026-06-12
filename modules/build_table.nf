@@ -12,8 +12,8 @@ process BUILD_TABLE {
     script:
     def output_file = file(params.results_table).name  // extract filename only
     """
-    Rscript --no-save --no-restore \\
-        ${projectDir}/bin/build_occurrence_table.R \\
+    python3 \\
+        ${projectDir}/bin/build_occurrence_table.py \\
         --input-dir "${fastq_dir}" \\
         --output "${output_file}"
     """

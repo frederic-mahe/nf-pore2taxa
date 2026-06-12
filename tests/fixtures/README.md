@@ -1,6 +1,6 @@
 # Test fixtures
 
-Synthetic data used by the nf-test suite and by the R/bash unit tests.
+Synthetic data used by the nf-test suite and by the python/bash unit tests.
 Regenerate with `./generate.sh` (it overwrites everything in this
 directory except this README).
 
@@ -21,8 +21,8 @@ basecallers produce.
 
 ## `sintax_dir/fastq_pass/barcodeXX/reads.sintax`
 Pre-computed sintax output, captured from a real run against the
-fixtures above. Used by the R-script unit tests so they do not have to
-invoke vsearch.
+fixtures above. Used by the table-builder unit tests
+(`build_occurrence_table.py`) so they do not have to invoke vsearch.
 
 | Barcode     | Content                                                  |
 | ----------- | -------------------------------------------------------- |

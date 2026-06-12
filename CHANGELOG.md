@@ -5,6 +5,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### `Changed`
+
+- the occurrence-table step (`BUILD_TABLE`) is now a dependency-free
+  Python 3 script (`bin/build_occurrence_table.py`, standard library
+  only), replacing `build_occurrence_table.R`. Output is byte-for-byte
+  identical. This removes the `R` + `tidyverse` + `optparse` runtime
+  and test dependency. Pure-function and CLI behaviour is covered by a
+  new `python3 -m unittest` suite
+  (`tests/bin/test_build_occurrence_table.py`); the existing
+  `build_occurrence_table.bats` integration test now drives the Python
+  script.
+
+### `Removed`
+
+- `bin/build_occurrence_table.R` and the `R` / `tidyverse` / `optparse`
+  dependency.
+
 ### `Fixed`
 
 - `assign_with_sintax.sh` rejected input directories that contained

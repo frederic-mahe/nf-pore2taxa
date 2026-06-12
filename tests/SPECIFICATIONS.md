@@ -16,7 +16,7 @@ changes accidentally, the corresponding test should catch it.
   (file existence, headers, column counts, row counts, barcode
   bookkeeping), plus full byte-level checks on artefacts produced by
   our own code (the occurrence tables written by
-  `build_occurrence_table.R`).
+  `build_occurrence_table.py`).
 - **Determinism.** Where upstream tools are non-deterministic (sintax
   with `--threads > 1`), tests assert ranges/invariants, not exact
   counts.
@@ -99,18 +99,19 @@ Tested via `nf-test` against a tiny fastq fixture and reference DB.
 | SX-35  | The module is idempotent: re-running with `-resume` produces the same set of output files (Nextflow cache hit).                                        |
 | SX-36  | The module accepts uncompressed `.fastq` and `.fastq.{bz2,xz}` input (the `find` regex covers them) and produces matching outputs.                     |
 
-## 4. `BUILD_TABLE` module + `build_occurrence_table.R`
+## 4. `BUILD_TABLE` module + `build_occurrence_table.py`
 
 This is **the most important target** because all of the logic is
-ours. The R script is a pure function from a directory of `.sintax`
-files to two TSV files, so it can be tested deterministically and at
-fine granularity.
+ours. The Python script (standard library only — no R/tidyverse) is a
+pure function from a directory of `.sintax` files to two TSV files, so
+it can be tested deterministically and at fine granularity. The port is
+byte-for-byte compatible with the former R implementation.
 
 ### 4.1 CLI / validation
 
 | ID     | Specification                                                                                                                                          |
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| BT-01  | Missing `--input-dir` aborts with `--inputdir is required`.                                                                                            |
+| BT-01  | Missing `--input-dir` aborts with `--input-dir is required`.                                                                                           |
 | BT-02  | Missing `--output` aborts with `--output is required`.                                                                                                 |
 | BT-03  | `--input-dir` that does not exist aborts with `Path does not exist`.                                                                                   |
 | BT-04  | `--input-dir` that points to a file (not a directory) aborts with `not a directory`.                                                                   |
@@ -126,7 +127,7 @@ fine granularity.
 | BT-11  | Column `total` equals the row-wise sum of all barcode columns.                                                                                         |
 | BT-12  | Rows are sorted by `total` descending, then `taxonomy` ascending.                                                                                      |
 | BT-13  | Non-empty barcodes appear before empty barcodes in the column order; empty barcodes are appended at the right, filled with zeros.                      |
-| BT-14  | Reads without a sintax assignment (NA in column 4) are bucketed under `taxonomy == "unknown"`.                                                         |
+| BT-14  | Reads without a sintax assignment (empty/missing column 4) are bucketed under `taxonomy == "unknown"`.                                                 |
 | BT-15  | Each `(taxonomy, barcode)` cell is the read count for that pair; missing pairs are filled with `0`.                                                    |
 | BT-16  | Barcode names are extracted from the file path with the regex `barcode[0-9]+|unclassified|mixed` — i.e. directory clutter does not pollute names.      |
 | BT-17  | Probabilities in `full_taxonomy` (e.g. `d:Fungi(0.99)`) are stripped from the filtered table's `taxonomy` column.                                      |
@@ -140,19 +141,22 @@ fine granularity.
 | BT-22  | Total reads in the optimistic table ≥ total reads in the filtered table when both contain assignments (no reads are lost when keeping low-confidence). |
 | BT-23  | The probability annotations are still stripped (no `(0.xx)` substrings remain in the `taxonomy` column).                                               |
 
-### 4.4 Pure helper functions (unit-testable via `testthat`)
+### 4.4 Pure helper functions (unit-testable via `python3 -m unittest`)
+
+Covered by `tests/bin/test_build_occurrence_table.py`, which imports the
+script's functions directly.
 
 | ID     | Specification                                                                                                                                          |
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | BT-30  | `name_optimistic_output("foo.tsv") == "foo_optimistic.tsv"`; `name_optimistic_output("a/b/foo.tsv") == "a/b/foo_optimistic.tsv"`.                      |
-| BT-31  | `is_empty` / `is_not_empty` are exact complements on existing files.                                                                                   |
-| BT-32  | `trim_empty_barcode_names` / `trim_barcode_names` reduce path-like strings to the barcode token using `barcode_pattern`.                               |
-| BT-33  | `select_full_taxonomy` strips the `(0.xx)` probability suffixes from every rank.                                                                       |
-| BT-34  | `mark_unassigned_reads` replaces `NA` taxonomy values with the literal string `"unknown"`.                                                             |
-| BT-35  | `dereplicate_per_barcode` produces one row per `(barcode, taxonomy)` pair with a `reads` count column.                                                 |
-| BT-36  | `dereplicate_globally` adds a `total` column equal to the sum across barcodes for each taxonomy.                                                       |
-| BT-37  | `append_empty_barcodes` adds one zero-filled column per empty barcode, preserving existing column order.                                               |
-| BT-38  | `build_table` on an empty input set throws (since `abort_if_empty_file_list` is called upstream — confirm error propagation).                          |
+| BT-31  | `partition_by_size` splits files into (non-empty, empty) — exact complements on existing files.                                                        |
+| BT-32  | `extract_barcode` reduces a path-like string to the barcode token using `BARCODE_PATTERN` (`barcode[0-9]+|unclassified|mixed`).                        |
+| BT-33  | `strip_probabilities` removes the `(0.xx)` probability suffixes from every rank.                                                                       |
+| BT-34  | `mark_unassigned` replaces empty/`None` taxonomy values with the literal string `"unknown"`.                                                           |
+| BT-35  | `count_assignments` produces one count per `(barcode, taxonomy)` pair.                                                                                 |
+| BT-36  | `render_table` adds a `total` column equal to the sum across barcodes for each taxonomy.                                                               |
+| BT-37  | `render_table` appends one zero-filled column per empty barcode, preserving existing column order.                                                     |
+| BT-38  | `main` on an empty input set returns a non-zero exit code with `No sintax files found`.                                                                |
 
 ## 5. `bin/lib/validation.sh`
 
@@ -170,7 +174,7 @@ fine granularity.
 | ~~OBS-01~~ | **Resolved.** `validate_inputs` in `assign_with_sintax.sh` originally counted only `*.fastq.gz` when deciding whether the input dir was empty, contradicting the script's main loop and the v1.1.0 CHANGELOG. Validation now uses the same `FASTQ_REGEX` constant as the main loop. Covered by SX-05 + the `SX-05-{gz,plain,bz2,xz,empty}` cases in `tests/bin/assign_with_sintax_cli.bats`. |
 | OBS-02 | `trim_extension` uses `sed -r` and only strips one of each suffix, right-most. The README does not document multi-suffix behaviour; SX-21 pins it.    |
 | OBS-03 | `SINTAX` runs vsearch with `--threads > 1`, which is non-deterministic. SX-3x tests must therefore be structural (counts, columns) rather than exact. |
-| OBS-04 | The R script silently creates the output parent directory (`build_occurrence_table.R` line 50). BT-05 pins this behaviour; flag if you want it to fail loudly instead. |
+| OBS-04 | The script silently creates the output parent directory (`build_occurrence_table.py`, `validate_args`). BT-05 pins this behaviour; flag if you want it to fail loudly instead. |
 | OBS-05 | `param.results_table` is consumed by `BUILD_TABLE` as `file(params.results_table).name` for the output filename, and `file(params.results_table).parent` for the `publishDir`. Tests should cover both directory and bare-filename forms. |
 
 ## 7. Out of scope (will not be tested)

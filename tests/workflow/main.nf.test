@@ -4,10 +4,9 @@
 // committed fixture. Asserts structural invariants on the published
 // TSV files, not exact taxonomic content.
 //
-// NOTE: this test requires `Rscript` with the `tidyverse` and
-// `optparse` packages installed, since BUILD_TABLE shells out to R.
-// On a machine without those, this test will fail at BUILD_TABLE; run
-// the module-level SINTAX test in isolation instead.
+// NOTE: BUILD_TABLE shells out to `python3` (standard library only),
+// so no extra runtime dependency is required beyond a Python 3
+// interpreter, which is virtually always present.
 //
 // Hermeticity: the pipeline publishes to params.fastq_dir. Pointing
 // that at the committed fixture would pollute the source tree, so we

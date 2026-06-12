@@ -1,13 +1,14 @@
 #!/usr/bin/env bats
 #
-# Integration tests for bin/build_occurrence_table.R.
+# Integration tests for bin/build_occurrence_table.py.
 #
-# Runs the R script against the committed sintax_dir fixture (4
+# Runs the Python script against the committed sintax_dir fixture (4
 # barcodes: 2 with assignments, 2 empty) and asserts structural
 # properties of the resulting TSV files.
 #
-# Requires Rscript + tidyverse + optparse. If those are missing the
-# whole file is skipped.
+# Requires only python3 (standard library). If it is missing the whole
+# file is skipped. Pure-function and unit coverage lives alongside in
+# test_build_occurrence_table.py (run with `python3 -m unittest`).
 #
 # Run with:
 #   bats tests/bin/build_occurrence_table.bats
@@ -15,15 +16,11 @@
 setup_file() {
     REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
     export REPO_ROOT
-    export SCRIPT="${REPO_ROOT}/bin/build_occurrence_table.R"
+    export SCRIPT="${REPO_ROOT}/bin/build_occurrence_table.py"
     export FIXTURE="${REPO_ROOT}/tests/fixtures/sintax_dir/fastq_pass"
 
-    if ! command -v Rscript > /dev/null 2>&1 ; then
-        skip "Rscript not found in PATH"
-    fi
-    if ! Rscript -e 'suppressWarnings(suppressMessages(library(tidyverse))); library(optparse)' \
-            > /dev/null 2>&1 ; then
-        skip "R packages tidyverse + optparse are required"
+    if ! command -v python3 > /dev/null 2>&1 ; then
+        skip "python3 not found in PATH"
     fi
 }
 
@@ -34,7 +31,7 @@ setup() {
 }
 
 run_build() {
-    Rscript --no-save --no-restore "${SCRIPT}" "$@"
+    python3 "${SCRIPT}" "$@"
 }
 
 # ---------------------------------------------------------- BT-01..BT-07 (CLI)
@@ -85,7 +82,7 @@ happy_path_setup() {
     HAPPY_OUT="${BATS_FILE_TMPDIR}/sintax.tsv"
     HAPPY_OPT="${BATS_FILE_TMPDIR}/sintax_optimistic.tsv"
     [ -s "${HAPPY_OUT}" ] && return 0
-    Rscript --no-save --no-restore "${SCRIPT}" \
+    python3 "${SCRIPT}" \
         --input-dir "${FIXTURE}" \
         --output    "${HAPPY_OUT}" \
         > /dev/null
@@ -164,10 +161,9 @@ happy_path_setup() {
 }
 
 # Regression: a non-empty .sintax whose filtered (4th) column is blank on
-# every row used to make read_tsv guess the column type as logical, so the
-# downstream replace_na(taxonomy, "unknown") aborted with:
-#   Can't convert `replace` <character> to match type of `data` <logical>.
-# Forcing col_types = cols(.default = "c") keeps the column character.
+# every row must not abort. The old R script guessed such a column as
+# <logical> and crashed in replace_na(); the Python port treats every field
+# as text, so blank/missing taxonomy maps cleanly to the literal "unknown".
 @test "BT-24 all-blank filtered column does not abort and maps to 'unknown'" {
     local dir="${BATS_TEST_TMPDIR}/blank_filtered/fastq_pass/barcode01"
     mkdir -p "${dir}"

@@ -1,6 +1,10 @@
 *~
 .nextflow.log*
 
+# python byte-compile artefacts
+__pycache__/
+*.pyc
+
 # nf-test runtime artefacts
 .nf-test/
 .nf-test.log
