@@ -8,7 +8,13 @@ include { BUILD_TABLE } from './modules/build_table'
 
 workflow {
 
-    references_ch = Channel.fromPath(params.sintax_references, type: 'file', checkIfExists: true)
+    // Resolve the deprecated `sintax_silva` alias for `sintax_references`
+    if (params.sintax_silva != null) {
+        log.warn "Parameter 'sintax_silva' is deprecated; please use 'sintax_references' instead."
+    }
+    sintax_references = params.sintax_references ?: params.sintax_silva
+
+    references_ch = Channel.fromPath(sintax_references, type: 'file', checkIfExists: true)
 
     if (params.skip_basecall) {
         // fastq_dir must already exist on disk — point directly at it

@@ -3,6 +3,16 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v1.2.1 - 2026-06-20
+
+### `Deprecated`
+
+- `sintax_silva` is restored as a deprecated alias for
+  `sintax_references`. When supplied, the pipeline emits a warning and
+  falls back to it only when `sintax_references` is not set. The alias
+  will be removed in a future release; please migrate to
+  `sintax_references`.
+
 ## v1.2.0 - 2026-06-13
 
 ### `Changed`
