@@ -32,6 +32,9 @@ changes accidentally, the corresponding test should catch it.
 | WF-05 | The pipeline aborts if `params.pod5_dir` does not exist when `skip_basecall = false`.                                                                        |
 | WF-06 | With a valid fixture, the workflow produces exactly two TSV files at `params.results_table`: the filtered table and a sibling `<name>_optimistic.<ext>` one. |
 | WF-07 | The workflow exits 0 on the happy path and non-zero on any process failure.                                                                                  |
+| WF-08 | `params.sintax_silva` is accepted as a deprecated alias for `params.sintax_references`: when only the alias is set, it drives the workflow (nf-test) and a deprecation warning naming `sintax_silva` is emitted via `log.warn` (`tests/config/deprecation.bats`). |
+| WF-09 | When both are set, `params.sintax_references` takes precedence over the deprecated `params.sintax_silva` alias.                                                |
+| WF-10 | The pipeline aborts if the path supplied via the deprecated `params.sintax_silva` alias does not exist (`checkIfExists: true`).                               |
 
 ## 2. `BASECALL` module — *light coverage only*
 
@@ -168,7 +171,13 @@ script's functions directly.
 | VL-03  | `check_readable file <path> <label>` returns 0 for a readable file, non-zero with `not found` for a missing file, non-zero with `is not readable` for an unreadable one. |
 | VL-04  | `check_readable dir <path> <label>` mirrors the file behaviour for directories.                                                                        |
 
-## 6. Observations worth noting in the spec (not bugs, but ambiguities)
+## 6. Config invariants (`nextflow.config`)
+
+| ID     | Specification                                                                                                                                          |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| CFG-01 | `manifest.version` and `params.version` resolve to the same value (kept in sync on every version bump). Tested in `tests/config/version.bats`.          |
+
+## 7. Observations worth noting in the spec (not bugs, but ambiguities)
 
 | ID     | Note                                                                                                                                                   |
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -178,7 +187,7 @@ script's functions directly.
 | OBS-04 | The script silently creates the output parent directory (`build_occurrence_table.py`, `validate_args`). BT-05 pins this behaviour; flag if you want it to fail loudly instead. |
 | OBS-05 | `param.results_table` is consumed by `BUILD_TABLE` as `file(params.results_table).name` for the output filename, and `file(params.results_table).parent` for the `publishDir`. Tests should cover both directory and bare-filename forms. |
 
-## 7. Out of scope (will not be tested)
+## 8. Out of scope (will not be tested)
 
 - The numerical correctness of `dorado` basecalls.
 - The numerical correctness of `cutadapt` primer trimming or

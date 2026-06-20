@@ -135,4 +135,89 @@ nextflow_pipeline {
             assert workflow.failed
         }
     }
+
+    test("WF-08 deprecated sintax_silva alias drives the workflow") {
+
+        setup {
+            new File("${outputDir}/fastq_dir").mkdirs()
+            ["cp", "-r",
+             "${projectDir}/tests/fixtures/fastq_dir/fastq_pass",
+             "${outputDir}/fastq_dir/"].execute().waitFor()
+        }
+
+        when {
+            params {
+                skip_basecall     = true
+                fastq_dir         = "${outputDir}/fastq_dir"
+                // No sintax_references: the deprecated alias must be used.
+                sintax_silva      = "${projectDir}/tests/fixtures/references.fasta"
+                results_table     = "${outputDir}/sintax.tsv"
+                primer_f          = "GTACACACCGCCCGTCG"
+                primer_r          = "CGCCTSCSCTTANTDATATGC"
+            }
+        }
+
+        then {
+            // WF-08: sintax_silva is honoured as an alias for
+            // sintax_references and the pipeline runs to completion.
+            // (The accompanying deprecation warning, emitted via
+            // log.warn, is asserted in tests/config/deprecation.bats —
+            // nf-test does not capture the Nextflow log stream.)
+            assert workflow.success
+            assert file("${outputDir}/sintax.tsv").exists()
+        }
+    }
+
+    test("WF-09 sintax_references takes precedence over sintax_silva") {
+
+        setup {
+            new File("${outputDir}/fastq_dir").mkdirs()
+            ["cp", "-r",
+             "${projectDir}/tests/fixtures/fastq_dir/fastq_pass",
+             "${outputDir}/fastq_dir/"].execute().waitFor()
+        }
+
+        when {
+            params {
+                skip_basecall     = true
+                fastq_dir         = "${outputDir}/fastq_dir"
+                // sintax_references is valid; sintax_silva points at a
+                // non-existent file. If the alias wrongly won, the
+                // pipeline would abort on the missing path.
+                sintax_references = "${projectDir}/tests/fixtures/references.fasta"
+                sintax_silva      = "${projectDir}/tests/fixtures/__does_not_exist__.fasta"
+                results_table     = "${outputDir}/sintax.tsv"
+                primer_f          = "GTACACACCGCCCGTCG"
+                primer_r          = "CGCCTSCSCTTANTDATATGC"
+            }
+        }
+
+        then {
+            // WF-09: canonical param wins; the bad alias is ignored.
+            assert workflow.success
+            assert file("${outputDir}/sintax.tsv").exists()
+        }
+    }
+
+    test("WF-10 aborts when sintax_silva alias points at a missing file") {
+
+        when {
+            params {
+                skip_basecall     = true
+                fastq_dir         = "${projectDir}/tests/fixtures/fastq_dir"
+                // Only the deprecated alias is set, and it is invalid:
+                // the alias must still flow through checkIfExists.
+                sintax_silva      = "${projectDir}/tests/fixtures/__does_not_exist__.fasta"
+                results_table     = "${outputDir}/sintax.tsv"
+                primer_f          = "GTACACACCGCCCGTCG"
+                primer_r          = "CGCCTSCSCTTANTDATATGC"
+            }
+        }
+
+        then {
+            // WF-10: the alias is consumed by Channel.fromPath with
+            // checkIfExists, so a bad path aborts before any process runs.
+            assert workflow.failed
+        }
+    }
 }

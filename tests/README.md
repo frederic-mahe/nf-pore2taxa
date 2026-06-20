@@ -26,6 +26,8 @@ tests/
 │   ├── build_occurrence_table.bats
 │   ├── test_build_occurrence_table.py
 │   └── validation.bats
+├── config/               ← bats tests for nextflow.config invariants
+│   └── version.bats
 ├── modules/              ← nf-test files for individual processes
 │   └── sintax.nf.test
 └── workflow/             ← nf-test files for the end-to-end workflow

@@ -25,7 +25,7 @@ echo
 
 echo "===== 2/3  bats unit tests ====="
 if command -v bats > /dev/null 2>&1 ; then
-    bats tests/bin/ || fail=1
+    bats tests/bin/ tests/config/ || fail=1
 else
     echo "SKIP: bats not in PATH"
 fi
