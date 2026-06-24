@@ -11,7 +11,7 @@
 
 set -uo pipefail
 
-cd "$(dirname "$0")/.."   # repo root
+cd "$(dirname "$0")/.." || exit 1   # repo root
 
 declare -i fail=0
 

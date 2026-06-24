@@ -16,6 +16,9 @@ process SINTAX {
     path 'done_sintax.txt', emit: done
 
     script:
+    // Strict amplicon filtering (drop reads with no primer) is the
+    // default; params.discard_untrimmed = false keeps every read.
+    def primer_filter = params.discard_untrimmed ? '--discard-untrimmed' : '--keep-untrimmed'
     """
     cp --archive --link "${fastq_dir}/fastq_pass" ./fastq_pass
     bash \\
@@ -24,7 +27,8 @@ process SINTAX {
         --references "${references}" \\
         --forward-primer "${params.primer_f}" \\
         --reverse-primer "${params.primer_r}" \\
-        --threads "${task.cpus}"
+        --threads "${task.cpus}" \\
+        ${primer_filter}
     touch done_sintax.txt
     """
 }

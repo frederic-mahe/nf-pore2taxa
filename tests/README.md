@@ -24,6 +24,7 @@ tests/
 │   ├── assign_with_sintax_cli.bats
 │   ├── assign_with_sintax_helpers.bats
 │   ├── build_occurrence_table.bats
+│   ├── reference_format.bats
 │   ├── test_build_occurrence_table.py
 │   └── validation.bats
 ├── config/               ← bats tests for nextflow.config invariants
@@ -76,7 +77,8 @@ nf-test test tests/workflow/main.nf.test
 | Layer                                  | Specs covered (see `SPECIFICATIONS.md`)                  |
 | -------------------------------------- | --------------------------------------------------------- |
 | `bin/validation.bats`                  | VL-01, VL-02, VL-03, VL-04                                |
-| `bin/assign_with_sintax_cli.bats`      | SX-05                                                     |
+| `bin/reference_format.bats`            | SX-12                                                     |
+| `bin/assign_with_sintax_cli.bats`      | SX-05, SX-12, SX-13                                       |
 | `bin/assign_with_sintax_helpers.bats`  | SX-20, SX-21, SX-22, SX-23, SX-24                         |
 | `bin/build_occurrence_table.bats`      | BT-01..BT-04, BT-06, BT-07, BT-10..BT-13, BT-21..BT-24    |
 | `bin/test_build_occurrence_table.py`   | BT-01..BT-07, BT-10..BT-17, BT-20..BT-24, BT-30, BT-32..BT-34 |

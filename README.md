@@ -71,8 +71,21 @@ params {
     // Set to true if basecalling was already done
     // and fastq_dir already exists
     skip_basecall     = false
+
+    // Primer-presence filtering. true (default): drop reads in which a
+    // primer is not found (strict amplicon filtering). false: keep every
+    // read, trimming primers only where they are found.
+    discard_untrimmed = true
 }
 ```
+
+> [!NOTE]
+> **Primer filtering (`discard_untrimmed`)**: by default a read is kept
+> only when both the forward primer and the reverse-complemented reverse
+> primer are located; reads with no detectable primer are discarded. Set
+> `discard_untrimmed = false` to keep every read instead (useful for
+> already-trimmed inputs or quick exploratory profiles), in which case
+> off-target reads may also be assigned a taxonomy.
 
 > [!WARNING]
 > Intermediate files are linked (hardlinks), so it is important for

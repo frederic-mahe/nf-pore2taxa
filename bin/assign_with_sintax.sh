@@ -13,8 +13,13 @@ declare -r FASTQ_REGEX='.*\.fastq(|\.(bz2|gz|xz))$'
 
 ## ----------------------------------------------------------- global variables
 
-declare -r CUTADAPT="$(which cutadapt)"
-declare -r VSEARCH="$(which vsearch)"
+# Note: assign then declare separately (rather than `declare -r X="$(...)"`)
+# so the command substitution's exit status is not masked by declare's;
+# `|| true` keeps an absent tool (empty value) from tripping `set -e`,
+# leaving the friendly diagnostic to check_commands.
+CUTADAPT="$(which cutadapt || true)"
+VSEARCH="$(which vsearch || true)"
+declare -r CUTADAPT VSEARCH
 
 
 ## ------------------------------------------------------------------ functions
@@ -35,6 +40,10 @@ Options:
   -f, --forward-primer  STR    Sequence of the forward primer (required)
   -r, --reverse-primer  STR    Sequence of the reverse primer (required)
   -t, --threads         INT    Number of threads for vsearch (default: 1)
+      --discard-untrimmed      Drop reads in which a primer is not found
+                               (strict amplicon filtering; this is the default)
+      --keep-untrimmed         Keep every read, trimming primers only where
+                               they are found
   -h, --help                   Show this help message and exit
 EOF
     exit 0
@@ -107,7 +116,11 @@ validate_inputs() {
     # --- reference file checks
 
     if [[ -n "${REFERENCES}" ]] ; then
-        check_readable file "${REFERENCES}" "reference file" || (( errors++ )) || true
+        if check_readable file "${REFERENCES}" "reference file" ; then
+            check_reference_format "${REFERENCES}" || (( errors++ )) || true
+        else
+            (( errors++ )) || true
+        fi
     fi
 
     # --- primer checks: IUPAC alphabet + minimum length
@@ -185,6 +198,15 @@ trim_primers() {
     local -ir min_f=$(( ${#FORWARD_PRIMER} * 2 / 3 ))
     local -ir min_r=$(( ${#REVERSE_PRIMER} * 2 / 3 ))
 
+    # Primer-presence filter (see DISCARD_UNTRIMMED). When enabled, a
+    # read is dropped unless both the forward primer (stage 1) and the
+    # reverse-complemented reverse primer (stage 2) are located — strict
+    # amplicon filtering. When disabled, the flag is omitted from both
+    # stages so every read survives and is merely trimmed where a primer
+    # is found.
+    local -a discard=()
+    [[ "${DISCARD_UNTRIMMED}" == "true" ]] && discard=( --discard-untrimmed )
+
     # Note: cutadapt adds ' rc' at the end of reverse-complemented
     # reads, use --rename="{id}" to keep only header before the first
     # whitespace
@@ -197,6 +219,7 @@ trim_primers() {
         --rename="{id}" \
         --front "${FORWARD_PRIMER};rightmost" \
         --overlap "${min_f}" \
+        "${discard[@]}" \
         --fasta \
         "${fastq}" 2> "${log}" | \
         "${CUTADAPT}" \
@@ -204,6 +227,7 @@ trim_primers() {
             --error-rate "${error_rate}" \
             --adapter "${anti_primer_r}" \
             --overlap "${min_r}" \
+            "${discard[@]}" \
             --fasta \
             -  2>> "${log}"
 }
@@ -247,6 +271,7 @@ references=""
 forward_primer=""
 reverse_primer=""
 threads=1
+discard_untrimmed=true  # strict amplicon filtering on by default
 
 while [[ $# -gt 0 ]] ; do
     case "${1}" in
@@ -255,6 +280,8 @@ while [[ $# -gt 0 ]] ; do
         -f | --forward-primer)  forward_primer="${2}"; shift 2 ;;
         -r | --reverse-primer)  reverse_primer="${2}"; shift 2 ;;
         -t | --threads)         threads="${2}";        shift 2 ;;
+        --discard-untrimmed)    discard_untrimmed=true;  shift ;;
+        --keep-untrimmed)       discard_untrimmed=false; shift ;;
         -h | --help)            usage                          ;;
         --) shift; break                                       ;;
         *) echo "Unknown option: ${1}" 1>&2; exit 1            ;;
@@ -274,7 +301,8 @@ declare -r REFERENCES="${references}"
 declare -r FORWARD_PRIMER="${forward_primer}"
 declare -r REVERSE_PRIMER="${reverse_primer}"
 declare -ri THREADS="${threads}"
-unset input_dir references forward_primer reverse_primer threads
+declare -r DISCARD_UNTRIMMED="${discard_untrimmed}"
+unset input_dir references forward_primer reverse_primer threads discard_untrimmed
 
 validate_inputs
 check_commands

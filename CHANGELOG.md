@@ -3,6 +3,28 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v1.3.0 - 2026-06-24
+
+### `Added`
+
+- `discard_untrimmed` parameter (default `true`) toggling primer-presence
+  filtering in `assign_with_sintax.sh`. When `true`, a read is dropped
+  unless both the forward primer and the reverse-complemented reverse
+  primer are found (strict amplicon filtering); when `false`, every read
+  is kept and trimmed only where a primer is found. Exposed on the driver
+  script as `--discard-untrimmed` / `--keep-untrimmed`. Covered by SX-13.
+- GitHub Actions CI (`.github/workflows/test.yml`) running the python,
+  bats, nf-test and shellcheck layers on every push and pull request.
+
+### `Fixed`
+
+- restore primer-presence filtering as the default, undoing the
+  experimental "disable primer filtering" change that left every read
+  assigned and broke the `barcode03` fixture invariants (SX-33, BT-13).
+- resolve shellcheck warnings in the `bin/` and `tests/` shell scripts
+  (SC2155, SC2164) and add a `.shellcheckrc` so the sourced
+  `bin/lib/validation.sh` is followed (SC1091).
+
 ## v1.2.1 - 2026-06-20
 
 ### `Deprecated`

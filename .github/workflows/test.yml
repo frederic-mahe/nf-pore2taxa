@@ -1,0 +1,111 @@
+name: tests
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+jobs:
+  # Pure standard-library Python: the table-builder unit + integration
+  # tests. No external tool needed.
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Run python unit + integration tests
+        run: python3 -m unittest discover -s tests/bin -p 'test_*.py'
+
+  # Lint every tracked shell script. `-x` follows the sourced
+  # bin/lib/validation.sh (resolved via .shellcheckrc source-path).
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Run shellcheck on tracked shell scripts
+        run: |
+          mapfile -t scripts < <(git ls-files '*.sh')
+          if [ "${#scripts[@]}" -gt 0 ]; then
+            shellcheck -x "${scripts[@]}"
+          fi
+
+  # bats unit + CLI tests. The helper/validation tests need no external
+  # tool; the CLI tests need cutadapt + vsearch and the config tests need
+  # Nextflow (each skips gracefully if its tool is absent, but CI installs
+  # them so the coverage is real).
+  bats:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Nextflow
+        uses: nf-core/setup-nextflow@v3
+
+      - name: Set up bioinformatics tools
+        uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-name: p2t
+          create-args: >-
+            -c bioconda -c conda-forge
+            vsearch=2.31.0
+            cutadapt=5.2
+
+      - name: Install bats
+        run: sudo apt-get update && sudo apt-get install -y bats
+
+      - name: Run bats unit + CLI tests
+        run: bats tests/bin/ tests/config/
+
+  # nf-test: SINTAX module + end-to-end workflow. Needs Nextflow, nf-test
+  # and the same tool pins as the bats CLI tests.
+  nf-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Nextflow
+        uses: nf-core/setup-nextflow@v3
+
+      - name: Install nf-test
+        run: |
+          curl -fsSL https://code.askimed.com/install/nf-test | bash
+          sudo mv nf-test /usr/local/bin/
+
+      - name: Set up bioinformatics tools
+        uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-name: p2t
+          create-args: >-
+            -c bioconda -c conda-forge
+            vsearch=2.31.0
+            cutadapt=5.2
+
+      - name: Run nf-test (modules + workflow)
+        run: nf-test test tests/

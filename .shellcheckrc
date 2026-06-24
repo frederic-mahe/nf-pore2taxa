@@ -1,0 +1,9 @@
+# shellcheck configuration for nf-pore2taxa.
+#
+# The bin/ scripts source bin/lib/validation.sh via a path relative to
+# their own location ($(dirname "${BASH_SOURCE[0]}")/lib/validation.sh).
+# Resolve `# shellcheck source=...` directives relative to each script's
+# directory (SCRIPTDIR) and allow shellcheck to follow them, so the
+# sourced helpers are analysed instead of reported as SC1091.
+source-path=SCRIPTDIR
+external-sources=true
