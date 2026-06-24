@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mode-appropriate `fastq_dir`/`pod5_dir`) or holding an invalid
   `discard_untrimmed`/`publish_mode` aborts with a single aggregated
   report before any process runs. Covered by WF-11.
+- process resilience: failures in the OOM/kill exit-code range
+  (137..140) now retry (`maxRetries = 2`) with memory escalating per
+  `task.attempt`; deterministic failures still terminate immediately. The
+  memory escalation is mainly forward-compatibility for a scheduler; the
+  local executor cannot grant more RAM on retry. `time` stays disabled
+  until the cluster profile is fleshed out.
 - GitHub Actions CI (`.github/workflows/test.yml`) running the python,
   bats, nf-test and shellcheck layers on every push and pull request.
 
