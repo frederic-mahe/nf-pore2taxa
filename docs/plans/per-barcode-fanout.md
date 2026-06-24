@@ -115,13 +115,13 @@ trivially satisfied) and the coverage map.
 5. Adapt `BUILD_TABLE` input (flat staged `.sintax`); Python unchanged.
 6. Full suite + a real multi-barcode local run; golden test must pass.
 
-## Open decisions
+## Decisions (resolved)
 
-- **D1 — discovery implementation:** tested Python helper
-  (`bin/discover_barcodes.py`, reuses `BARCODE_PATTERN`, unit-testable)
-  vs. inline Groovy `groupTuple`. *Recommendation: Python helper.*
-- **D2 — file with no barcode token:** abort with a clear error listing
-  offending files, vs. group them as `unknown`. *Recommendation: abort.*
-- **D3 — old `--input-dir` CLI:** hard-cut to the per-barcode file-list
-  interface, vs. keep a backward-compatible shim. *Recommendation:
-  hard-cut (internal driver).*
+- **D1 — discovery implementation:** **tested Python helper**
+  (`bin/discover_barcodes.py`, stdlib only, reuses `BARCODE_PATTERN`,
+  unit-tested for folder / flat / embedded / `unclassified` / no-token).
+- **D2 — file with no barcode token:** **abort** with a clear error that
+  lists the offending file paths, before any process runs.
+- **D3 — old `--input-dir` CLI:** **hard-cut** to the per-barcode
+  file-list interface; `assign_with_sintax.sh` is an internal driver, no
+  compatibility shim.
