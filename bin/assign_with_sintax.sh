@@ -6,10 +6,6 @@ set -euo pipefail
 
 declare -r MIN_VSEARCH_VERSION="2.31.0"
 
-# posix-egrep regex matching every fastq extension we support:
-# .fastq, .fastq.gz, .fastq.bz2, .fastq.xz
-declare -r FASTQ_REGEX='.*\.fastq(|\.(bz2|gz|xz))$'
-
 
 ## ----------------------------------------------------------- global variables
 
@@ -30,12 +26,15 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib/validation.sh"
 
 usage() {
     cat << EOF
-Usage: $(basename "$0") [OPTIONS]
+Usage: $(basename "$0") [OPTIONS] FASTQ [FASTQ ...]
 
-Assign fastq reads to reference taxa with the sintax method.
+Assign one barcode's fastq reads to reference taxa with sintax. All the
+FASTQ files belong to the same barcode: they are primer-trimmed and fed
+to a single vsearch run (the reference is loaded once), producing
+<barcode>.sintax and <barcode>.log.
 
 Options:
-  -i, --input-dir       DIR    Input directory containing fastq files (required)
+  -b, --barcode         STR    Barcode name, used for the output files (required)
   -d, --references      FILE   Reference sequences in fasta format (required)
   -f, --forward-primer  STR    Sequence of the forward primer (required)
   -r, --reverse-primer  STR    Sequence of the reverse primer (required)
@@ -83,7 +82,7 @@ validate_inputs() {
 
     # --- required arguments
 
-    require_arg "--input-dir"      "${INPUT_DIR}"      || (( errors++ )) || true
+    require_arg "--barcode"        "${BARCODE}"        || (( errors++ )) || true
     require_arg "--references"     "${REFERENCES}"     || (( errors++ )) || true
     require_arg "--forward-primer" "${FORWARD_PRIMER}" || (( errors++ )) || true
     require_arg "--reverse-primer" "${REVERSE_PRIMER}" || (( errors++ )) || true
@@ -93,23 +92,15 @@ validate_inputs() {
         (( errors++ )) || true
     fi
 
-    # --- input directory checks
+    # --- fastq file checks: at least one, each readable
 
-    if [[ -n "${INPUT_DIR}" ]] ; then
-        if check_readable dir "${INPUT_DIR}" "input directory" ; then
-            local -i fastq_count
-            fastq_count=$(find "${INPUT_DIR}" \
-                -type f \
-                -regextype posix-egrep \
-                -regex "${FASTQ_REGEX}" | wc -l)
-            if (( fastq_count == 0 )) ; then
-                echo "Error: no fastq files (.fastq[.gz|.bz2|.xz]) found in: ${INPUT_DIR}" 1>&2
-                (( errors++ )) || true
-            fi
-        else
-            (( errors++ )) || true
-        fi
+    if (( ${#FASTQ_FILES[@]} == 0 )) ; then
+        echo "Error: no fastq files given (expected one or more FASTQ arguments)." 1>&2
+        (( errors++ )) || true
     fi
+    for fastq in "${FASTQ_FILES[@]}" ; do
+        check_readable file "${fastq}" "fastq file" || (( errors++ )) || true
+    done
 
     # --- reference file checks
 
@@ -169,13 +160,6 @@ check_commands() {
 }
 
 
-trim_extension() {
-    local -r sample="${1}"
-    # Note: remove right-most .fastq and .(bz2|gz|xz) if any
-    sed -r 's/[.](gz|bz2|xz)$// ; s/[.]fastq$//' <<< "${sample}"
-}
-
-
 reverse_complement() {
     # reverse-complement a DNA/RNA IUPAC string
     # Note: N and I are their own complements, no need to include them
@@ -219,7 +203,7 @@ trim_primers() {
         --overlap "${min_f}" \
         "${discard[@]}" \
         --fasta \
-        "${fastq}" 2> "${log}" | \
+        "${fastq}" 2>> "${log}" | \
         "${CUTADAPT}" \
             --minimum-length "${min_length}" \
             --error-rate "${error_rate}" \
@@ -264,16 +248,17 @@ taxonomic_assignment_with_sintax() {
 
 # --- argument parsing
 
-input_dir=""
+barcode=""
 references=""
 forward_primer=""
 reverse_primer=""
 threads=1
 discard_untrimmed=true  # strict amplicon filtering on by default
+fastq_files=()
 
 while [[ $# -gt 0 ]] ; do
     case "${1}" in
-        -i | --input-dir)       input_dir="${2}";      shift 2 ;;
+        -b | --barcode)         barcode="${2}";        shift 2 ;;
         -d | --references)      references="${2}";     shift 2 ;;
         -f | --forward-primer)  forward_primer="${2}"; shift 2 ;;
         -r | --reverse-primer)  reverse_primer="${2}"; shift 2 ;;
@@ -282,44 +267,43 @@ while [[ $# -gt 0 ]] ; do
         --keep-untrimmed)       discard_untrimmed=false; shift ;;
         -h | --help)            usage                          ;;
         --) shift; break                                       ;;
-        *) echo "Unknown option: ${1}" 1>&2; exit 1            ;;
+        -*) echo "Unknown option: ${1}" 1>&2; exit 1           ;;
+        *)  fastq_files+=("${1}"); shift                       ;;
     esac
 done
 
-# positional arguments (after --): not accepted
-if [[ $# -gt 0 ]] ; then
-    echo "Error: unexpected positional arguments: $*" 1>&2
-    exit 1
-fi
+# anything after `--` is a positional fastq file too
+while [[ $# -gt 0 ]] ; do
+    fastq_files+=("${1}"); shift
+done
 
 # --- promote to read-only globals
 
-declare -r INPUT_DIR="${input_dir}"
-declare -r REFERENCES="${references}"
-declare -r FORWARD_PRIMER="${forward_primer}"
-declare -r REVERSE_PRIMER="${reverse_primer}"
+declare -r  BARCODE="${barcode}"
+declare -r  REFERENCES="${references}"
+declare -r  FORWARD_PRIMER="${forward_primer}"
+declare -r  REVERSE_PRIMER="${reverse_primer}"
 declare -ri THREADS="${threads}"
-declare -r DISCARD_UNTRIMMED="${discard_untrimmed}"
-unset input_dir references forward_primer reverse_primer threads discard_untrimmed
+declare -r  DISCARD_UNTRIMMED="${discard_untrimmed}"
+declare -ra FASTQ_FILES=("${fastq_files[@]+"${fastq_files[@]}"}")
+unset barcode references forward_primer reverse_primer threads discard_untrimmed fastq_files
 
 validate_inputs
 check_commands
 
+# Trim primers off every file of this barcode, concatenate the trimmed
+# fasta, and run sintax ONCE on the lot. vsearch loads the reference a
+# single time per barcode, however many (small) fastq files it holds.
+declare -r SINTAX_OUT="${BARCODE}.sintax"
+declare -r LOG="${BARCODE}.log"
+: > "${LOG}"  # truncate; trim_primers appends each file's cutadapt log
 
-find \
-    "${INPUT_DIR}" \
-    -type f \
-    -regextype posix-egrep \
-    -regex "${FASTQ_REGEX}" | \
-    while read -r FASTQ ; do
-        echo "${FASTQ}"
-        SAMPLE_NAME="$(trim_extension "${FASTQ}")"
-        LOG="${SAMPLE_NAME}.log"
-        TABLE="${SAMPLE_NAME}.sintax"
-        trim_primers "${FASTQ}" "${LOG}" | \
-            append_read_length | \
-            taxonomic_assignment_with_sintax > "${TABLE}"
-        unset SAMPLE_NAME LOG TABLE
+{
+    for FASTQ in "${FASTQ_FILES[@]}" ; do
+        trim_primers "${FASTQ}" "${LOG}"
     done
+} | \
+    append_read_length | \
+    taxonomic_assignment_with_sintax > "${SINTAX_OUT}"
 
 exit 0

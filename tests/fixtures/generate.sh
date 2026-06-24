@@ -76,5 +76,30 @@ mkdir -p fastq_dir/fastq_pass/barcode01 \
     done
 } | gzip > fastq_dir/fastq_pass/barcode03/reads.fastq.gz
 
+# --- flat layout fixture (barcode embedded in the filename) ------------------
+# No barcode subfolders: the barcode token lives in the filename, as can
+# happen when basecalling did not demultiplex into folders. barcode01 is
+# split across two files (a multi-file barcode), and a sibling fastq_fail/
+# directory must be IGNORED by discovery (rooted at fastq_pass/).
+mkdir -p flat_dir/fastq_pass flat_dir/fastq_fail
+
+# barcode01: 3 + 2 = 5 reads (ref1, primers), across two files.
+{
+    for i in 1 2 3 ; do write_read "read${i}_b01a" "${PRIMER_F}${REF1}${RC_PRIMER_R}" ; done
+} | gzip > flat_dir/fastq_pass/run1_barcode01_0.fastq.gz
+{
+    for i in 4 5 ; do   write_read "read${i}_b01b" "${PRIMER_F}${REF1}${RC_PRIMER_R}" ; done
+} | gzip > flat_dir/fastq_pass/run1_barcode01_1.fastq.gz
+
+# barcode02: 5 reads (ref2, primers), single file.
+{
+    for i in 1 2 3 4 5 ; do write_read "read${i}_b02" "${PRIMER_F}${REF2}${RC_PRIMER_R}" ; done
+} | gzip > flat_dir/fastq_pass/run1_barcode02_0.fastq.gz
+
+# fastq_fail: reads that must never be counted (discovery ignores it).
+{
+    for i in 1 2 3 4 5 ; do write_read "read${i}_fail" "${PRIMER_F}${REF1}${RC_PRIMER_R}" ; done
+} | gzip > flat_dir/fastq_fail/run1_barcode01_0.fastq.gz
+
 echo "Wrote:"
-find references.fasta fastq_dir -type f | sort
+find references.fasta fastq_dir flat_dir -type f | sort

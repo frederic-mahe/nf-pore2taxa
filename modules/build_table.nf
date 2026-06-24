@@ -7,7 +7,7 @@ process BUILD_TABLE {
     publishDir { file(params.results_table).parent }, mode: params.publish_mode, overwrite: true
 
     input:
-    val fastq_dir  // pass absolute path as a value, no staging
+    path sintax_files  // every per-barcode <barcode>.sintax, staged flat
 
     output:
     path "*.tsv", emit: results_table
@@ -17,7 +17,7 @@ process BUILD_TABLE {
     """
     python3 \\
         ${projectDir}/bin/build_occurrence_table.py \\
-        --input-dir "${fastq_dir}" \\
+        --input-dir . \\
         --output "${output_file}"
     """
 }

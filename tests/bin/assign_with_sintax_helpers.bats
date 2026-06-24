@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 #
 # Unit tests for the pure-function helpers in bin/assign_with_sintax.sh:
-#   - trim_extension      (SX-20, SX-21)
 #   - reverse_complement  (SX-22, SX-23, SX-24)
 #
 # Run with:
@@ -17,7 +16,6 @@ setup() {
     # function definitions.
     HELPERS="${BATS_TEST_TMPDIR}/helpers.sh"
     awk '
-        /^trim_extension\(\)/     { in_block=1 }
         /^reverse_complement\(\)/ { in_block=1 }
         in_block                  { print }
         in_block && /^\}/         { in_block=0 ; print "" }
@@ -25,36 +23,6 @@ setup() {
 
     # shellcheck source=/dev/null
     source "${HELPERS}"
-}
-
-# ---------------------------------------------------------------- SX-20, SX-21
-
-@test "SX-20a trim_extension: strips .fastq.gz" {
-    [ "$(trim_extension reads.fastq.gz)" = "reads" ]
-}
-
-@test "SX-20b trim_extension: strips .fastq.bz2" {
-    [ "$(trim_extension reads.fastq.bz2)" = "reads" ]
-}
-
-@test "SX-20c trim_extension: strips .fastq.xz" {
-    [ "$(trim_extension reads.fastq.xz)" = "reads" ]
-}
-
-@test "SX-20d trim_extension: strips bare .fastq" {
-    [ "$(trim_extension reads.fastq)" = "reads" ]
-}
-
-@test "SX-20e trim_extension: preserves path components" {
-    [ "$(trim_extension barcode01/reads.fastq.gz)" = "barcode01/reads" ]
-}
-
-@test "SX-20f trim_extension: idempotent on names without a recognised suffix" {
-    [ "$(trim_extension noext)" = "noext" ]
-}
-
-@test "SX-21 trim_extension: .bak is not a recognised suffix — passthrough" {
-    [ "$(trim_extension foo.fastq.gz.bak)" = "foo.fastq.gz.bak" ]
 }
 
 # ---------------------------------------------------------------- SX-22, SX-23

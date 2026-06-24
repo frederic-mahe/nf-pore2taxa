@@ -18,7 +18,8 @@ tests/
 ├── fixtures/             ← synthetic input data (small, committed)
 │   ├── generate.sh
 │   ├── references.fasta
-│   ├── fastq_dir/        ← inputs for SINTAX module + workflow tests
+│   ├── fastq_dir/        ← demultiplexed-into-folders inputs (SINTAX + workflow)
+│   ├── flat_dir/         ← flat layout (barcode in filename) + fastq_fail to ignore
 │   └── sintax_dir/       ← pre-computed inputs for the table-builder tests
 ├── bin/                  ← bats tests for bin/ scripts + python unittest
 │   ├── assign_with_sintax_cli.bats
@@ -26,6 +27,7 @@ tests/
 │   ├── build_occurrence_table.bats
 │   ├── reference_format.bats
 │   ├── test_build_occurrence_table.py
+│   ├── test_discover_barcodes.py
 │   └── validation.bats
 ├── config/               ← bats tests for nextflow.config invariants
 │   └── version.bats
@@ -78,12 +80,13 @@ nf-test test tests/workflow/main.nf.test
 | -------------------------------------- | --------------------------------------------------------- |
 | `bin/validation.bats`                  | VL-01, VL-02, VL-03, VL-04                                |
 | `bin/reference_format.bats`            | SX-12                                                     |
-| `bin/assign_with_sintax_cli.bats`      | SX-05, SX-12, SX-13                                       |
-| `bin/assign_with_sintax_helpers.bats`  | SX-20, SX-21, SX-22, SX-23, SX-24                         |
+| `bin/assign_with_sintax_cli.bats`      | SX-05, SX-11, SX-12, SX-13, SX-40                         |
+| `bin/assign_with_sintax_helpers.bats`  | SX-22, SX-23, SX-24                                       |
+| `bin/test_discover_barcodes.py`        | DSC-01..DSC-05                                            |
 | `bin/build_occurrence_table.bats`      | BT-01..BT-04, BT-06, BT-07, BT-10..BT-13, BT-21..BT-24    |
 | `bin/test_build_occurrence_table.py`   | BT-01..BT-07, BT-10..BT-17, BT-20..BT-24, BT-30, BT-32..BT-34 |
-| `modules/sintax.nf.test`               | SX-30, SX-31, SX-32, SX-33, SX-34                         |
-| `workflow/main.nf.test`                | WF-03, WF-04, WF-06, WF-08, WF-09, WF-10, WF-11, BT-10, BT-11, BT-13, BT-20, BT-22, BT-23 |
+| `modules/sintax.nf.test`               | SX-30, SX-31, SX-32, SX-33, SX-40                         |
+| `workflow/main.nf.test`                | WF-03, WF-04, WF-06, WF-08, WF-09, WF-10, WF-11, SX-41, BT-10, BT-11, BT-13, BT-20, BT-22, BT-23 |
 
 ## Known gaps (next iterations)
 
@@ -92,10 +95,9 @@ The current suite is a starting point. Specs not yet covered:
 - `BASECALL` module tests (BC-01..BC-08). These need a `dorado` stub
   on the test PATH — see SPECIFICATIONS.md §2.
 - The remaining CLI validation specs for `assign_with_sintax.sh`
-  (SX-01..SX-04, SX-06..SX-11). Add as new cases in
+  (SX-01..SX-04, SX-06..SX-10). Add as new cases in
   `bin/assign_with_sintax_cli.bats`.
-- `SINTAX` with `-resume` (SX-35) and uncompressed/`.bz2`/`.xz` inputs
-  (SX-36).
+- `SINTAX` with `-resume` (SX-35).
 
 The table-builder helper-function specs (BT-30, BT-32..BT-34) are now
 covered directly by `bin/test_build_occurrence_table.py`, which imports

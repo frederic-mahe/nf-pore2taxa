@@ -46,6 +46,13 @@ By default, the pipeline currently performs the following:
 - build an occurrence table (using a dependency-free
   [Python](https://www.python.org/) 3 script; standard library only)
 
+Fastq files are grouped by barcode and each barcode is processed as an
+independent, parallel task (the reference database is loaded once per
+barcode). The barcode is read from the file path, so both demultiplexed
+subfolders (`fastq_pass/barcode01/…`) and a flat directory with the
+barcode embedded in the filename (`…_barcode01_0.fastq.gz`) work; a
+sibling `fastq_fail/` is ignored.
+
 The basecalling step can be skipped if `fastq` files are already
 available.
 

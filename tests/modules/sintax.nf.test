@@ -1,13 +1,13 @@
-// Module-level tests for the SINTAX process.
+// Module-level tests for the SINTAX process (per-barcode interface).
 //
 // Scope: verify that our orchestration (cutadapt + vsearch driver
-// script) produces the expected output *shape* for each input
-// barcode. We do NOT assert exact taxonomic assignments — that would
-// pin behaviour of vsearch, which has its own test suite.
+// script) produces the expected output *shape* for each barcode. We do
+// NOT assert exact taxonomic assignments — that would pin behaviour of
+// vsearch, which has its own test suite.
 //
-// Hermeticity: SINTAX publishes to params.fastq_dir, so we copy the
-// fixture into a per-test scratch dir to avoid polluting the source
-// tree with .sintax / .log / done_sintax.txt artefacts.
+// The process stages its input fastq files (so the source fixture is not
+// modified) and publishes <barcode>.sintax / <barcode>.log under
+// params.fastq_dir/fastq_pass/<barcode>/.
 
 nextflow_process {
 
@@ -15,25 +15,20 @@ nextflow_process {
     script "modules/sintax.nf"
     process "SINTAX"
 
-    test("produces one .sintax + one .log per fastq, with the expected structure") {
-
-        setup {
-            new File("${outputDir}/fastq_dir").mkdirs()
-            ["cp", "-r",
-             "${projectDir}/tests/fixtures/fastq_dir/fastq_pass",
-             "${outputDir}/fastq_dir/"].execute().waitFor()
-        }
+    test("per-barcode: one .sintax + one .log per barcode, expected structure") {
 
         when {
             params {
-                primer_f      = "GTACACACCGCCCGTCG"
-                primer_r      = "CGCCTSCSCTTANTDATATGC"
-                fastq_dir     = "${outputDir}/fastq_dir"
+                primer_f  = "GTACACACCGCCCGTCG"
+                primer_r  = "CGCCTSCSCTTANTDATATGC"
+                fastq_dir = "${outputDir}/fastq_dir"
             }
             process {
                 """
-                input[0] = "${outputDir}/fastq_dir"
-                input[1] = file("${projectDir}/tests/fixtures/references.fasta")
+                input[0] = Channel.of(
+                    tuple('barcode01', [file("${projectDir}/tests/fixtures/fastq_dir/fastq_pass/barcode01/reads.fastq.gz")]),
+                    tuple('barcode03', [file("${projectDir}/tests/fixtures/fastq_dir/fastq_pass/barcode03/reads.fastq.gz")]) )
+                input[1] = Channel.value(file("${projectDir}/tests/fixtures/references.fasta"))
                 """
             }
         }
@@ -41,37 +36,58 @@ nextflow_process {
         then {
             assert process.success
 
-            // SX-30: every barcode directory contains exactly one
-            // .sintax and one .log file alongside its fastq.gz
-            def published = file("${outputDir}/fastq_dir/fastq_pass")
-            def barcodes  = ["barcode01", "barcode02", "barcode03"]
-            barcodes.each { bc ->
-                def sintax_files = file("${published}/${bc}").list().findAll { it.endsWith(".sintax") }
-                def log_files    = file("${published}/${bc}").list().findAll { it.endsWith(".log") }
-                assert sintax_files.size() == 1 : "expected 1 .sintax in ${bc}, got ${sintax_files}"
-                assert log_files.size()    == 1 : "expected 1 .log in ${bc}, got ${log_files}"
-            }
+            // Two barcodes in → two output tuples out.
+            assert process.out.assigned.size() == 2
 
-            // SX-31: every row in a non-empty sintax file has 4
-            // tab-separated fields.
+            // SX-30: each barcode publishes one <barcode>.sintax + .log.
+            def pub = { bc, ext -> file("${outputDir}/fastq_dir/fastq_pass/${bc}/${bc}.${ext}") }
+            assert pub('barcode01', 'sintax').exists()
+            assert pub('barcode01', 'log').exists()
+            assert pub('barcode03', 'sintax').exists()
+            assert pub('barcode03', 'log').exists()
+
+            // SX-31: every row has 4 tab-separated fields.
             // SX-32: column 1 carries a ;length=N annotation.
-            ["barcode01", "barcode02"].each { bc ->
-                def lines = file("${published}/${bc}/reads.sintax").readLines()
-                assert lines.size() > 0 : "${bc}/reads.sintax should not be empty"
-                lines.each { line ->
-                    def cols = line.split("\t", -1)
-                    assert cols.size() == 4 : "${bc}: expected 4 tab-separated fields, got ${cols.size()} in line '${line}'"
-                    assert cols[0] =~ /;length=\d+$/ : "${bc}: query '${cols[0]}' missing ;length=N annotation"
-                }
+            def lines = pub('barcode01', 'sintax').readLines()
+            assert lines.size() > 0 : "barcode01.sintax should not be empty"
+            lines.each { line ->
+                def cols = line.split("\t", -1)
+                assert cols.size() == 4 : "expected 4 fields, got ${cols.size()} in '${line}'"
+                assert cols[0] =~ /;length=\d+$/ : "query '${cols[0]}' missing ;length=N"
             }
 
-            // SX-33: barcode with no primer match produces an empty
-            // .sintax file (0 bytes).
-            assert file("${published}/barcode03/reads.sintax").size() == 0
+            // SX-33: a barcode whose reads carry no primer → empty .sintax.
+            assert pub('barcode03', 'sintax').size() == 0
+        }
+    }
 
-            // SX-34: sentinel file is produced.
-            assert process.out.done.size() == 1
-            assert file(process.out.done[0]).name == "done_sintax.txt"
+    test("SX-40 a multi-file barcode produces a single combined .sintax") {
+
+        when {
+            params {
+                primer_f  = "GTACACACCGCCCGTCG"
+                primer_r  = "CGCCTSCSCTTANTDATATGC"
+                fastq_dir = "${outputDir}/fastq_dir"
+            }
+            process {
+                """
+                input[0] = Channel.of(
+                    tuple('barcode01', [
+                        file("${projectDir}/tests/fixtures/flat_dir/fastq_pass/run1_barcode01_0.fastq.gz"),
+                        file("${projectDir}/tests/fixtures/flat_dir/fastq_pass/run1_barcode01_1.fastq.gz")
+                    ]) )
+                input[1] = Channel.value(file("${projectDir}/tests/fixtures/references.fasta"))
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert process.out.assigned.size() == 1
+            // 3 + 2 reads from the two files merged into one .sintax.
+            def sintax = file("${outputDir}/fastq_dir/fastq_pass/barcode01/barcode01.sintax")
+            assert sintax.exists()
+            assert sintax.readLines().size() == 5
         }
     }
 }

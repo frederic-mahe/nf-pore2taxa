@@ -65,16 +65,16 @@ asserting:
 | ID     | Specification                                                                                                                                          |
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | SX-01  | `--help` exits 0 and prints usage.                                                                                                                     |
-| SX-02  | Missing `--input-dir`, `--references`, `--forward-primer`, or `--reverse-primer` each yield a clear stderr error and a non-zero exit code.             |
+| SX-02  | Missing `--barcode`, `--references`, `--forward-primer`, or `--reverse-primer` each yield a clear stderr error and a non-zero exit code.               |
 | SX-03  | Non-integer or non-positive `--threads` yields a clear error.                                                                                          |
-| SX-04  | `--input-dir` that does not exist or is not readable yields a clear error.                                                                             |
-| SX-05  | `--input-dir` is accepted iff it contains at least one file with a supported fastq extension (`.fastq`, `.fastq.gz`, `.fastq.bz2`, or `.fastq.xz`). A directory with none of these yields `Error: no fastq files (.fastq[.gz\|.bz2\|.xz]) found in: ...`. |
+| SX-04  | A FASTQ argument that does not exist or is not readable yields a clear error.                                                                          |
+| SX-05  | The script takes one or more FASTQ files (positional args) belonging to one barcode; each supported extension (`.fastq`, `.fastq.gz`, `.fastq.bz2`, `.fastq.xz`) is accepted. An invocation with no FASTQ argument yields `Error: no fastq files given ...`. |
 | SX-06  | `--references` that does not exist or is not readable yields a clear error.                                                                            |
 | SX-07  | A primer containing non-IUPAC characters yields an error.                                                                                              |
 | SX-08  | A primer shorter than 10 nt emits a *warning* to stderr but does not abort.                                                                            |
 | SX-09  | If `vsearch` is older than the documented minimum (`2.31.0`), the script aborts with a clear error.                                                    |
 | SX-10  | Unknown long flags exit non-zero with `Unknown option:` on stderr.                                                                                     |
-| SX-11  | Positional arguments after `--` are rejected with a clear error.                                                                                       |
+| SX-11  | Missing `--barcode` yields a clear error (positional args are fastq files, so they are no longer rejected).                                            |
 | SX-12  | `--references` is sniffed at startup and must be **sintax-formatted**: its first FASTA header must carry a `tax=` annotation (`>id;tax=d:...,p:...;`). A file whose first line is not a `>` header, or a FASTA header with no `tax=`, aborts before any process runs. Only the first line is read; plain and gzip (`.gz`) references are sniffed; a bzip2 (`.bz2`) reference is skipped with a warning; a missing/unreadable path is left for SX-06. Mirrors nf-metabarcoding's `[S73]`. |
 | SX-13  | Primer-presence filtering is toggleable. By **default** (`--discard-untrimmed`, the script default and `params.discard_untrimmed = true`) a read is dropped unless both the forward primer and the reverse-complemented reverse primer are located — so a barcode of primer-less reads yields an empty `.sintax`. With `--keep-untrimmed` (`params.discard_untrimmed = false`) every read is kept and merely trimmed where a primer is found, so the same barcode yields a non-empty `.sintax`. |
 
@@ -85,25 +85,45 @@ trivially unit-testable in a shell test runner (e.g. `bats-core`):
 
 | ID     | Specification                                                                                                                                          |
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| SX-20  | `trim_extension`: strips a final `.gz`/`.bz2`/`.xz` if present, then strips a trailing `.fastq` if present. Idempotent on names without those suffixes. |
-| SX-21  | `trim_extension`: only affects the *right-most* suffix; e.g. `foo.fastq.gz.bak` becomes `foo.fastq.gz.bak` (no `.bak` rule). Documented edge case.     |
+| ~~SX-20~~ | **Removed.** `trim_extension` was used to derive a per-file output name; the per-barcode refactor (v1.4.0) names outputs after the barcode, so the helper is gone. |
+| ~~SX-21~~ | **Removed** with `trim_extension` (see SX-20).                                                                                                       |
 | SX-22  | `reverse_complement`: complements `ACGT/U/IUPAC ambiguity codes` correctly and reverses the string. `N` and `I` are their own complements.             |
 | SX-23  | `reverse_complement`: handles lower-case input and preserves case.                                                                                     |
 | SX-24  | `reverse_complement`: empty string input aborts with a clear error.                                                                                    |
 
 ### 3.3 Module-level behaviour (`modules/sintax.nf`)
 
-Tested via `nf-test` against a tiny fastq fixture and reference DB.
+Tested via `nf-test` against a tiny fastq fixture and reference DB. The
+module runs **one task per barcode** (the reference is loaded once per
+barcode, not once per file).
 
 | ID     | Specification                                                                                                                                          |
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| SX-30  | For each input `barcodeXX/*.fastq.gz` the module produces a sibling `*.sintax` and `*.log` in the published directory.                                 |
+| SX-30  | For each input `tuple(barcode, [fastqs])` the module produces one `<barcode>.sintax` and one `<barcode>.log`, published under `fastq_pass/<barcode>/`. |
 | SX-31  | Each `*.sintax` row, if present, has exactly **4** tab-separated fields (`query`, `full_taxonomy`, `strand`, `taxonomy`).                              |
 | SX-32  | Query identifiers in `*.sintax` carry a `;length=N` annotation appended by `append_read_length` (regex: `;length=[0-9]+$` on column 1).                |
-| SX-33  | If a barcode directory contains a fastq file but no reads survive primer trimming, the corresponding `*.sintax` file exists and is empty (0 bytes).    |
-| SX-34  | The `done_sintax.txt` sentinel is created.                                                                                                             |
-| SX-35  | The module is idempotent: re-running with `-resume` produces the same set of output files (Nextflow cache hit).                                        |
-| SX-36  | The module accepts uncompressed `.fastq` and `.fastq.{bz2,xz}` input (the `find` regex covers them) and produces matching outputs.                     |
+| SX-33  | If a barcode's reads do not survive primer trimming, its `<barcode>.sintax` exists and is empty (0 bytes); it is emitted (non-optional) so it reaches `BUILD_TABLE`. |
+| ~~SX-34~~ | **Removed.** The `done_sintax.txt` sentinel is gone; the gather is now a real `.collect()` data dependency on the per-barcode `.sintax` outputs.    |
+| SX-35  | The module is idempotent: re-running with `-resume` is a per-barcode Nextflow cache hit.                                                               |
+| SX-36  | Each supported extension (`.fastq`, `.fastq.{gz,bz2,xz}`) is accepted (covered at the CLI level by SX-05).                                             |
+| SX-40  | A barcode split across **several** fastq files is trimmed file-by-file, concatenated, and assigned with a **single** `vsearch` run, producing one `<barcode>.sintax` whose read count is the sum across the files. |
+| SX-41  | End-to-end (`main.nf`): a **flat** `fastq_pass/` (barcode embedded in the filename) with a multi-file barcode produces a correct table, and a sibling `fastq_fail/` is **ignored** (its reads are not counted). |
+
+### 3.4 Barcode discovery (`bin/discover_barcodes.py`)
+
+Discovery walks the `fastq_pass` tree and groups fastq files by barcode
+for the per-barcode fan-out. The barcode is derived from the path
+*relative to* `fastq_pass` with the same `BARCODE_PATTERN`
+(`barcode[0-9]+|unclassified|mixed`) as `build_occurrence_table.py`.
+Covered by `tests/bin/test_discover_barcodes.py`.
+
+| ID     | Specification                                                                                                                                          |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| DSC-01 | The barcode token is found whether it is a directory component (`barcode01/reads.fastq.gz`) or embedded in the filename (`FAX_..._barcode01_0.fastq.gz`). |
+| DSC-02 | Files of one barcode are grouped together; a multi-file barcode yields multiple rows with the same barcode (later `groupTuple`d into one SINTAX task). |
+| DSC-03 | A barcode-like token in a **parent** directory is not picked up (matching is on the path relative to the input dir).                                   |
+| DSC-04 | A file with **no** recognisable barcode token aborts the run (D2), listing the offending paths; an input dir with no fastq files, or that is not a directory, also aborts with a clear error. |
+| DSC-05 | Discovery is rooted at `fastq_pass`, so a sibling `fastq_fail/` is never seen (also asserted end-to-end by SX-41).                                     |
 
 ## 4. `BUILD_TABLE` module + `build_occurrence_table.py`
 

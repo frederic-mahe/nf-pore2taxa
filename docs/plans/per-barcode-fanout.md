@@ -1,7 +1,7 @@
 # Plan: per-barcode fan-out for `SINTAX`
 
-Status: **proposed** (not yet implemented). Target version: `1.4.0`.
-Branch off `tmp-primer-toggle-ci`.
+Status: **implemented** in `1.4.0` (decisions D1/D2/D3 as resolved below).
+Kept for the design rationale and the test strategy.
 
 ## Motivation
 

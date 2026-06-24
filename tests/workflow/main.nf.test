@@ -243,6 +243,45 @@ nextflow_pipeline {
         }
     }
 
+    test("SX-41 flat layout (barcode in filename), multi-file barcode, fastq_fail ignored") {
+
+        setup {
+            new File("${outputDir}/flat_dir").mkdirs()
+            ["cp", "-r",
+             "${projectDir}/tests/fixtures/flat_dir/fastq_pass",
+             "${projectDir}/tests/fixtures/flat_dir/fastq_fail",
+             "${outputDir}/flat_dir/"].execute().waitFor()
+        }
+
+        when {
+            params {
+                skip_basecall     = true
+                fastq_dir         = "${outputDir}/flat_dir"
+                sintax_references = "${projectDir}/tests/fixtures/references.fasta"
+                results_table     = "${outputDir}/flat.tsv"
+                primer_f          = "GTACACACCGCCCGTCG"
+                primer_r          = "CGCCTSCSCTTANTDATATGC"
+            }
+        }
+
+        then {
+            assert workflow.success
+            def filtered = file("${outputDir}/flat.tsv")
+            assert filtered.exists()
+
+            def header = filtered.readLines()[0].split("\t", -1)
+            // barcode token comes from the filename; fastq_fail is excluded.
+            assert (header.drop(2) as Set) == (["barcode01", "barcode02"] as Set)
+
+            // barcode01 is split across two fastq files → 5 reads total
+            // (NOT 10: the 5 fastq_fail reads must not be counted).
+            def b01col = header.findIndexOf { it == "barcode01" }
+            def b01total = filtered.readLines().drop(1)
+                .collect { it.split("\t", -1)[b01col].toInteger() }.sum()
+            assert b01total == 5 : "barcode01 should total 5 reads, got ${b01total}"
+        }
+    }
+
     test("WF-11 startup validation aborts on an invalid publish_mode") {
 
         when {

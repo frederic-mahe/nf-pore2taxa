@@ -3,6 +3,41 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v1.4.0 - 2026-06-24
+
+### `Changed`
+
+- **per-barcode fan-out.** The monolithic `SINTAX` task (one process over
+  the whole run, looping internally and re-loading the reference once per
+  fastq file) is replaced by one task per barcode, run in parallel. Each
+  barcode's fastq files are primer-trimmed and assigned with a **single**
+  `vsearch` run, so the reference database is loaded once per barcode
+  rather than once per file — a large saving when a barcode is split into
+  many small files. This also gives per-barcode failure isolation and
+  granular `-resume`.
+- barcode identity is now derived by regex over the path, so both the
+  demultiplexed-into-folders layout (`fastq_pass/barcode01/…`) and the
+  flat layout with the barcode embedded in the filename
+  (`…_barcode01_0.fastq.gz`) are supported. Discovery is rooted at
+  `fastq_pass`, so a sibling `fastq_fail/` is ignored.
+- `assign_with_sintax.sh` now takes `--barcode` and one or more FASTQ
+  files (replacing `--input-dir`); it writes `<barcode>.sintax` /
+  `<barcode>.log`. Internal driver — no backward-compatibility shim.
+
+### `Added`
+
+- `bin/discover_barcodes.py` (stdlib only): discovers fastq files under a
+  `fastq_pass` tree and groups them by barcode for the fan-out, aborting
+  with a clear error if a file carries no recognisable barcode token.
+  Covered by `tests/bin/test_discover_barcodes.py` (DSC-01..05).
+- fixtures: a flat-layout `flat_dir` (barcode in the filename, a
+  multi-file barcode, and a `fastq_fail/` that must be ignored).
+
+### `Removed`
+
+- the `done_sintax.txt` sentinel (replaced by a real `.collect()` gather)
+  and the `trim_extension` helper (per-file output naming is gone).
+
 ## v1.3.0 - 2026-06-24
 
 ### `Added`

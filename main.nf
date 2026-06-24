@@ -1,9 +1,10 @@
 #!/usr/bin/env nextflow
 nextflow.enable.dsl = 2
 
-include { BASECALL    } from './modules/basecall'
-include { SINTAX      } from './modules/sintax'
-include { BUILD_TABLE } from './modules/build_table'
+include { BASECALL          } from './modules/basecall'
+include { DISCOVER_BARCODES } from './modules/discover'
+include { SINTAX            } from './modules/sintax'
+include { BUILD_TABLE       } from './modules/build_table'
 
 
 workflow {
@@ -42,17 +43,32 @@ workflow {
     if (errors)
         error "Parameter validation failed:\n${errors.join('\n')}\nSee the README for the expected project config."
 
-    references_ch = Channel.fromPath(sintax_references, type: 'file', checkIfExists: true)
+    // .first() turns the reference into a value channel so it is reused
+    // across every barcode SINTAX task (a queue channel would be consumed
+    // by the first barcode only).
+    references_ch = Channel.fromPath(sintax_references, type: 'file', checkIfExists: true).first()
 
     if (params.skip_basecall) {
-        // fastq_dir must already exist on disk — point directly at it
-        fastq_ch = Channel.fromPath(params.fastq_dir, type: 'dir', checkIfExists: true)
+        // fastq_dir must already exist on disk and hold a fastq_pass tree.
+        fastq_pass_ch = Channel.fromPath("${params.fastq_dir}/fastq_pass", type: 'dir', checkIfExists: true)
     } else {
         pod5_dir_ch = Channel.fromPath(params.pod5_dir, type: 'dir', checkIfExists: true)
         BASECALL(pod5_dir_ch)
-        fastq_ch = BASECALL.out.done.map { it.parent.toString() }
+        // the sentinel sits beside the freshly written fastq_pass
+        fastq_pass_ch = BASECALL.out.done.map { file("${it.parent}/fastq_pass") }
     }
 
-    SINTAX(fastq_ch, references_ch)
-    BUILD_TABLE(SINTAX.out.done.map { it.parent.toString() })  // it.parent = module's work directory
+    // Discover fastq files and group them by barcode (handles both the
+    // demultiplexed-into-folders and flat/embedded-name layouts; a sibling
+    // fastq_fail is never seen since discovery is rooted at fastq_pass).
+    DISCOVER_BARCODES(fastq_pass_ch)
+    barcodes_ch = DISCOVER_BARCODES.out.barcodes
+        .splitCsv(header: true, sep: '\t')
+        .map { row -> tuple(row.barcode, file(row.path)) }
+        .groupTuple()
+
+    // One SINTAX task per barcode (one reference load each), then gather
+    // every per-barcode .sintax into a single BUILD_TABLE invocation.
+    SINTAX(barcodes_ch, references_ch)
+    BUILD_TABLE(SINTAX.out.assigned.map { barcode, sintax, log -> sintax }.collect())
 }
