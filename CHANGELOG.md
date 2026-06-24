@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   primer are found (strict amplicon filtering); when `false`, every read
   is kept and trimmed only where a primer is found. Exposed on the driver
   script as `--discard-untrimmed` / `--keep-untrimmed`. Covered by SX-13.
+- `conda` profile and pinned `environment.yml` (vsearch 2.31.0, cutadapt
+  5.2, python 3.12) so dependencies resolve reproducibly without relying
+  on the bare `PATH`. Scoped to the `SINTAX`/`BUILD_TABLE` steps; `dorado`
+  (BASECALL) is an ONT GPU binary not on bioconda and stays bare-PATH. The
+  in-script `vsearch` version check remains the safety net for bare-PATH
+  runs.
+- `publish_mode` parameter (default `link`) selecting the `publishDir`
+  mode; set to `copy` when `workDir` and the data/results directories are
+  on different filesystems (hard links cannot cross devices). Also governs
+  how `SINTAX` stages its input.
+- startup parameter validation in `main.nf`: a run missing a required
+  value (`sintax_references`, `results_table`, `primer_f`, `primer_r`, the
+  mode-appropriate `fastq_dir`/`pod5_dir`) or holding an invalid
+  `discard_untrimmed`/`publish_mode` aborts with a single aggregated
+  report before any process runs. Covered by WF-11.
 - GitHub Actions CI (`.github/workflows/test.yml`) running the python,
   bats, nf-test and shellcheck layers on every push and pull request.
 
@@ -21,6 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - restore primer-presence filtering as the default, undoing the
   experimental "disable primer filtering" change that left every read
   assigned and broke the `barcode03` fixture invariants (SX-33, BT-13).
+- `BUILD_TABLE` now resolves its `publishDir` path lazily (a closure), so
+  a null `results_table` is reported by the startup validation instead of
+  a raw `file()` error at process-definition time.
 - resolve shellcheck warnings in the `bin/` and `tests/` shell scripts
   (SC2155, SC2164) and add a `.shellcheckrc` so the sourced
   `bin/lib/validation.sh` is followed (SC1091).

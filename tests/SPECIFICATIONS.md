@@ -35,6 +35,7 @@ changes accidentally, the corresponding test should catch it.
 | WF-08 | `params.sintax_silva` is accepted as a deprecated alias for `params.sintax_references`: when only the alias is set, it drives the workflow (nf-test) and a deprecation warning naming `sintax_silva` is emitted via `log.warn` (`tests/config/deprecation.bats`). |
 | WF-09 | When both are set, `params.sintax_references` takes precedence over the deprecated `params.sintax_silva` alias.                                                |
 | WF-10 | The pipeline aborts if the path supplied via the deprecated `params.sintax_silva` alias does not exist (`checkIfExists: true`).                               |
+| WF-11 | Startup parameter validation aborts before any process runs, with a single aggregated `Parameter validation failed` report, when a required value is missing (`sintax_references`, `results_table`, `primer_f`, `primer_r`, the mode-appropriate `fastq_dir`/`pod5_dir`) or when `discard_untrimmed`/`publish_mode` hold an invalid value. |
 
 ## 2. `BASECALL` module — *light coverage only*
 

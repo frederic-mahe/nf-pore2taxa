@@ -76,6 +76,11 @@ params {
     // primer is not found (strict amplicon filtering). false: keep every
     // read, trimming primers only where they are found.
     discard_untrimmed = true
+
+    // publishDir mode. 'link' (default) requires workDir and the
+    // data/results directories to share a filesystem; use 'copy' when
+    // they are on different filesystems.
+    publish_mode      = "link"
 }
 ```
 
@@ -88,8 +93,10 @@ params {
 > off-target reads may also be assigned a taxonomy.
 
 > [!WARNING]
-> Intermediate files are linked (hardlinks), so it is important for
-> `workDir` and `fastq_dir` to be on the same filesystem.
+> By default, intermediate files are linked (hardlinks), so `workDir`
+> and `fastq_dir`/`results_table` must be on the same filesystem. If they
+> are not, set `publish_mode = "copy"` to fall back to real copies (hard
+> links cannot cross filesystems).
 
 Now, you can run the pipeline using:
 
@@ -100,6 +107,21 @@ nextflow \
 ```
 
 Parameters can also be passed via the command-line, if need be.
+
+### Providing the dependencies
+
+`cutadapt` and `vsearch` (and `python3`) must be available. The simplest
+way is the bundled `conda` profile, which resolves them from the pinned
+[`environment.yml`](environment.yml):
+
+```bash
+nextflow run main.nf -profile standard,conda -config /path/to/myproject.config
+```
+
+Otherwise, ensure `cutadapt` and `vsearch` (>= 2.31.0) are on your `PATH`.
+Basecalling (`dorado`, `pigz`) is **not** provided by the `conda` profile —
+`dorado` is an Oxford Nanopore GPU binary — so it must be installed
+separately when `skip_basecall = false`.
 
 
 ## Pipeline output

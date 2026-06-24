@@ -1,7 +1,10 @@
 process BUILD_TABLE {
     tag "build_table"
 
-    publishDir "${file(params.results_table).parent}", mode: 'link', overwrite: true
+    // Closure (lazy): evaluated per task, not at process-definition time,
+    // so a null params.results_table is reported by the workflow's
+    // startup parameter validation rather than a raw file() error here.
+    publishDir { file(params.results_table).parent }, mode: params.publish_mode, overwrite: true
 
     input:
     val fastq_dir  // pass absolute path as a value, no staging

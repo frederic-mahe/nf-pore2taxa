@@ -40,10 +40,8 @@ Options:
   -f, --forward-primer  STR    Sequence of the forward primer (required)
   -r, --reverse-primer  STR    Sequence of the reverse primer (required)
   -t, --threads         INT    Number of threads for vsearch (default: 1)
-      --discard-untrimmed      Drop reads in which a primer is not found
-                               (strict amplicon filtering; this is the default)
-      --keep-untrimmed         Keep every read, trimming primers only where
-                               they are found
+      --discard-untrimmed      Drop reads with no primer found (default)
+      --keep-untrimmed         Keep all reads, trim primers where found
   -h, --help                   Show this help message and exit
 EOF
     exit 0

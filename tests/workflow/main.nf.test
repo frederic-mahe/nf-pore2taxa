@@ -220,4 +220,46 @@ nextflow_pipeline {
             assert workflow.failed
         }
     }
+
+    test("WF-11 startup validation aborts on a missing required parameter") {
+
+        when {
+            params {
+                skip_basecall     = true
+                fastq_dir         = "${projectDir}/tests/fixtures/fastq_dir"
+                sintax_references = "${projectDir}/tests/fixtures/references.fasta"
+                // results_table deliberately omitted (null).
+                primer_f          = "GTACACACCGCCCGTCG"
+                primer_r          = "CGCCTSCSCTTANTDATATGC"
+            }
+        }
+
+        then {
+            // WF-11: aborts at startup with the aggregated report, before
+            // any process runs and before the deeper file()/tool errors.
+            assert workflow.failed
+            assert workflow.stdout.any { it.contains("Parameter validation failed") }
+            assert workflow.stdout.any { it.contains("results_table") }
+        }
+    }
+
+    test("WF-11 startup validation aborts on an invalid publish_mode") {
+
+        when {
+            params {
+                skip_basecall     = true
+                fastq_dir         = "${projectDir}/tests/fixtures/fastq_dir"
+                sintax_references = "${projectDir}/tests/fixtures/references.fasta"
+                results_table     = "${outputDir}/sintax.tsv"
+                primer_f          = "GTACACACCGCCCGTCG"
+                primer_r          = "CGCCTSCSCTTANTDATATGC"
+                publish_mode      = "hardlink"  // not a valid publishDir mode
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.any { it.contains("publish_mode") }
+        }
+    }
 }

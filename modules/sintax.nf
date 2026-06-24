@@ -1,9 +1,10 @@
 process SINTAX {
     tag "sintax"
 
-    // TODO: once conda-based distribution lands, replace the in-script
-    //       version check with `conda 'bioconda::vsearch>=2.31.0'`
-    publishDir params.fastq_dir, mode: 'link', overwrite: true,
+    // The `conda` profile (environment.yml) pins vsearch/cutadapt; the
+    // in-script version check in assign_with_sintax.sh stays as the safety
+    // net for bare-PATH runs (the default `standard` profile).
+    publishDir params.fastq_dir, mode: params.publish_mode, overwrite: true,
                saveAs: { filename -> filename }
 
     input:
@@ -19,8 +20,12 @@ process SINTAX {
     // Strict amplicon filtering (drop reads with no primer) is the
     // default; params.discard_untrimmed = false keeps every read.
     def primer_filter = params.discard_untrimmed ? '--discard-untrimmed' : '--keep-untrimmed'
+    // Stage the input by hard link when workDir and fastq_dir share a
+    // filesystem (publish_mode 'link'); fall back to a real copy
+    // otherwise, since a hard link cannot cross devices.
+    def stage_link = params.publish_mode == 'link' ? '--link' : ''
     """
-    cp --archive --link "${fastq_dir}/fastq_pass" ./fastq_pass
+    cp --archive ${stage_link} "${fastq_dir}/fastq_pass" ./fastq_pass
     bash \\
     assign_with_sintax.sh \\
         --input-dir "./fastq_pass" \\

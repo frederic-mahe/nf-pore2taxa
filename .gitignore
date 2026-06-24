@@ -1,5 +1,7 @@
 *~
 .nextflow.log*
+.nextflow/
+work/
 
 # python byte-compile artefacts
 __pycache__/

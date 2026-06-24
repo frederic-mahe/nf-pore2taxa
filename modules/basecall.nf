@@ -1,7 +1,7 @@
 process BASECALL {
     tag "basecall"
 
-    publishDir params.fastq_dir, mode: 'link', overwrite: true,
+    publishDir params.fastq_dir, mode: params.publish_mode, overwrite: true,
                saveAs: { filename -> filename }  // preserves subdirectory structure
 
     input:

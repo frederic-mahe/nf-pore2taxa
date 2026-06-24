@@ -83,7 +83,7 @@ nf-test test tests/workflow/main.nf.test
 | `bin/build_occurrence_table.bats`      | BT-01..BT-04, BT-06, BT-07, BT-10..BT-13, BT-21..BT-24    |
 | `bin/test_build_occurrence_table.py`   | BT-01..BT-07, BT-10..BT-17, BT-20..BT-24, BT-30, BT-32..BT-34 |
 | `modules/sintax.nf.test`               | SX-30, SX-31, SX-32, SX-33, SX-34                         |
-| `workflow/main.nf.test`                | WF-03, WF-04, WF-06, BT-10, BT-11, BT-13, BT-20, BT-22, BT-23 |
+| `workflow/main.nf.test`                | WF-03, WF-04, WF-06, WF-08, WF-09, WF-10, WF-11, BT-10, BT-11, BT-13, BT-20, BT-22, BT-23 |
 
 ## Known gaps (next iterations)
 

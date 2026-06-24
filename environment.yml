@@ -1,0 +1,24 @@
+# Conda environment for the external tools the pipeline drives, plus a
+# Python interpreter for bin/build_occurrence_table.py (standard library
+# only — no pip dependencies). Used by the `conda` profile in
+# nextflow.config.
+#
+# Versions are pinned to EXACT releases so results stay reproducible
+# across the labs running this pipeline, and must match the pins the CI
+# workflow installs (.github/workflows/test.yml). Bump deliberately, in
+# both files at once. vsearch must stay >= 2.31.0 (the minimum the
+# assign_with_sintax.sh runtime check enforces for bare-PATH runs).
+#
+# NOTE: dorado (the BASECALL step) is an Oxford Nanopore GPU binary that
+# is not distributed on bioconda, so it is NOT provided here. The conda
+# profile therefore scopes this environment to the SINTAX and BUILD_TABLE
+# processes only; basecalling still requires dorado (and pigz) on PATH
+# wherever it runs. Most users skip basecalling (skip_basecall = true).
+name: nf-pore2taxa
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - bioconda::vsearch=2.31.0
+  - bioconda::cutadapt=5.2
+  - conda-forge::python=3.12
