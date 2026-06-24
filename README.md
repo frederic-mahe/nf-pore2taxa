@@ -113,7 +113,12 @@ nextflow \
     -config /path/to/myproject.config
 ```
 
-Parameters can also be passed via the command-line, if need be.
+Parameters can also be passed via the command-line, if need be. For a
+summary of every parameter and profile, run:
+
+```bash
+nextflow run main.nf --help
+```
 
 ### Providing the dependencies
 

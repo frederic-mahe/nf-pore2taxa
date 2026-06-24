@@ -7,7 +7,68 @@ include { SINTAX            } from './modules/sintax'
 include { BUILD_TABLE       } from './modules/build_table'
 
 
+// Hand-written help (printed by `--help`). Kept in sync with the params
+// block in nextflow.config and the validation below; there is no schema
+// plugin to generate it for us.
+def helpMessage() {
+    """
+    ${workflow.manifest.name} ${workflow.manifest.version}
+    ${workflow.manifest.description}
+
+    Usage:
+
+      nextflow run main.nf -config <project.config> [-profile standard,conda]
+
+    Parameters are normally supplied through a -config file (see the README);
+    each one below can also be passed on the command line as --<name> <value>.
+
+    Required parameters:
+      --sintax_references  Path to the sintax-formatted reference FASTA.
+                           Taxonomy is encoded in each header (README "sintax format").
+      --results_table      Output occurrence table (TSV) path.
+      --primer_f           Forward primer sequence.
+      --primer_r           Reverse primer sequence.
+      --pod5_dir           Directory of pod5 files to basecall.
+                           Required unless --skip_basecall is set.
+      --fastq_dir          Directory holding a fastq_pass/ tree.
+                           Required when --skip_basecall is set.
+
+    Optional parameters:
+      --skip_basecall      Reuse existing fastq instead of basecalling pod5
+                           (default: ${params.skip_basecall}). Needs --fastq_dir.
+      --discard_untrimmed  Drop reads with no detectable primer, i.e. strict
+                           amplicon filtering (default: ${params.discard_untrimmed}).
+                           Set false to keep and trim every read.
+      --publish_mode       publishDir mode for outputs: link, copy, symlink,
+                           rellink, move, copyNoFollow (default: ${params.publish_mode}).
+                           'link' needs workDir and outputs on one filesystem.
+      --help               Show this message and exit.
+
+    Profiles (-profile):
+      standard             Local executor (default).
+      cluster              SLURM executor.
+      conda                Resolve cutadapt/vsearch/python from environment.yml.
+                           Compose with an executor, e.g. -profile standard,conda.
+
+    Example:
+
+      nextflow run main.nf -profile standard,conda \\
+          --skip_basecall --fastq_dir data/run1 \\
+          --sintax_references refs.fasta.gz \\
+          --results_table results/sintax.tsv \\
+          --primer_f GTACACACCGCCCGTCG --primer_r CGCCTSCSCTTANTDATATGC
+    """.stripIndent()
+}
+
+
 workflow {
+
+    // Print help and exit before any validation, so `--help` works on its
+    // own (returning from the workflow body invokes no process).
+    if (params.help) {
+        println helpMessage()
+        return
+    }
 
     // Resolve the deprecated `sintax_silva` alias for `sintax_references`
     if (params.sintax_silva != null) {
@@ -41,7 +102,7 @@ workflow {
     if (!(params.publish_mode in valid_modes))
         errors << "  - 'publish_mode' must be one of ${valid_modes} (got: '${params.publish_mode}')."
     if (errors)
-        error "Parameter validation failed:\n${errors.join('\n')}\nSee the README for the expected project config."
+        error "Parameter validation failed:\n${errors.join('\n')}\nRun with --help for the full parameter list, or see the README for the expected project config."
 
     // .first() turns the reference into a value channel so it is reused
     // across every barcode SINTAX task (a queue channel would be consumed
