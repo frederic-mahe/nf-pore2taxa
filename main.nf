@@ -39,6 +39,10 @@ def helpMessage() {
       --discard_untrimmed  Drop reads with no detectable primer, i.e. strict
                            amplicon filtering (default: ${params.discard_untrimmed}).
                            Set false to keep and trim every read.
+      --randseed           Seed for vsearch's random generator in the sintax
+                           step (default: ${params.randseed}). 0 picks a
+                           pseudo-random seed; set a positive integer for
+                           reproducible single-threaded runs.
       --publish_mode       publishDir mode for outputs: link, copy, symlink,
                            rellink, move, copyNoFollow (default: ${params.publish_mode}).
                            'link' needs workDir and outputs on one filesystem.
@@ -98,6 +102,11 @@ workflow {
     }
     if (!(params.discard_untrimmed in [true, false]))
         errors << "  - 'discard_untrimmed' must be true or false (got: '${params.discard_untrimmed}')."
+    // CLI overrides arrive as Strings, config values as Integers; match
+    // the string form so both a non-negative integer and its CLI spelling
+    // pass (and a float, sign, or non-numeric value is rejected).
+    if (!("${params.randseed}" ==~ /\d+/))
+        errors << "  - 'randseed' must be a non-negative integer (got: '${params.randseed}')."
     def valid_modes = ['link', 'copy', 'symlink', 'rellink', 'move', 'copyNoFollow']
     if (!(params.publish_mode in valid_modes))
         errors << "  - 'publish_mode' must be one of ${valid_modes} (got: '${params.publish_mode}')."

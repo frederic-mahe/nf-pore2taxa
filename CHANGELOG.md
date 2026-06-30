@@ -3,6 +3,17 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v1.5.0 - 2026-06-30
+
+### `Added`
+
+- `--randseed` option (default `0`) wires vsearch's random-generator seed
+  through the workflow (`params.randseed`), the `SINTAX` module, and
+  `assign_with_sintax.sh`. `0` lets vsearch pick a pseudo-random seed each
+  run; a positive integer gives reproducible single-threaded assignments.
+  Note that results remain non-deterministic under multithreading even
+  with a fixed seed. Covered by SX-14.
+
 ## v1.4.0 - 2026-06-24
 
 ### `Changed`

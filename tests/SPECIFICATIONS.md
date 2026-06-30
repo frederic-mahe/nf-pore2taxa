@@ -77,6 +77,7 @@ asserting:
 | SX-11  | Missing `--barcode` yields a clear error (positional args are fastq files, so they are no longer rejected).                                            |
 | SX-12  | `--references` is sniffed at startup and must be **sintax-formatted**: its first FASTA header must carry a `tax=` annotation (`>id;tax=d:...,p:...;`). A file whose first line is not a `>` header, or a FASTA header with no `tax=`, aborts before any process runs. Only the first line is read; plain and gzip (`.gz`) references are sniffed; a bzip2 (`.bz2`) reference is skipped with a warning; a missing/unreadable path is left for SX-06. Mirrors nf-metabarcoding's `[S73]`. |
 | SX-13  | Primer-presence filtering is toggleable. By **default** (`--discard-untrimmed`, the script default and `params.discard_untrimmed = true`) a read is dropped unless both the forward primer and the reverse-complemented reverse primer are located — so a barcode of primer-less reads yields an empty `.sintax`. With `--keep-untrimmed` (`params.discard_untrimmed = false`) every read is kept and merely trimmed where a primer is found, so the same barcode yields a non-empty `.sintax`. |
+| SX-14  | `--randseed` sets vsearch's random generator seed (default `0`, a pseudo-random seed). A valid non-negative integer is accepted; a negative or non-integer value yields a clear stderr error and a non-zero exit code. |
 
 ### 3.2 Pure-function helpers
 

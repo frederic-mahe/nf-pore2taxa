@@ -142,6 +142,35 @@ b03() { echo "${FIXDIR}/barcode03/reads.fastq.gz" ; }
     [ -s "b03.sintax" ]
 }
 
+# --------------------------------------------------------------------- SX-14
+
+@test "SX-14a accepts a valid --randseed" {
+    cd "${BATS_TEST_TMPDIR}"
+    local f ; f="$(make_fastq fastq.gz)"
+    run bash "${SCRIPT}" --barcode bc -d "${REFS}" \
+        -f GTACACACCGCCCGTCG -r CGCCTSCSCTTANTDATATGC -t 1 --randseed 42 "${f}"
+    [ "${status}" -eq 0 ]
+    [ -s "bc.sintax" ]
+}
+
+@test "SX-14b rejects a negative --randseed" {
+    cd "${BATS_TEST_TMPDIR}"
+    local f ; f="$(make_fastq fastq.gz)"
+    run bash "${SCRIPT}" --barcode bc -d "${REFS}" \
+        -f GTACACACCGCCCGTCG -r CGCCTSCSCTTANTDATATGC -t 1 --randseed -5 "${f}"
+    [ "${status}" -ne 0 ]
+    [[ "${output}" == *"--randseed must be a non-negative integer"* ]]
+}
+
+@test "SX-14c rejects a non-integer --randseed" {
+    cd "${BATS_TEST_TMPDIR}"
+    local f ; f="$(make_fastq fastq.gz)"
+    run bash "${SCRIPT}" --barcode bc -d "${REFS}" \
+        -f GTACACACCGCCCGTCG -r CGCCTSCSCTTANTDATATGC -t 1 --randseed abc "${f}"
+    [ "${status}" -ne 0 ]
+    [[ "${output}" == *"--randseed must be a non-negative integer"* ]]
+}
+
 # --------------------------------------------------------------------- SX-40
 
 @test "SX-40 a multi-file barcode yields one .sintax with combined reads" {

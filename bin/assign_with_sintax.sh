@@ -39,6 +39,8 @@ Options:
   -f, --forward-primer  STR    Sequence of the forward primer (required)
   -r, --reverse-primer  STR    Sequence of the reverse primer (required)
   -t, --threads         INT    Number of threads for vsearch (default: 1)
+      --randseed          INT    Seed for vsearch's random generator; 0 picks a
+                                 pseudo-random seed each run (default: 0)
       --discard-untrimmed      Drop reads with no primer found (default)
       --keep-untrimmed         Keep all reads, trim primers where found
   -h, --help                   Show this help message and exit
@@ -89,6 +91,11 @@ validate_inputs() {
 
     if ! [[ "${THREADS}" =~ ^[1-9][0-9]*$ ]] ; then
         echo "Error: --threads must be a positive integer: ${THREADS}" 1>&2
+        (( errors++ )) || true
+    fi
+
+    if ! [[ "${RANDSEED}" =~ ^[0-9]+$ ]] ; then
+        echo "Error: --randseed must be a non-negative integer: ${RANDSEED}" 1>&2
         (( errors++ )) || true
     fi
 
@@ -227,17 +234,18 @@ append_read_length() {
 
 taxonomic_assignment_with_sintax() {
     local -r sintax_cutoff=0.9
-    # local -ri randseed=42
 
     # Note: when multithreading, sintax results are not exactly
-    # replicable, even when using a fix seed for the random generator
-    # with --randseed "${randseed}"
+    # replicable, even when using a fixed seed for the random generator
+    # with --randseed. A non-zero RANDSEED still helps single-threaded
+    # runs; RANDSEED=0 (default) lets vsearch pick a pseudo-random seed.
 
     "${VSEARCH}" \
         --sintax - \
         --dbmask none \
         --db "${REFERENCES}" \
         --sintax_cutoff "${sintax_cutoff}" \
+        --randseed "${RANDSEED}" \
         --threads "${THREADS}" \
         --quiet \
         --tabbedout -
@@ -253,6 +261,7 @@ references=""
 forward_primer=""
 reverse_primer=""
 threads=1
+randseed=0               # 0 lets vsearch pick a pseudo-random seed
 discard_untrimmed=true  # strict amplicon filtering on by default
 fastq_files=()
 
@@ -263,6 +272,7 @@ while [[ $# -gt 0 ]] ; do
         -f | --forward-primer)  forward_primer="${2}"; shift 2 ;;
         -r | --reverse-primer)  reverse_primer="${2}"; shift 2 ;;
         -t | --threads)         threads="${2}";        shift 2 ;;
+        --randseed)             randseed="${2}";       shift 2 ;;
         --discard-untrimmed)    discard_untrimmed=true;  shift ;;
         --keep-untrimmed)       discard_untrimmed=false; shift ;;
         -h | --help)            usage                          ;;
@@ -284,9 +294,10 @@ declare -r  REFERENCES="${references}"
 declare -r  FORWARD_PRIMER="${forward_primer}"
 declare -r  REVERSE_PRIMER="${reverse_primer}"
 declare -ri THREADS="${threads}"
+declare -r  RANDSEED="${randseed}"
 declare -r  DISCARD_UNTRIMMED="${discard_untrimmed}"
 declare -ra FASTQ_FILES=("${fastq_files[@]+"${fastq_files[@]}"}")
-unset barcode references forward_primer reverse_primer threads discard_untrimmed fastq_files
+unset barcode references forward_primer reverse_primer threads randseed discard_untrimmed fastq_files
 
 validate_inputs
 check_commands

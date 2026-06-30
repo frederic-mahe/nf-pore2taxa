@@ -84,6 +84,11 @@ params {
     // read, trimming primers only where they are found.
     discard_untrimmed = true
 
+    // Seed for vsearch's random generator in the sintax step. 0 (default)
+    // picks a pseudo-random seed each run; a positive integer gives
+    // reproducible single-threaded assignments.
+    randseed          = 0
+
     // publishDir mode. 'link' (default) requires workDir and the
     // data/results directories to share a filesystem; use 'copy' when
     // they are on different filesystems.

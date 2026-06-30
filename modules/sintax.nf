@@ -28,6 +28,7 @@ process SINTAX {
         --forward-primer "${params.primer_f}" \\
         --reverse-primer "${params.primer_r}" \\
         --threads "${task.cpus}" \\
+        --randseed "${params.randseed}" \\
         ${primer_filter} \\
         ${fastqs}
     """
