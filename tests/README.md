@@ -34,7 +34,8 @@ tests/
 │   └── validation.bats
 ├── config/               ← bats tests for nextflow.config invariants
 │   └── version.bats
-├── modules/              ← nf-test files for individual processes
+├── modules/              ← nf-test files for processes + shared functions
+│   ├── functions.nf.test
 │   └── sintax.nf.test
 └── workflow/             ← nf-test files for the end-to-end workflow
     └── main.nf.test
@@ -91,6 +92,7 @@ nf-test test tests/workflow/main.nf.test
 | `bin/test_build_occurrence_table.py`   | BT-01..BT-07, BT-10..BT-17, BT-20..BT-24, BT-30, BT-32..BT-34 |
 | `bin/test_build_krona.py`              | KR-01..KR-04, KR-30..KR-35                                |
 | `bin/build_krona_cli.bats`             | KR-40, KR-41, KR-42                                       |
+| `modules/functions.nf.test`            | FN-01, FN-02                                             |
 | `modules/sintax.nf.test`               | SX-30, SX-31, SX-32, SX-33, SX-40, SX-44                  |
 | `workflow/main.nf.test`                | WF-03, WF-04, WF-06, WF-08, WF-09, WF-10, WF-11, WF-12, WF-13, WF-14, SX-41, BT-10, BT-11, BT-13, BT-20, BT-22, BT-23 |
 

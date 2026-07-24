@@ -258,7 +258,18 @@ Needs `ktImportText` (KronaTools) on PATH; skips gracefully if absent.
 | KR-41  | The HTML holds one dataset per **non-empty** barcode (labelled by barcode name); an all-zero barcode never becomes a dataset.                          |
 | KR-42  | Given both tables, the driver names outputs by input: `krona.html` for the filtered table, `krona_optimistic.html` for the `_optimistic` one.          |
 
-## 9. Out of scope (will not be tested)
+## 9. Shared helper functions (`modules/local/functions.nf`)
+
+Small pure functions included by `main.nf` and the process modules, so
+the boolean-parameter handling lives in one place. Tested directly with
+nf-test's function harness (`tests/modules/functions.nf.test`).
+
+| ID     | Specification                                                                                                                                          |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| FN-01  | `coerce_bool(v)` returns a real Boolean: the string `'true'` and Boolean `true` → `true`; `'false'`, `false`, and any other value → `false`. This normalises a config boolean and a CLI `--flag`/`--flag false` (which arrives as a string) alike. |
+| FN-02  | `valid_bool(v)` is `true` only when `v` is a Boolean or the string `'true'`/`'false'`; any other value (e.g. `'yes'`) is `false`. Startup validation uses it to reject non-boolean values before `coerce_bool` flattens them. |
+
+## 10. Out of scope (will not be tested)
 
 - The numerical correctness of `dorado` basecalls.
 - The numerical correctness of `cutadapt` primer trimming or

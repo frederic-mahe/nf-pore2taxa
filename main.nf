@@ -6,6 +6,8 @@ include { DISCOVER_BARCODES } from './modules/discover'
 include { SINTAX            } from './modules/sintax'
 include { BUILD_TABLE       } from './modules/build_table'
 include { KRONA             } from './modules/krona'
+include { coerce_bool       } from './modules/local/functions'
+include { valid_bool        } from './modules/local/functions'
 
 
 // Hand-written help (printed by `--help`). Kept in sync with the params
@@ -109,16 +111,12 @@ workflow {
     else if (!params.pod5_dir) {
         errors << "  - 'pod5_dir' is required when 'skip_basecall = false' (set 'skip_basecall = true' to reuse existing fastq)."
     }
-    // Accept a config boolean or a CLI flag (the string 'true'/'false');
-    // reject anything else. modules/sintax.nf tests the same string form,
-    // so `--discard_untrimmed false` is honoured (a truthy string 'false'
-    // would otherwise wrongly select --discard-untrimmed).
-    if (!("${params.discard_untrimmed}" in ['true', 'false']))
+    // Boolean params accept a config boolean or a CLI flag (the string
+    // 'true'/'false'); valid_bool()/coerce_bool() (modules/local/functions)
+    // handle both forms, so e.g. `--discard_untrimmed false` is honoured.
+    if (!valid_bool(params.discard_untrimmed))
         errors << "  - 'discard_untrimmed' must be true or false (got: '${params.discard_untrimmed}')."
-    // Accept a config boolean (true/false) or a CLI flag (the string
-    // 'true'/'false'); reject anything else. Coerced to a real boolean
-    // below so `--krona false` is correctly treated as disabled.
-    if (!("${params.krona}" in ['true', 'false']))
+    if (!valid_bool(params.krona))
         errors << "  - 'krona' must be true or false (got: '${params.krona}')."
     // CLI overrides arrive as Strings, config values as Integers; match
     // the string form so both a non-negative integer and its CLI spelling
@@ -164,10 +162,10 @@ workflow {
 
     // Optional Krona charts: one HTML per occurrence table (filtered +
     // optimistic), each with a per-barcode dataset. BUILD_TABLE emits both
-    // TSVs as a single list, so one KRONA task renders both. "${...}"
-    // coerces both the config boolean and the CLI-flag string to a test on
-    // 'true', so `--krona false` (string) disables it as expected.
-    if ("${params.krona}" == 'true') {
+    // TSVs as a single list, so one KRONA task renders both. coerce_bool
+    // handles both the config boolean and the CLI-flag string, so
+    // `--krona false` disables it as expected.
+    if (coerce_bool(params.krona)) {
         KRONA(BUILD_TABLE.out.results_table)
     }
 }

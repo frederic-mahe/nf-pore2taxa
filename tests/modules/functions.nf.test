@@ -1,0 +1,70 @@
+// Unit tests for the shared helpers in modules/local/functions.nf.
+//
+// These pin the boolean-parameter contract both consumers rely on: a
+// value may arrive as a real Boolean (from a -config file) or as the
+// string 'true'/'false' (from a CLI `--flag` override). See FN-01/FN-02
+// in tests/SPECIFICATIONS.md.
+
+nextflow_function {
+
+    name "Shared functions"
+    script "modules/local/functions.nf"
+
+    // ------------------------------------------------------------- FN-01
+
+    test("FN-01a coerce_bool: string 'true' -> Boolean true") {
+        function "coerce_bool"
+        when { function { """ input[0] = "true" """ } }
+        then { assert function.success; assert function.result == true }
+    }
+
+    test("FN-01b coerce_bool: string 'false' -> Boolean false") {
+        function "coerce_bool"
+        when { function { """ input[0] = "false" """ } }
+        then { assert function.success; assert function.result == false }
+    }
+
+    test("FN-01c coerce_bool: Boolean true -> true") {
+        function "coerce_bool"
+        when { function { """ input[0] = true """ } }
+        then { assert function.success; assert function.result == true }
+    }
+
+    test("FN-01d coerce_bool: Boolean false -> false") {
+        function "coerce_bool"
+        when { function { """ input[0] = false """ } }
+        then { assert function.success; assert function.result == false }
+    }
+
+    test("FN-01e coerce_bool: any other value -> false") {
+        function "coerce_bool"
+        when { function { """ input[0] = "yes" """ } }
+        then { assert function.success; assert function.result == false }
+    }
+
+    // ------------------------------------------------------------- FN-02
+
+    test("FN-02a valid_bool: string 'true' is valid") {
+        function "valid_bool"
+        when { function { """ input[0] = "true" """ } }
+        then { assert function.success; assert function.result == true }
+    }
+
+    test("FN-02b valid_bool: string 'false' is valid") {
+        function "valid_bool"
+        when { function { """ input[0] = "false" """ } }
+        then { assert function.success; assert function.result == true }
+    }
+
+    test("FN-02c valid_bool: Boolean true is valid") {
+        function "valid_bool"
+        when { function { """ input[0] = true """ } }
+        then { assert function.success; assert function.result == true }
+    }
+
+    test("FN-02d valid_bool: a non-boolean value is rejected") {
+        function "valid_bool"
+        when { function { """ input[0] = "yes" """ } }
+        then { assert function.success; assert function.result == false }
+    }
+}

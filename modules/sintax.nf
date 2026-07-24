@@ -1,3 +1,5 @@
+include { coerce_bool } from './local/functions'
+
 process SINTAX {
     tag "${barcode}"
 
@@ -17,11 +19,10 @@ process SINTAX {
     tuple val(barcode), path("${barcode}.sintax"), path("${barcode}.log"), emit: assigned
 
     script:
-    // Strict amplicon filtering (drop reads with no primer) is the
-    // default; discard_untrimmed = false keeps every read. Compare the
-    // string form so a config boolean AND a CLI `--discard_untrimmed false`
-    // (string 'false', which is truthy) are both handled correctly.
-    def primer_filter = "${params.discard_untrimmed}" == 'true' ? '--discard-untrimmed' : '--keep-untrimmed'
+    // Strict amplicon filtering (drop reads with no primer) is the default;
+    // discard_untrimmed = false keeps every read. coerce_bool normalises a
+    // config boolean and a CLI `--discard_untrimmed false` (string) alike.
+    def primer_filter = coerce_bool(params.discard_untrimmed) ? '--discard-untrimmed' : '--keep-untrimmed'
     """
     bash \\
     assign_with_sintax.sh \\
