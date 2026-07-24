@@ -37,6 +37,8 @@ changes accidentally, the corresponding test should catch it.
 | WF-10 | The pipeline aborts if the path supplied via the deprecated `params.sintax_silva` alias does not exist (`checkIfExists: true`).                               |
 | WF-11 | Startup parameter validation aborts before any process runs, with a single aggregated `Parameter validation failed` report, when a required value is missing (`sintax_references`, `results_table`, `primer_f`, `primer_r`, the mode-appropriate `fastq_dir`/`pod5_dir`) or when `discard_untrimmed`/`publish_mode` hold an invalid value. |
 | WF-12 | End-to-end, `params.subsample = n` caps each barcode at `n` reads: with `subsample = 3` a 5-read barcode's column totals 3 (a); a non-integer `subsample` aborts at startup via the aggregated validation report (b). |
+| WF-13 | `params.krona = true` renders `krona.html` and `krona_optimistic.html` beside `results_table` (a); the default (`false`) runs no `KRONA` and produces no HTML (b); a non-boolean `krona` aborts at startup via the aggregated validation report (c). |
+| WF-14 | Boolean params set on the command line arrive as strings (`'true'`/`'false'`), so `discard_untrimmed` is validated and switched on the string form: `discard_untrimmed = "false"` is honoured as `--keep-untrimmed` (the primer-less `barcode03` survives and is counted), not rejected and not mis-read as truthy. Same coercion as `krona` (WF-13). |
 
 ## 2. `BASECALL` module — *light coverage only*
 
@@ -216,7 +218,47 @@ script's functions directly.
 | OBS-04 | The script silently creates the output parent directory (`build_occurrence_table.py`, `validate_args`). BT-05 pins this behaviour; flag if you want it to fail loudly instead. |
 | OBS-05 | `param.results_table` is consumed by `BUILD_TABLE` as `file(params.results_table).name` for the output filename, and `file(params.results_table).parent` for the `publishDir`. Tests should cover both directory and bare-filename forms. |
 
-## 8. Out of scope (will not be tested)
+## 8. `KRONA` module + `build_krona.py` / `build_krona.sh`
+
+The optional `--krona` step turns the occurrence tables into interactive
+Krona HTML charts. As with `BUILD_TABLE`, the data munging is ours and
+fully unit-tested (stdlib Python, no Krona needed); Krona's `ktImportText`
+is a third-party tool we only drive, so the driver/module tests assert the
+HTML is produced with the right datasets, not Krona's rendering internals.
+
+### 8.1 CLI / validation (`build_krona.py`)
+
+| ID     | Specification                                                                                                                                          |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| KR-01  | Missing `--input` aborts with `--input is required`.                                                                                                   |
+| KR-02  | Missing `--output-dir` aborts with `--output-dir is required`.                                                                                         |
+| KR-03  | `--input` that does not exist aborts with `Path does not exist`.                                                                                       |
+| KR-04  | The output directory is created if missing, and per-barcode files are written into it.                                                                |
+
+### 8.2 Pure conversion helpers (`build_krona.py`)
+
+Covered by `tests/bin/test_build_krona.py`, which imports the script directly.
+
+| ID     | Specification                                                                                                                                          |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| KR-30  | `taxonomy_to_levels("d:X,k:Y,s:Z")` → `["d:X","k:Y","s:Z"]`; `"unknown"` → `["unknown"]` (rank prefixes kept).                                         |
+| KR-31  | `parse_header` never treats the `taxonomy` / `total` columns as barcodes.                                                                              |
+| KR-32  | Zero-count cells are excluded; each emitted line's count equals the TSV cell exactly.                                                                  |
+| KR-33  | `render_krona_text` lines are `count<TAB>level…`, higher rank first; an empty row set renders to the empty string.                                     |
+| KR-34  | One `<barcode>.txt` per **non-empty** barcode, in column order; an all-zero barcode is skipped and reported on stderr (no silent truncation).          |
+| KR-35  | No `(0.xx)` probability substrings appear in any emitted level (they are already stripped from the tables, BT-23).                                     |
+
+### 8.3 Driver + module (`build_krona.sh`, `modules/krona.nf`)
+
+Needs `ktImportText` (KronaTools) on PATH; skips gracefully if absent.
+
+| ID     | Specification                                                                                                                                          |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| KR-40  | `build_krona.sh` on an occurrence table produces a non-empty `krona.html` that carries a Krona marker and the fixture's leaf taxa.                     |
+| KR-41  | The HTML holds one dataset per **non-empty** barcode (labelled by barcode name); an all-zero barcode never becomes a dataset.                          |
+| KR-42  | Given both tables, the driver names outputs by input: `krona.html` for the filtered table, `krona_optimistic.html` for the `_optimistic` one.          |
+
+## 9. Out of scope (will not be tested)
 
 - The numerical correctness of `dorado` basecalls.
 - The numerical correctness of `cutadapt` primer trimming or

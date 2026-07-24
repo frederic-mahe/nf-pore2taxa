@@ -67,6 +67,7 @@ jobs:
             -c bioconda -c conda-forge
             vsearch=2.31.0
             cutadapt=5.2
+            krona=2.8.1
 
       - name: Install bats
         run: sudo apt-get update && sudo apt-get install -y bats
@@ -106,6 +107,7 @@ jobs:
             -c bioconda -c conda-forge
             vsearch=2.31.0
             cutadapt=5.2
+            krona=2.8.1
 
       - name: Run nf-test (modules + workflow)
         run: nf-test test tests/

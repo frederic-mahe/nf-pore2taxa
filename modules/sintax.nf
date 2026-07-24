@@ -18,8 +18,10 @@ process SINTAX {
 
     script:
     // Strict amplicon filtering (drop reads with no primer) is the
-    // default; params.discard_untrimmed = false keeps every read.
-    def primer_filter = params.discard_untrimmed ? '--discard-untrimmed' : '--keep-untrimmed'
+    // default; discard_untrimmed = false keeps every read. Compare the
+    // string form so a config boolean AND a CLI `--discard_untrimmed false`
+    // (string 'false', which is truthy) are both handled correctly.
+    def primer_filter = "${params.discard_untrimmed}" == 'true' ? '--discard-untrimmed' : '--keep-untrimmed'
     """
     bash \\
     assign_with_sintax.sh \\

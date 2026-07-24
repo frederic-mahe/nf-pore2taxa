@@ -3,6 +3,37 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v1.7.0 - 2026-07-24
+
+### `Added`
+
+- `--krona` option (default `false`) rendering interactive
+  [Krona](https://github.com/marbl/Krona) HTML charts from the occurrence
+  tables — one chart per table (`krona.html` from the filtered table,
+  `krona_optimistic.html` from the optimistic one), each holding one dataset
+  per barcode (a per-sample dropdown), published beside `results_table`. The
+  taxonomy hierarchy is taken straight from the tables' `taxonomy` column
+  (comma-separated ranks → Krona levels); an all-zero barcode is skipped and
+  reported. Implemented as a stdlib `bin/build_krona.py` (TSV → per-sample
+  `ktImportText` text files) driven by `bin/build_krona.sh`, wired through
+  `params.krona` and the new `KRONA` module. Covered by KR-01..04, KR-30..35,
+  KR-40..42 and WF-13.
+- `krona=2.8.1` added to `environment.yml` (and the CI tool set). Krona's
+  text mode needs no NCBI taxonomy database, so no large download is
+  required; `dorado` remains the only tool the conda profile does not
+  provide.
+
+### `Fixed`
+
+- `discard_untrimmed` can now be set on the command line. A CLI
+  `--<flag>` override arrives as the string `'true'`/`'false'`, so the old
+  strict `params.discard_untrimmed in [true, false]` check aborted every
+  CLI form, and the module's truthy test would have mis-read the string
+  `'false'` (non-empty → truthy) as `--discard-untrimmed`. Both the startup
+  validation and the `SINTAX` module now compare the string form, so a
+  config boolean and a CLI `--discard_untrimmed false` behave identically.
+  The new `krona` flag uses the same coercion. Covered by WF-14.
+
 ## v1.6.0 - 2026-07-24
 
 ### `Added`

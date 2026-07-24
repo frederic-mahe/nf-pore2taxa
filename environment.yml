@@ -11,9 +11,13 @@
 #
 # NOTE: dorado (the BASECALL step) is an Oxford Nanopore GPU binary that
 # is not distributed on bioconda, so it is NOT provided here. The conda
-# profile therefore scopes this environment to the SINTAX and BUILD_TABLE
-# processes only; basecalling still requires dorado (and pigz) on PATH
+# profile therefore scopes this environment to the SINTAX, BUILD_TABLE and
+# KRONA processes only; basecalling still requires dorado (and pigz) on PATH
 # wherever it runs. Most users skip basecalling (skip_basecall = true).
+#
+# krona provides ktImportText for the optional --krona step. Text mode
+# builds charts from hierarchy strings directly, so no NCBI taxonomy
+# database download (ktUpdateTaxonomy) is needed.
 name: nf-pore2taxa
 channels:
   - conda-forge
@@ -21,4 +25,5 @@ channels:
 dependencies:
   - bioconda::vsearch=2.31.0
   - bioconda::cutadapt=5.2
+  - bioconda::krona=2.8.1
   - conda-forge::python=3.12

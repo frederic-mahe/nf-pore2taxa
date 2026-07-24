@@ -45,6 +45,9 @@ By default, the pipeline currently performs the following:
   [vsearch](https://github.com/torognes/vsearch) (sintax)
 - build an occurrence table (using a dependency-free
   [Python](https://www.python.org/) 3 script; standard library only)
+- optionally, render interactive
+  [Krona](https://github.com/marbl/Krona) charts from the occurrence
+  tables (`--krona`)
 
 Fastq files are grouped by barcode and each barcode is processed as an
 independent, parallel task (the reference database is loaded once per
@@ -95,6 +98,11 @@ params {
     // processed and assigned — handy for a quick preview or to even out
     // sampling depth across barcodes.
     subsample         = 0
+
+    // Render interactive Krona HTML charts from the occurrence tables
+    // (one dataset per barcode). false (default) skips it. Requires
+    // KronaTools (ktImportText), provided by the conda profile.
+    krona             = false
 
     // publishDir mode. 'link' (default) requires workDir and the
     // data/results directories to share a filesystem; use 'copy' when
@@ -178,6 +186,16 @@ identified taxa:
 The second output table, marked as *optimistic*, has the same
 structure as the first table. It contains full taxonomic assignments,
 including assignments that are below the probability threshold (0.9).
+
+When `--krona` is set, the pipeline also writes two interactive
+[Krona](https://github.com/marbl/Krona) charts beside the results table:
+`krona.html` (from the filtered table) and `krona_optimistic.html` (from
+the optimistic table). Each is a single self-contained HTML holding one
+dataset per barcode (a per-sample dropdown), so a whole run's taxonomic
+profiles can be explored in a browser. The hierarchy is taken directly
+from the tables' taxonomy column; barcodes with no assigned reads are
+omitted. This step needs KronaTools (`ktImportText`), which the `conda`
+profile provides; Krona's text mode requires no NCBI taxonomy database.
 
 
 ## Testing

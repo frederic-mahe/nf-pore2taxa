@@ -339,6 +339,122 @@ nextflow_pipeline {
         }
     }
 
+    test("WF-13a krona=true renders both Krona HTMLs beside the tables") {
+
+        setup {
+            new File("${outputDir}/fastq_dir").mkdirs()
+            ["cp", "-r",
+             "${projectDir}/tests/fixtures/fastq_dir/fastq_pass",
+             "${outputDir}/fastq_dir/"].execute().waitFor()
+        }
+
+        when {
+            params {
+                skip_basecall     = true
+                fastq_dir         = "${outputDir}/fastq_dir"
+                sintax_references = "${projectDir}/tests/fixtures/references.fasta"
+                results_table     = "${outputDir}/sintax.tsv"
+                primer_f          = "GTACACACCGCCCGTCG"
+                primer_r          = "CGCCTSCSCTTANTDATATGC"
+                krona             = true
+            }
+        }
+
+        then {
+            assert workflow.success
+            // Krona charts published beside the occurrence tables.
+            assert file("${outputDir}/krona.html").exists()
+            assert file("${outputDir}/krona_optimistic.html").exists()
+            assert file("${outputDir}/krona.html").size() > 0
+        }
+    }
+
+    test("WF-13b krona disabled (default) produces no Krona HTML") {
+
+        setup {
+            new File("${outputDir}/fastq_dir").mkdirs()
+            ["cp", "-r",
+             "${projectDir}/tests/fixtures/fastq_dir/fastq_pass",
+             "${outputDir}/fastq_dir/"].execute().waitFor()
+        }
+
+        when {
+            params {
+                skip_basecall     = true
+                fastq_dir         = "${outputDir}/fastq_dir"
+                sintax_references = "${projectDir}/tests/fixtures/references.fasta"
+                results_table     = "${outputDir}/sintax.tsv"
+                primer_f          = "GTACACACCGCCCGTCG"
+                primer_r          = "CGCCTSCSCTTANTDATATGC"
+                // krona left at its default (false)
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert !file("${outputDir}/krona.html").exists()
+        }
+    }
+
+    test("WF-13c startup validation aborts on a non-boolean krona") {
+
+        when {
+            params {
+                skip_basecall     = true
+                fastq_dir         = "${projectDir}/tests/fixtures/fastq_dir"
+                sintax_references = "${projectDir}/tests/fixtures/references.fasta"
+                results_table     = "${outputDir}/sintax.tsv"
+                primer_f          = "GTACACACCGCCCGTCG"
+                primer_r          = "CGCCTSCSCTTANTDATATGC"
+                krona             = "yes"  // not a boolean
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.any { it.contains("Parameter validation failed") }
+            assert workflow.stdout.any { it.contains("krona") }
+        }
+    }
+
+    test("WF-14 discard_untrimmed honours the CLI string form (keep-untrimmed)") {
+
+        setup {
+            new File("${outputDir}/fastq_dir").mkdirs()
+            ["cp", "-r",
+             "${projectDir}/tests/fixtures/fastq_dir/fastq_pass",
+             "${outputDir}/fastq_dir/"].execute().waitFor()
+        }
+
+        when {
+            params {
+                skip_basecall     = true
+                fastq_dir         = "${outputDir}/fastq_dir"
+                sintax_references = "${projectDir}/tests/fixtures/references.fasta"
+                results_table     = "${outputDir}/sintax.tsv"
+                primer_f          = "GTACACACCGCCCGTCG"
+                primer_r          = "CGCCTSCSCTTANTDATATGC"
+                // The string form a CLI `--discard_untrimmed false` produces
+                // (not a Groovy boolean). Must be honoured as --keep-untrimmed,
+                // so the primer-less barcode03 survives and is counted — this
+                // guards both the validation and the module switch (a truthy
+                // string 'false' would wrongly select --discard-untrimmed).
+                discard_untrimmed = "false"
+            }
+        }
+
+        then {
+            assert workflow.success
+            def filtered = file("${outputDir}/sintax.tsv")
+            def header = filtered.readLines()[0].split("\t", -1)
+            def b03col = header.findIndexOf { it == "barcode03" }
+            assert b03col >= 0
+            def b03total = filtered.readLines().drop(1)
+                .collect { it.split("\t", -1)[b03col].toInteger() }.sum()
+            assert b03total > 0 : "barcode03 should have reads with keep-untrimmed, got ${b03total}"
+        }
+    }
+
     test("WF-11 startup validation aborts on an invalid publish_mode") {
 
         when {

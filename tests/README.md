@@ -20,12 +20,15 @@ tests/
 │   ├── references.fasta
 │   ├── fastq_dir/        ← demultiplexed-into-folders inputs (SINTAX + workflow)
 │   ├── flat_dir/         ← flat layout (barcode in filename) + fastq_fail to ignore
-│   └── sintax_dir/       ← pre-computed inputs for the table-builder tests
+│   ├── sintax_dir/       ← pre-computed inputs for the table-builder tests
+│   └── krona/            ← occurrence tables (filtered + optimistic) for Krona tests
 ├── bin/                  ← bats tests for bin/ scripts + python unittest
 │   ├── assign_with_sintax_cli.bats
 │   ├── assign_with_sintax_helpers.bats
+│   ├── build_krona_cli.bats
 │   ├── build_occurrence_table.bats
 │   ├── reference_format.bats
+│   ├── test_build_krona.py
 │   ├── test_build_occurrence_table.py
 │   ├── test_discover_barcodes.py
 │   └── validation.bats
@@ -44,7 +47,8 @@ tests/
 | python unit tests    | `python3` (standard library only)                    |
 | bats unit tests      | `bats` (>= 1.5), `python3`, `awk`, `grep`            |
 | SINTAX module        | `nextflow`, `nf-test`, `cutadapt`, `vsearch >= 2.31.0` |
-| Workflow             | all of the above                                     |
+| Krona (KR-40..42)    | `ktImportText` (KronaTools); skips if absent         |
+| Workflow             | all of the above (WF-13 needs `ktImportText`)        |
 
 ## Running
 
@@ -85,8 +89,10 @@ nf-test test tests/workflow/main.nf.test
 | `bin/test_discover_barcodes.py`        | DSC-01..DSC-05                                            |
 | `bin/build_occurrence_table.bats`      | BT-01..BT-04, BT-06, BT-07, BT-10..BT-13, BT-21..BT-24    |
 | `bin/test_build_occurrence_table.py`   | BT-01..BT-07, BT-10..BT-17, BT-20..BT-24, BT-30, BT-32..BT-34 |
+| `bin/test_build_krona.py`              | KR-01..KR-04, KR-30..KR-35                                |
+| `bin/build_krona_cli.bats`             | KR-40, KR-41, KR-42                                       |
 | `modules/sintax.nf.test`               | SX-30, SX-31, SX-32, SX-33, SX-40, SX-44                  |
-| `workflow/main.nf.test`                | WF-03, WF-04, WF-06, WF-08, WF-09, WF-10, WF-11, WF-12, SX-41, BT-10, BT-11, BT-13, BT-20, BT-22, BT-23 |
+| `workflow/main.nf.test`                | WF-03, WF-04, WF-06, WF-08, WF-09, WF-10, WF-11, WF-12, WF-13, WF-14, SX-41, BT-10, BT-11, BT-13, BT-20, BT-22, BT-23 |
 
 ## Known gaps (next iterations)
 

@@ -101,5 +101,27 @@ mkdir -p flat_dir/fastq_pass flat_dir/fastq_fail
     for i in 1 2 3 4 5 ; do write_read "read${i}_fail" "${PRIMER_F}${REF1}${RC_PRIMER_R}" ; done
 } | gzip > flat_dir/fastq_fail/run1_barcode01_0.fastq.gz
 
+# --- krona fixtures (occurrence tables for the Krona tests) ------------------
+# Hand-written occurrence tables (as build_occurrence_table.py would emit):
+# two non-empty barcodes, one all-zero barcode (barcode03, must be skipped by
+# build_krona.py), and an 'unknown' row. The optimistic table's grand total
+# is >= the filtered one's.
+mkdir -p krona
+KR_A="d:Synthetica,k:Alphakingdom,p:Alphaphylum,c:Alphaclass,o:Alphaorder,f:Alphafamily,g:Alphagenus,s:Alpha_one"
+KR_B="d:Synthetica,k:Betakingdom,p:Betaphylum,c:Betaclass,o:Betaorder,f:Betafamily,g:Betagenus,s:Beta_two"
+
+{
+    printf 'taxonomy\ttotal\tbarcode01\tbarcode02\tbarcode03\n'
+    printf '%s\t5\t5\t0\t0\n' "${KR_A}"
+    printf '%s\t3\t0\t3\t0\n' "${KR_B}"
+    printf 'unknown\t2\t1\t1\t0\n'
+} > krona/occurrence.tsv
+
+{
+    printf 'taxonomy\ttotal\tbarcode01\tbarcode02\tbarcode03\n'
+    printf '%s\t6\t6\t0\t0\n' "${KR_A}"
+    printf '%s\t4\t0\t4\t0\n' "${KR_B}"
+} > krona/occurrence_optimistic.tsv
+
 echo "Wrote:"
-find references.fasta fastq_dir flat_dir -type f | sort
+find references.fasta fastq_dir flat_dir krona -type f | sort
