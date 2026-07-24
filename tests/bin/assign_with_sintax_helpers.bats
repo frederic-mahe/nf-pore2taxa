@@ -2,6 +2,7 @@
 #
 # Unit tests for the pure-function helpers in bin/assign_with_sintax.sh:
 #   - reverse_complement  (SX-22, SX-23, SX-24)
+#   - pool_reads          (SX-25)
 #
 # Run with:
 #   bats tests/bin/assign_with_sintax_helpers.bats
@@ -13,10 +14,12 @@ setup() {
 
     # The script's argument-parsing block runs at the top level on
     # source, which would abort the test. Extract just the helper
-    # function definitions.
+    # function definitions (each is a top-level `name() { ... }` block
+    # whose closing brace sits in column 0).
     HELPERS="${BATS_TEST_TMPDIR}/helpers.sh"
     awk '
         /^reverse_complement\(\)/ { in_block=1 }
+        /^pool_reads\(\)/         { in_block=1 }
         in_block                  { print }
         in_block && /^\}/         { in_block=0 ; print "" }
     ' "${SRC}" > "${HELPERS}"
@@ -72,4 +75,20 @@ setup() {
     run env HELPERS="${HELPERS}" bash -c 'source "${HELPERS}"; reverse_complement "" 2>&1'
     [ "${status}" -ne 0 ]
     [[ "${output}" == *"empty string"* ]]
+}
+
+# --------------------------------------------------------------------- SX-25
+
+@test "SX-25 pool_reads merges mixed-compression files into one uniform fastq" {
+    cd "${BATS_TEST_TMPDIR}"
+    # 4 fastq records spread across three files with three compressions.
+    printf '@r1\nACGT\n+\nIIII\n'                              > a.fastq
+    printf '@r2\nACGT\n+\nIIII\n@r3\nACGT\n+\nIIII\n' | gzip   > z_b.fastq.gz
+    printf '@r4\nACGT\n+\nIIII\n'                     | bzip2  > c.fastq.bz2
+    # Deliberately unsorted: pool_reads sorts internally (reproducibility).
+    FASTQ_FILES=( c.fastq.bz2 a.fastq z_b.fastq.gz )
+    pool_reads > pooled.fastq
+    # 4 records, one uniform 4-line-per-record fastq.
+    [ "$(grep -c '^@r' pooled.fastq)" -eq 4 ]
+    [ "$(wc -l < pooled.fastq)" -eq 16 ]
 }

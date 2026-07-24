@@ -29,6 +29,7 @@ process SINTAX {
         --reverse-primer "${params.primer_r}" \\
         --threads "${task.cpus}" \\
         --randseed "${params.randseed}" \\
+        --subsample "${params.subsample}" \\
         ${primer_filter} \\
         ${fastqs}
     """

@@ -3,6 +3,22 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v1.6.0 - 2026-07-24
+
+### `Added`
+
+- `--subsample` option (default `0`) capping each barcode at `n` reads
+  **before** trimming. The barcode's fastq files are pooled into a single
+  fastq (handling the scattered / mixed-compression case), then subsampled
+  with `vsearch --fastx_subsample` seeded by `--randseed`, so only `n` reads
+  are trimmed and assigned. `0` disables subsampling and keeps every read;
+  the fast per-file path is unchanged when the feature is off. Because the
+  cap is applied before primer filtering, the number of *assigned* reads may
+  be smaller than `n` when `discard_untrimmed = true`. Exposed on
+  `assign_with_sintax.sh` as `--subsample` and wired through
+  `params.subsample` + the `SINTAX` module. Covered by SX-15, SX-16, SX-25,
+  SX-44 and WF-12.
+
 ## v1.5.0 - 2026-06-30
 
 ### `Added`

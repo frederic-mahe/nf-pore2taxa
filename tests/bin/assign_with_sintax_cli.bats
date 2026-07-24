@@ -183,3 +183,100 @@ b03() { echo "${FIXDIR}/barcode03/reads.fastq.gz" ; }
     # one output file, 10 reads (5 + 5) merged into a single .sintax
     [ "$(wc -l < multi.sintax)" -eq 10 ]
 }
+
+# --------------------------------------------------------------------- SX-15
+# Subsampling caps each barcode at --subsample reads *before* trimming
+# (pool → subsample → trim). barcode01 holds 5 primer-bearing reads.
+
+@test "SX-15a --subsample 3 caps a 5-read barcode at 3 assigned reads" {
+    cd "${BATS_TEST_TMPDIR}"
+    run bash "${SCRIPT}" --barcode bc -d "${REFS}" \
+        -f GTACACACCGCCCGTCG -r CGCCTSCSCTTANTDATATGC -t 1 \
+        --subsample 3 "${FIXDIR}/barcode01/reads.fastq.gz"
+    [ "${status}" -eq 0 ]
+    [ "$(wc -l < bc.sintax)" -eq 3 ]
+}
+
+@test "SX-15b --subsample 0 keeps all reads" {
+    cd "${BATS_TEST_TMPDIR}"
+    run bash "${SCRIPT}" --barcode bc -d "${REFS}" \
+        -f GTACACACCGCCCGTCG -r CGCCTSCSCTTANTDATATGC -t 1 \
+        --subsample 0 "${FIXDIR}/barcode01/reads.fastq.gz"
+    [ "${status}" -eq 0 ]
+    [ "$(wc -l < bc.sintax)" -eq 5 ]
+}
+
+@test "SX-15b-default omitting --subsample keeps all reads (disabled by default)" {
+    cd "${BATS_TEST_TMPDIR}"
+    run bash "${SCRIPT}" --barcode bc -d "${REFS}" \
+        -f GTACACACCGCCCGTCG -r CGCCTSCSCTTANTDATATGC -t 1 \
+        "${FIXDIR}/barcode01/reads.fastq.gz"
+    [ "${status}" -eq 0 ]
+    [ "$(wc -l < bc.sintax)" -eq 5 ]
+}
+
+@test "SX-15c --subsample larger than available keeps all reads, no vsearch fatal" {
+    cd "${BATS_TEST_TMPDIR}"
+    run bash "${SCRIPT}" --barcode bc -d "${REFS}" \
+        -f GTACACACCGCCCGTCG -r CGCCTSCSCTTANTDATATGC -t 1 \
+        --subsample 100 "${FIXDIR}/barcode01/reads.fastq.gz"
+    [ "${status}" -eq 0 ]
+    [ "$(wc -l < bc.sintax)" -eq 5 ]
+}
+
+@test "SX-15d --subsample with a fixed --randseed is reproducible" {
+    cd "${BATS_TEST_TMPDIR}"
+    run bash "${SCRIPT}" --barcode a -d "${REFS}" \
+        -f GTACACACCGCCCGTCG -r CGCCTSCSCTTANTDATATGC -t 1 \
+        --subsample 3 --randseed 7 "${FIXDIR}/barcode01/reads.fastq.gz"
+    [ "${status}" -eq 0 ]
+    run bash "${SCRIPT}" --barcode b -d "${REFS}" \
+        -f GTACACACCGCCCGTCG -r CGCCTSCSCTTANTDATATGC -t 1 \
+        --subsample 3 --randseed 7 "${FIXDIR}/barcode01/reads.fastq.gz"
+    [ "${status}" -eq 0 ]
+    # Query IDs come from the reads, not --barcode, so a fixed seed selects
+    # the same reads and the two files are byte-identical.
+    diff a.sintax b.sintax
+}
+
+@test "SX-15e subsample-before-trim on a primer-less barcode → empty .sintax" {
+    cd "${BATS_TEST_TMPDIR}"
+    run bash "${SCRIPT}" --barcode b03 -d "${REFS}" \
+        -f GTACACACCGCCCGTCG -r CGCCTSCSCTTANTDATATGC -t 1 \
+        --subsample 3 "$(b03)"
+    [ "${status}" -eq 0 ]
+    [ -e "b03.sintax" ]
+    [ ! -s "b03.sintax" ]
+}
+
+@test "SX-15f scattered multi-file barcode: --subsample is per-sample, not per-file" {
+    cd "${BATS_TEST_TMPDIR}"
+    local d="${REPO_ROOT}/tests/fixtures/flat_dir/fastq_pass"
+    # barcode01 is split across two files (3 + 2 = 5 reads).
+    run bash "${SCRIPT}" --barcode bc -d "${REFS}" \
+        -f GTACACACCGCCCGTCG -r CGCCTSCSCTTANTDATATGC -t 1 \
+        --subsample 3 \
+        "${d}/run1_barcode01_0.fastq.gz" "${d}/run1_barcode01_1.fastq.gz"
+    [ "${status}" -eq 0 ]
+    [ "$(wc -l < bc.sintax)" -eq 3 ]
+}
+
+# --------------------------------------------------------------------- SX-16
+
+@test "SX-16a rejects a negative --subsample" {
+    cd "${BATS_TEST_TMPDIR}"
+    local f ; f="$(make_fastq fastq.gz)"
+    run bash "${SCRIPT}" --barcode bc -d "${REFS}" \
+        -f GTACACACCGCCCGTCG -r CGCCTSCSCTTANTDATATGC -t 1 --subsample -5 "${f}"
+    [ "${status}" -ne 0 ]
+    [[ "${output}" == *"--subsample must be a non-negative integer"* ]]
+}
+
+@test "SX-16b rejects a non-integer --subsample" {
+    cd "${BATS_TEST_TMPDIR}"
+    local f ; f="$(make_fastq fastq.gz)"
+    run bash "${SCRIPT}" --barcode bc -d "${REFS}" \
+        -f GTACACACCGCCCGTCG -r CGCCTSCSCTTANTDATATGC -t 1 --subsample abc "${f}"
+    [ "${status}" -ne 0 ]
+    [[ "${output}" == *"--subsample must be a non-negative integer"* ]]
+}

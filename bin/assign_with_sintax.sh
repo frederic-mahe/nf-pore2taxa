@@ -41,6 +41,9 @@ Options:
   -t, --threads         INT    Number of threads for vsearch (default: 1)
       --randseed          INT    Seed for vsearch's random generator; 0 picks a
                                  pseudo-random seed each run (default: 0)
+      --subsample         INT    Cap this barcode at INT reads before trimming
+                                 (pooled across its FASTQ files); 0 keeps every
+                                 read (default: 0). Uses the --randseed seed.
       --discard-untrimmed      Drop reads with no primer found (default)
       --keep-untrimmed         Keep all reads, trim primers where found
   -h, --help                   Show this help message and exit
@@ -96,6 +99,11 @@ validate_inputs() {
 
     if ! [[ "${RANDSEED}" =~ ^[0-9]+$ ]] ; then
         echo "Error: --randseed must be a non-negative integer: ${RANDSEED}" 1>&2
+        (( errors++ )) || true
+    fi
+
+    if ! [[ "${SUBSAMPLE}" =~ ^[0-9]+$ ]] ; then
+        echo "Error: --subsample must be a non-negative integer: ${SUBSAMPLE}" 1>&2
         (( errors++ )) || true
     fi
 
@@ -252,6 +260,49 @@ taxonomic_assignment_with_sintax() {
 }
 
 
+pool_reads() {
+    # Decompress and concatenate every fastq file of this barcode into one
+    # uniform (plain) fastq stream on stdout. Files are processed in sorted
+    # order so a seeded subsample is reproducible regardless of the order
+    # Nextflow's groupTuple hands them over. Handles the mixed-compression
+    # case (a scattered barcode whose files use different codecs), which a
+    # naive `cat` of the originals could not.
+    local f
+    local -a sorted
+    mapfile -t sorted < <(printf '%s\n' "${FASTQ_FILES[@]}" | sort)
+    for f in "${sorted[@]}" ; do
+        case "${f}" in
+            *.gz)  gzip  -cd -- "${f}" ;;
+            *.bz2) bzip2 -cd -- "${f}" ;;
+            *.xz)  xz    -cd -- "${f}" ;;
+            *)     cat       -- "${f}" ;;
+        esac
+    done
+}
+
+
+subsample_or_passthrough() {
+    # Emit at most SUBSAMPLE reads from the pooled fastq. vsearch aborts if
+    # asked for more reads than exist, so count first and only subsample
+    # when there are strictly more than SUBSAMPLE — i.e. take
+    # min(available, SUBSAMPLE). An empty pool (0 reads) passes straight
+    # through, so a primer-less barcode still yields an empty .sintax.
+    local -r fastq="${1}"
+    local -i n_reads=$(( $(wc -l < "${fastq}") / 4 ))
+    if (( n_reads > SUBSAMPLE )) ; then
+        "${VSEARCH}" \
+            --fastx_subsample "${fastq}" \
+            --sample_size "${SUBSAMPLE}" \
+            --randseed "${RANDSEED}" \
+            --notrunclabels \
+            --quiet \
+            --fastqout -
+    else
+        cat "${fastq}"
+    fi
+}
+
+
 ## ----------------------------------------------------------------------- main
 
 # --- argument parsing
@@ -262,6 +313,7 @@ forward_primer=""
 reverse_primer=""
 threads=1
 randseed=0               # 0 lets vsearch pick a pseudo-random seed
+subsample=0             # 0 disables subsampling (keep every read)
 discard_untrimmed=true  # strict amplicon filtering on by default
 fastq_files=()
 
@@ -273,6 +325,7 @@ while [[ $# -gt 0 ]] ; do
         -r | --reverse-primer)  reverse_primer="${2}"; shift 2 ;;
         -t | --threads)         threads="${2}";        shift 2 ;;
         --randseed)             randseed="${2}";       shift 2 ;;
+        --subsample)            subsample="${2}";      shift 2 ;;
         --discard-untrimmed)    discard_untrimmed=true;  shift ;;
         --keep-untrimmed)       discard_untrimmed=false; shift ;;
         -h | --help)            usage                          ;;
@@ -295,9 +348,10 @@ declare -r  FORWARD_PRIMER="${forward_primer}"
 declare -r  REVERSE_PRIMER="${reverse_primer}"
 declare -ri THREADS="${threads}"
 declare -r  RANDSEED="${randseed}"
+declare -r  SUBSAMPLE="${subsample}"
 declare -r  DISCARD_UNTRIMMED="${discard_untrimmed}"
 declare -ra FASTQ_FILES=("${fastq_files[@]+"${fastq_files[@]}"}")
-unset barcode references forward_primer reverse_primer threads randseed discard_untrimmed fastq_files
+unset barcode references forward_primer reverse_primer threads randseed subsample discard_untrimmed fastq_files
 
 validate_inputs
 check_commands
@@ -309,12 +363,28 @@ declare -r SINTAX_OUT="${BARCODE}.sintax"
 declare -r LOG="${BARCODE}.log"
 : > "${LOG}"  # truncate; trim_primers appends each file's cutadapt log
 
-{
-    for FASTQ in "${FASTQ_FILES[@]}" ; do
-        trim_primers "${FASTQ}" "${LOG}"
-    done
-} | \
-    append_read_length | \
-    taxonomic_assignment_with_sintax > "${SINTAX_OUT}"
+if (( SUBSAMPLE > 0 )) ; then
+    # Subsampling path: pool every file of this barcode into one fastq,
+    # cap it at SUBSAMPLE reads BEFORE trimming, then trim + assign the
+    # subsample. `n` bounds the reads fed to cutadapt AND vsearch; with
+    # --discard-untrimmed, assigned reads may be fewer than `n`.
+    declare -r POOLED="pooled.fastq"
+    declare -r SUBSAMPLED="subsampled.fastq"
+    pool_reads > "${POOLED}"
+    subsample_or_passthrough "${POOLED}" > "${SUBSAMPLED}"
+    trim_primers "${SUBSAMPLED}" "${LOG}" | \
+        append_read_length | \
+        taxonomic_assignment_with_sintax > "${SINTAX_OUT}"
+else
+    # Default path (unchanged): trim each file, concatenate, run sintax
+    # ONCE on the lot (the reference is loaded a single time per barcode).
+    {
+        for FASTQ in "${FASTQ_FILES[@]}" ; do
+            trim_primers "${FASTQ}" "${LOG}"
+        done
+    } | \
+        append_read_length | \
+        taxonomic_assignment_with_sintax > "${SINTAX_OUT}"
+fi
 
 exit 0

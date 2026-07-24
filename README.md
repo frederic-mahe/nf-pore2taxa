@@ -89,6 +89,13 @@ params {
     // reproducible single-threaded assignments.
     randseed          = 0
 
+    // Cap each barcode at this many reads before trimming (0 = keep all,
+    // the default). A positive value pools the barcode's fastq files and
+    // subsamples them (seeded by randseed) so only that many reads are
+    // processed and assigned — handy for a quick preview or to even out
+    // sampling depth across barcodes.
+    subsample         = 0
+
     // publishDir mode. 'link' (default) requires workDir and the
     // data/results directories to share a filesystem; use 'copy' when
     // they are on different filesystems.
@@ -103,6 +110,15 @@ params {
 > `discard_untrimmed = false` to keep every read instead (useful for
 > already-trimmed inputs or quick exploratory profiles), in which case
 > off-target reads may also be assigned a taxonomy.
+
+> [!NOTE]
+> **Subsampling (`subsample`)**: when set to a positive integer, each
+> barcode's fastq files are pooled and randomly subsampled to that many
+> reads *before* primer trimming (using `randseed` for reproducibility), so
+> only that many reads are processed and assigned. Because the cap is applied
+> before primer filtering, the number of *assigned* reads may be smaller than
+> the cap when `discard_untrimmed = true`. Leave at `0` (default) to keep
+> every read.
 
 > [!WARNING]
 > By default, intermediate files are linked (hardlinks), so `workDir`

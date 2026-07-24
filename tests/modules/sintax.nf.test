@@ -90,4 +90,32 @@ nextflow_process {
             assert sintax.readLines().size() == 5
         }
     }
+
+    test("SX-44 params.subsample caps a barcode's assigned reads") {
+
+        when {
+            params {
+                primer_f  = "GTACACACCGCCCGTCG"
+                primer_r  = "CGCCTSCSCTTANTDATATGC"
+                fastq_dir = "${outputDir}/fastq_dir"
+                subsample = 3
+            }
+            process {
+                """
+                input[0] = Channel.of(
+                    tuple('barcode01', [file("${projectDir}/tests/fixtures/fastq_dir/fastq_pass/barcode01/reads.fastq.gz")]) )
+                input[1] = Channel.value(file("${projectDir}/tests/fixtures/references.fasta"))
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            // barcode01 holds 5 primer-bearing reads; subsampling to 3
+            // (before trimming) leaves exactly 3 in the .sintax.
+            def sintax = file("${outputDir}/fastq_dir/fastq_pass/barcode01/barcode01.sintax")
+            assert sintax.exists()
+            assert sintax.readLines().size() == 3
+        }
+    }
 }

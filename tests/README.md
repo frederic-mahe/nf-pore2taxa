@@ -80,13 +80,13 @@ nf-test test tests/workflow/main.nf.test
 | -------------------------------------- | --------------------------------------------------------- |
 | `bin/validation.bats`                  | VL-01, VL-02, VL-03, VL-04                                |
 | `bin/reference_format.bats`            | SX-12                                                     |
-| `bin/assign_with_sintax_cli.bats`      | SX-05, SX-11, SX-12, SX-13, SX-40                         |
-| `bin/assign_with_sintax_helpers.bats`  | SX-22, SX-23, SX-24                                       |
+| `bin/assign_with_sintax_cli.bats`      | SX-05, SX-11, SX-12, SX-13, SX-14, SX-15, SX-16, SX-40    |
+| `bin/assign_with_sintax_helpers.bats`  | SX-22, SX-23, SX-24, SX-25                                |
 | `bin/test_discover_barcodes.py`        | DSC-01..DSC-05                                            |
 | `bin/build_occurrence_table.bats`      | BT-01..BT-04, BT-06, BT-07, BT-10..BT-13, BT-21..BT-24    |
 | `bin/test_build_occurrence_table.py`   | BT-01..BT-07, BT-10..BT-17, BT-20..BT-24, BT-30, BT-32..BT-34 |
-| `modules/sintax.nf.test`               | SX-30, SX-31, SX-32, SX-33, SX-40                         |
-| `workflow/main.nf.test`                | WF-03, WF-04, WF-06, WF-08, WF-09, WF-10, WF-11, SX-41, BT-10, BT-11, BT-13, BT-20, BT-22, BT-23 |
+| `modules/sintax.nf.test`               | SX-30, SX-31, SX-32, SX-33, SX-40, SX-44                  |
+| `workflow/main.nf.test`                | WF-03, WF-04, WF-06, WF-08, WF-09, WF-10, WF-11, WF-12, SX-41, BT-10, BT-11, BT-13, BT-20, BT-22, BT-23 |
 
 ## Known gaps (next iterations)
 

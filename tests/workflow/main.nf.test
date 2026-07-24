@@ -282,6 +282,63 @@ nextflow_pipeline {
         }
     }
 
+    test("WF-12a subsample caps each barcode; barcode01 column totals 3") {
+
+        setup {
+            new File("${outputDir}/fastq_dir").mkdirs()
+            ["cp", "-r",
+             "${projectDir}/tests/fixtures/fastq_dir/fastq_pass",
+             "${outputDir}/fastq_dir/"].execute().waitFor()
+        }
+
+        when {
+            params {
+                skip_basecall     = true
+                fastq_dir         = "${outputDir}/fastq_dir"
+                sintax_references = "${projectDir}/tests/fixtures/references.fasta"
+                results_table     = "${outputDir}/sintax.tsv"
+                primer_f          = "GTACACACCGCCCGTCG"
+                primer_r          = "CGCCTSCSCTTANTDATATGC"
+                subsample         = 3
+            }
+        }
+
+        then {
+            assert workflow.success
+            def filtered = file("${outputDir}/sintax.tsv")
+            assert filtered.exists()
+            def header = filtered.readLines()[0].split("\t", -1)
+            def b01col = header.findIndexOf { it == "barcode01" }
+            assert b01col >= 0
+            // barcode01 has 5 primer-bearing reads; a cap of 3 → column
+            // total 3 (all assigned to one taxon).
+            def b01total = filtered.readLines().drop(1)
+                .collect { it.split("\t", -1)[b01col].toInteger() }.sum()
+            assert b01total == 3 : "barcode01 should total 3 reads after subsampling, got ${b01total}"
+        }
+    }
+
+    test("WF-12b startup validation aborts on a non-integer subsample") {
+
+        when {
+            params {
+                skip_basecall     = true
+                fastq_dir         = "${projectDir}/tests/fixtures/fastq_dir"
+                sintax_references = "${projectDir}/tests/fixtures/references.fasta"
+                results_table     = "${outputDir}/sintax.tsv"
+                primer_f          = "GTACACACCGCCCGTCG"
+                primer_r          = "CGCCTSCSCTTANTDATATGC"
+                subsample         = "abc"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.any { it.contains("Parameter validation failed") }
+            assert workflow.stdout.any { it.contains("subsample") }
+        }
+    }
+
     test("WF-11 startup validation aborts on an invalid publish_mode") {
 
         when {

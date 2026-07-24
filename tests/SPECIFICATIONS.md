@@ -36,6 +36,7 @@ changes accidentally, the corresponding test should catch it.
 | WF-09 | When both are set, `params.sintax_references` takes precedence over the deprecated `params.sintax_silva` alias.                                                |
 | WF-10 | The pipeline aborts if the path supplied via the deprecated `params.sintax_silva` alias does not exist (`checkIfExists: true`).                               |
 | WF-11 | Startup parameter validation aborts before any process runs, with a single aggregated `Parameter validation failed` report, when a required value is missing (`sintax_references`, `results_table`, `primer_f`, `primer_r`, the mode-appropriate `fastq_dir`/`pod5_dir`) or when `discard_untrimmed`/`publish_mode` hold an invalid value. |
+| WF-12 | End-to-end, `params.subsample = n` caps each barcode at `n` reads: with `subsample = 3` a 5-read barcode's column totals 3 (a); a non-integer `subsample` aborts at startup via the aggregated validation report (b). |
 
 ## 2. `BASECALL` module — *light coverage only*
 
@@ -78,6 +79,8 @@ asserting:
 | SX-12  | `--references` is sniffed at startup and must be **sintax-formatted**: its first FASTA header must carry a `tax=` annotation (`>id;tax=d:...,p:...;`). A file whose first line is not a `>` header, or a FASTA header with no `tax=`, aborts before any process runs. Only the first line is read; plain and gzip (`.gz`) references are sniffed; a bzip2 (`.bz2`) reference is skipped with a warning; a missing/unreadable path is left for SX-06. Mirrors nf-metabarcoding's `[S73]`. |
 | SX-13  | Primer-presence filtering is toggleable. By **default** (`--discard-untrimmed`, the script default and `params.discard_untrimmed = true`) a read is dropped unless both the forward primer and the reverse-complemented reverse primer are located — so a barcode of primer-less reads yields an empty `.sintax`. With `--keep-untrimmed` (`params.discard_untrimmed = false`) every read is kept and merely trimmed where a primer is found, so the same barcode yields a non-empty `.sintax`. |
 | SX-14  | `--randseed` sets vsearch's random generator seed (default `0`, a pseudo-random seed). A valid non-negative integer is accepted; a negative or non-integer value yields a clear stderr error and a non-zero exit code. |
+| SX-15  | `--subsample n` (default `0` = disabled) caps the barcode at `n` reads **before** trimming: the FASTQ files are pooled, then subsampled with `vsearch --fastx_subsample` (seeded by `--randseed`). `n=0` and an omitted flag keep every read (a); `n` smaller than the pool caps the assigned reads at `n` (a, and per-sample-not-per-file for a scattered barcode, f); `n` ≥ the pool keeps all reads with no vsearch fatal (c, the `min(available, n)` guard); a fixed `--randseed` makes the subsample reproducible (d); a primer-less barcode still yields an empty `.sintax` because the cap precedes trimming (e). |
+| SX-16  | A negative or non-integer `--subsample` yields a clear stderr error (`--subsample must be a non-negative integer`) and a non-zero exit code. |
 
 ### 3.2 Pure-function helpers
 
@@ -91,6 +94,7 @@ trivially unit-testable in a shell test runner (e.g. `bats-core`):
 | SX-22  | `reverse_complement`: complements `ACGT/U/IUPAC ambiguity codes` correctly and reverses the string. `N` and `I` are their own complements.             |
 | SX-23  | `reverse_complement`: handles lower-case input and preserves case.                                                                                     |
 | SX-24  | `reverse_complement`: empty string input aborts with a clear error.                                                                                    |
+| SX-25  | `pool_reads`: concatenates a barcode's FASTQ files (mixed compression: `.gz`/`.bz2`/`.xz`/plain) in **sorted** order into one uniform fastq stream whose record count is the sum across the files. Sorting keeps a seeded subsample reproducible regardless of `groupTuple` order. |
 
 ### 3.3 Module-level behaviour (`modules/sintax.nf`)
 
@@ -109,6 +113,7 @@ barcode, not once per file).
 | SX-36  | Each supported extension (`.fastq`, `.fastq.{gz,bz2,xz}`) is accepted (covered at the CLI level by SX-05).                                             |
 | SX-40  | A barcode split across **several** fastq files is trimmed file-by-file, concatenated, and assigned with a **single** `vsearch` run, producing one `<barcode>.sintax` whose read count is the sum across the files. |
 | SX-41  | End-to-end (`main.nf`): a **flat** `fastq_pass/` (barcode embedded in the filename) with a multi-file barcode produces a correct table, and a sibling `fastq_fail/` is **ignored** (its reads are not counted). |
+| SX-44  | With `params.subsample = n > 0`, the module caps each barcode at `n` reads (pool → subsample → trim): a 5-read barcode with `subsample = 3` publishes a `.sintax` with 3 rows; `subsample = 0` leaves all 5. |
 
 ### 3.4 Barcode discovery (`bin/discover_barcodes.py`)
 

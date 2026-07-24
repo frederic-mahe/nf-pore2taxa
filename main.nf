@@ -43,6 +43,10 @@ def helpMessage() {
                            step (default: ${params.randseed}). 0 picks a
                            pseudo-random seed; set a positive integer for
                            reproducible single-threaded runs.
+      --subsample          Cap each barcode at this many reads before trimming
+                           (default: ${params.subsample}). 0 keeps every read;
+                           a positive integer subsamples (seeded by --randseed)
+                           so only that many reads are processed and assigned.
       --publish_mode       publishDir mode for outputs: link, copy, symlink,
                            rellink, move, copyNoFollow (default: ${params.publish_mode}).
                            'link' needs workDir and outputs on one filesystem.
@@ -107,6 +111,8 @@ workflow {
     // pass (and a float, sign, or non-numeric value is rejected).
     if (!("${params.randseed}" ==~ /\d+/))
         errors << "  - 'randseed' must be a non-negative integer (got: '${params.randseed}')."
+    if (!("${params.subsample}" ==~ /\d+/))
+        errors << "  - 'subsample' must be a non-negative integer (got: '${params.subsample}')."
     def valid_modes = ['link', 'copy', 'symlink', 'rellink', 'move', 'copyNoFollow']
     if (!(params.publish_mode in valid_modes))
         errors << "  - 'publish_mode' must be one of ${valid_modes} (got: '${params.publish_mode}')."
