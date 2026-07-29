@@ -21,6 +21,15 @@ jobs:
       - name: Run python unit + integration tests
         run: python3 -m unittest discover -s tests/bin -p 'test_*.py'
 
+  # Audit the SPECIFICATIONS <-> COVERAGE <-> tests mapping. Needs nothing
+  # but grep, so it is the cheapest job here and the fastest to fail.
+  coverage-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Audit the spec/coverage/test triangle
+        run: bash tests/coverage-gate.sh
+
   # Lint every tracked shell script. `-x` follows the sourced
   # bin/lib/validation.sh (resolved via .shellcheckrc source-path).
   shellcheck:

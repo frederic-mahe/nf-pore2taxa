@@ -31,12 +31,14 @@ def _touch(path: Path) -> None:
 
 class PureHelpers(unittest.TestCase):
     def test_is_fastq_name(self):
+        """DSC-05 — only the supported fastq extensions are discovered."""
         for good in ("a.fastq", "a.fastq.gz", "a.fastq.bz2", "a.fastq.xz"):
             self.assertTrue(db.is_fastq_name(good), good)
         for bad in ("a.txt", "a.sintax", "a.fastq.bak", "a.fasta"):
             self.assertFalse(db.is_fastq_name(bad), bad)
 
     def test_barcode_for_folder_and_filename(self):
+        """DSC-01 — the token is found in a directory OR in the filename."""
         # token in a directory component
         self.assertEqual(db.barcode_for("barcode01/reads.fastq.gz"), "barcode01")
         # token embedded in the filename (flat layout)
@@ -50,6 +52,7 @@ class PureHelpers(unittest.TestCase):
 
 class GroupByBarcode(unittest.TestCase):
     def test_subfolder_layout(self):
+        """DSC-01 — demultiplexed-into-folders layout."""
         with TemporaryDirectory() as d:
             root = Path(d)
             _touch(root / "barcode01" / "reads.fastq.gz")
@@ -59,6 +62,7 @@ class GroupByBarcode(unittest.TestCase):
             self.assertEqual(sorted(bc for bc, _ in rows), ["barcode01", "barcode02"])
 
     def test_flat_embedded_and_multifile(self):
+        """DSC-02 — a multi-file barcode yields one row per file."""
         with TemporaryDirectory() as d:
             root = Path(d)
             _touch(root / "run1_barcode01_0.fastq.gz")
@@ -73,6 +77,7 @@ class GroupByBarcode(unittest.TestCase):
             self.assertEqual(len(by_bc["barcode02"]), 1)
 
     def test_parent_dir_token_is_not_picked_up(self):
+        """DSC-03 — matching is on the path relative to the input dir."""
         # A barcode-like token in the *parent* directory must not leak in;
         # the match is on the path relative to input_dir.
         with TemporaryDirectory() as d:
@@ -82,6 +87,7 @@ class GroupByBarcode(unittest.TestCase):
             self.assertEqual([bc for bc, _ in rows], ["barcode01"])
 
     def test_untagged_files_collected(self):
+        """DSC-04 — files with no recognisable token are separated out."""
         with TemporaryDirectory() as d:
             root = Path(d)
             _touch(root / "barcode01" / "reads.fastq.gz")
@@ -93,6 +99,7 @@ class GroupByBarcode(unittest.TestCase):
 
 class MainCLI(unittest.TestCase):
     def test_no_token_aborts_and_lists_offenders(self):
+        """DSC-04 — and the run aborts, listing them."""
         with TemporaryDirectory() as d:
             root = Path(d)
             _touch(root / "mystery.fastq.gz")
@@ -104,6 +111,7 @@ class MainCLI(unittest.TestCase):
             self.assertIn("mystery.fastq.gz", err.getvalue())
 
     def test_no_fastq_files_aborts(self):
+        """DSC-04 — an input dir with no fastq aborts."""
         with TemporaryDirectory() as d:
             err = io.StringIO()
             with redirect_stderr(err):
@@ -112,6 +120,7 @@ class MainCLI(unittest.TestCase):
             self.assertIn("No fastq files found", err.getvalue())
 
     def test_not_a_directory_aborts(self):
+        """DSC-04 — a non-directory input aborts."""
         with TemporaryDirectory() as d:
             f = Path(d) / "afile"
             f.write_text("x")
@@ -122,6 +131,7 @@ class MainCLI(unittest.TestCase):
             self.assertIn("not a directory", err.getvalue())
 
     def test_happy_path_writes_tsv(self):
+        """DSC-01, DSC-05 — both layouts, rooted so fastq_fail is unseen."""
         with TemporaryDirectory() as d:
             root = Path(d) / "fastq_pass"
             _touch(root / "barcode01" / "reads.fastq.gz")

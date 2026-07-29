@@ -10,6 +10,7 @@
 #                         config invariants, publish modes, -resume)
 #   3. nf-test suite     (modules + workflow)
 #   4. hermeticity       (the run must not modify tests/fixtures/)
+#   5. coverage gate     (SPECIFICATIONS <-> COVERAGE <-> tests mapping)
 
 set -uo pipefail
 
@@ -25,7 +26,7 @@ fixtures_manifest() {
 }
 fixtures_before="$(fixtures_manifest)"
 
-echo "===== 1/4  python unit tests ====="
+echo "===== 1/5  python unit tests ====="
 if command -v python3 > /dev/null 2>&1 ; then
     python3 -m unittest discover -s tests/bin -p 'test_*.py' || fail=1
 else
@@ -33,7 +34,7 @@ else
 fi
 echo
 
-echo "===== 2/4  bats unit tests ====="
+echo "===== 2/5  bats unit tests ====="
 if command -v bats > /dev/null 2>&1 ; then
     bats tests/bin/ tests/config/ || fail=1
 else
@@ -41,7 +42,7 @@ else
 fi
 echo
 
-echo "===== 3/4  nf-test suite (modules + workflow) ====="
+echo "===== 3/5  nf-test suite (modules + workflow) ====="
 if command -v nf-test > /dev/null 2>&1 ; then
     nf-test test tests/ || fail=1
 else
@@ -62,7 +63,7 @@ echo
 # fixture and has not committed yet", and failing on the latter is a false
 # alarm. (The CI steps do use git, which is correct there: the checkout is
 # pristine and the run happened in an earlier step.)
-echo "===== 4/4  hermeticity: tests/fixtures/ unchanged ====="
+echo "===== 4/5  hermeticity: tests/fixtures/ unchanged ====="
 fixtures_after="$(fixtures_manifest)"
 if [[ "${fixtures_before}" == "${fixtures_after}" ]] ; then
     echo "OK: tests/fixtures/ untouched"
@@ -76,6 +77,10 @@ else
     echo "      publish_modes.bats or tests/workflow/main.nf.test)."
     fail=1
 fi
+echo
+
+echo "===== 5/5  coverage gate ====="
+bash "$(dirname "$0")/coverage-gate.sh" || fail=1
 echo
 
 if (( fail == 0 )) ; then

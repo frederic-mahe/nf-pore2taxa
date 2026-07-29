@@ -46,6 +46,7 @@ class PureHelpers(unittest.TestCase):
     """KR-30, KR-31, KR-33 — deterministic conversions."""
 
     def test_KR30_taxonomy_to_levels(self):
+        """KR-30."""
         self.assertEqual(
             bk.taxonomy_to_levels("d:X,k:Y,s:Z"), ["d:X", "k:Y", "s:Z"]
         )
@@ -53,12 +54,14 @@ class PureHelpers(unittest.TestCase):
         self.assertEqual(bk.taxonomy_to_levels("unknown"), ["unknown"])
 
     def test_KR31_parse_header_drops_taxonomy_and_total(self):
+        """KR-31."""
         self.assertEqual(
             bk.parse_header("taxonomy\ttotal\tbarcode01\tbarcode02"),
             ["barcode01", "barcode02"],
         )
 
     def test_KR33_render_krona_text_format(self):
+        """KR-33."""
         text = bk.render_krona_text([(5, ["d:X", "s:Z"]), (1, ["unknown"])])
         self.assertEqual(text, "5\td:X\ts:Z\n1\tunknown\n")
         self.assertEqual(bk.render_krona_text([]), "")
@@ -68,6 +71,7 @@ class SampleFiles(unittest.TestCase):
     """KR-32, KR-34, KR-35 — one file per non-empty barcode."""
 
     def test_KR32_counts_exact_and_zero_cells_excluded(self):
+        """KR-32."""
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)
             bk.write_sample_files(FILTERED, out)
@@ -83,6 +87,7 @@ class SampleFiles(unittest.TestCase):
             self.assertNotIn("Beta", (out / "barcode01.txt").read_text())
 
     def test_KR34_one_file_per_nonempty_barcode_empty_skipped(self):
+        """KR-34."""
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)
             err = io.StringIO()
@@ -95,6 +100,7 @@ class SampleFiles(unittest.TestCase):
             self.assertIn("barcode03", err.getvalue())
 
     def test_KR35_no_probability_annotations_leak(self):
+        """KR-35."""
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)
             for p in bk.write_sample_files(FILTERED, out):
@@ -111,17 +117,20 @@ class CLI(unittest.TestCase):
         return rc, err.getvalue()
 
     def test_KR01_missing_input(self):
+        """KR-01."""
         with tempfile.TemporaryDirectory() as tmp:
             rc, err = self._run(["--output-dir", tmp])
             self.assertEqual(rc, 1)
             self.assertIn("--input is required", err)
 
     def test_KR02_missing_output_dir(self):
+        """KR-02."""
         rc, err = self._run(["--input", str(FILTERED)])
         self.assertEqual(rc, 1)
         self.assertIn("--output-dir is required", err)
 
     def test_KR03_input_does_not_exist(self):
+        """KR-03."""
         with tempfile.TemporaryDirectory() as tmp:
             rc, err = self._run(
                 ["--input", str(FIXTURE_DIR / "__nope__.tsv"), "--output-dir", tmp]
@@ -130,6 +139,7 @@ class CLI(unittest.TestCase):
             self.assertIn("Path does not exist", err)
 
     def test_KR04_output_dir_created_if_missing(self):
+        """KR-04."""
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp) / "made" / "here"
             rc, _ = self._run(["--input", str(FILTERED), "--output-dir", str(target)])

@@ -20,6 +20,7 @@ import io
 import unittest
 from contextlib import redirect_stderr
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "bin" / "build_occurrence_table.py"
@@ -91,7 +92,7 @@ class FileDiscovery(unittest.TestCase):
         names = [p.parent.name for p in files]
         self.assertEqual(names, ["barcode01", "barcode02", "barcode03", "barcode99"])
 
-    def test_partition_by_size(self) -> None:  # BT-13
+    def test_partition_by_size(self) -> None:  # BT-13, BT-31
         files = bot.find_sintax_files(FIXTURE, r"\.sintax$")
         non_empty, empty = bot.partition_by_size(files)
         self.assertEqual([p.parent.name for p in non_empty], ["barcode01", "barcode02"])
@@ -214,6 +215,53 @@ class MultiChunkEmptyRegression(unittest.TestCase):
         self.assertEqual(row, ["d:Bacteria", "2", "2", "0"])
 
 
+class TableAssemblyUnits(unittest.TestCase):
+    """BT-35..BT-37 on the assembly functions themselves.
+
+    The golden-table tests above exercise these transitively, but a golden
+    file cannot say *which* step broke when it changes. These pin the three
+    functions directly, which is what the specs actually claim.
+    """
+
+    def test_count_assignments_one_count_per_pair(self):
+        """BT-35 — one count per (barcode, taxonomy) pair."""
+        with TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "barcode01.sintax").write_text(
+                "r1\td:A(1.00)\t+\td:A\n"
+                "r2\td:A(1.00)\t+\td:A\n"
+                "r3\td:B(1.00)\t+\td:B\n",
+                encoding="utf-8",
+            )
+            counts = bot.count_assignments(
+                [root / "barcode01.sintax"], bot.select_filtered
+            )
+            self.assertEqual(counts[("barcode01", "d:A")], 2)
+            self.assertEqual(counts[("barcode01", "d:B")], 1)
+            self.assertEqual(len(counts), 2)
+
+    def test_render_table_total_is_sum_across_barcodes(self):
+        """BT-36 — the total column sums the barcode columns."""
+        from collections import Counter
+        counts = Counter({("barcode01", "d:A"): 3, ("barcode02", "d:A"): 4})
+        text = bot.render_table(counts, [])
+        header, row = text.splitlines()
+        self.assertEqual(header.split("\t")[:2], ["taxonomy", "total"])
+        cells = row.split("\t")
+        self.assertEqual(cells[0], "d:A")
+        self.assertEqual(cells[1], "7")
+        self.assertEqual(sum(int(c) for c in cells[2:]), 7)
+
+    def test_render_table_appends_zero_filled_empty_barcodes(self):
+        """BT-37 — one zero-filled column per empty barcode, order kept."""
+        from collections import Counter
+        counts = Counter({("barcode01", "d:A"): 2})
+        text = bot.render_table(counts, ["barcode09"])
+        header, row = text.splitlines()
+        self.assertEqual(header.split("\t")[2:], ["barcode01", "barcode09"])
+        self.assertEqual(row.split("\t")[2:], ["2", "0"])
+
+
 class CliValidation(unittest.TestCase):
     """BT-01..BT-07 — argument validation and the optimistic sibling file."""
 
@@ -248,7 +296,7 @@ class CliValidation(unittest.TestCase):
         self.assertNotEqual(code, 0)
         self.assertIn("not a directory", msg)
 
-    def test_no_sintax_files(self) -> None:  # BT-06
+    def test_no_sintax_files(self) -> None:  # BT-06, BT-38
         import tempfile
 
         with tempfile.TemporaryDirectory() as tmp:

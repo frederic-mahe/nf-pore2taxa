@@ -865,8 +865,20 @@ in silence, and strict validation rejects it. Port
 
 ### Continuous (any release)
 
-- `coverage-gate.sh` + `tests/COVERAGE.md`; fix the three drift items
-  (P3-19) in the same commit that adds the gate.
+- ~~`coverage-gate.sh` + `tests/COVERAGE.md`~~ — **done 2026-07-29.** 148
+  specs mapped: 133 `done`, 12 `TODO`, 3 `n/a`, 5 retired. The gate enforces
+  four rules, and each was verified by deliberately breaking it: a spec with
+  no coverage row, a test citing an undeclared ID (the original `BT-24`
+  drift), a coverage row for a deleted spec, and — the one that keeps the
+  status column honest — a row claiming `done` that no test cites.
+
+  Building it found 12 specs that were **covered but not cited**, so no
+  machine could see the link: `DSC-01`..`DSC-05` had no IDs in the test file
+  at all, and `KR-01`..`KR-04` spelled them `KR01` without the hyphen. Also
+  3 specs (`BT-35`..`BT-37`) that the golden-table tests only covered
+  *transitively* — a golden file cannot say which step broke, so they now
+  have direct unit tests. That is 15 mapping errors in a suite whose
+  coverage table was maintained by hand.
 - `stub:` in every process + `check-stub-run.sh` (P3-17). Doubles as the
   new-lab smoke test: "does my install work?" in seconds, no tools.
 - `tests/check-*.sh` for the `conda` profile, the `cluster` profile, the
@@ -1069,9 +1081,28 @@ to be imminent; (b) and (c) are both obviated by it.
 > `BASECALL`'s downstream handoff reads from, and no executor makes that
 > safe.
 
-### D06 — migrate to nf-schema?
+### D06 — how are unrecognised parameters caught?
 
-**Status:** `proposed` — yes, additively, in `v1.13.0`.
+**Status:** `resolved` (2026-07-29) — **hand-rolled strict check, no plugin.**
+
+> **This reverses my earlier recommendation, and the reason is `D08`.** When
+> I first proposed nf-schema, HPC was a deferred target. Once scheduler
+> execution became real, a plugin dependency acquired a cost it did not have
+> before: nf-schema must be pre-seeded in `$NXF_PLUGINS_DIR` on air-gapped
+> compute nodes, which is one more thing to go wrong at a site we cannot
+> test.
+>
+> Weighed against that, the concrete win I had cited — rejecting
+> `--subsampl 100` instead of silently ignoring it — costs about twenty
+> lines: compare `params.keySet()` against the declared set and suggest the
+> nearest match. The rest of what nf-schema offers is either already present
+> (validation with better messages than it generates) or not wanted (a
+> generated help page, when the hand-written one documents profiles and
+> composition that a schema cannot express).
+>
+> What we give up: JSON-schema types/enums/ranges, and nf-core tooling
+> compatibility. Neither is in demand for a 20-parameter pipeline with one
+> maintainer.
 
 The concrete win is that `--subsampl 100` is currently accepted in
 silence; strict validation rejects it. Cost: a plugin dependency (must
@@ -1138,7 +1169,19 @@ first step for the workstation.
 
 ### D09 — release and branch model
 
-**Status:** `proposed`
+**Status:** `resolved` (2026-07-29) — **`dev` stages, `main` only at
+releases.**
+
+> Work lands on `dev`; `main` is fast-forwarded and tagged at each release,
+> so `main` is *always* exactly a released version. That is what makes
+> `nextflow run frederic-mahe/nf-pore2taxa` reproducible without `-r`: the
+> default branch a bare invocation resolves is never mid-development. It
+> also gives the `Unreleased` CHANGELOG section somewhere to accumulate.
+>
+> Cost: one merge per release. Rejected trunk-based and the current
+> main==dev arrangement because both leave the default branch untagged
+> between releases — reintroducing P2-15, a commit claiming a version number
+> it is not.
 
 `origin/main` == `origin/dev`, one untagged commit past `v1.7.0`
 (P2-15). Proposal: tag `v1.7.1` as soon as the P0 fixes land so

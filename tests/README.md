@@ -3,15 +3,21 @@
 This directory contains the test scaffolding and a first pass of
 tests for `nf-pore2taxa`.
 
-See [`SPECIFICATIONS.md`](SPECIFICATIONS.md) for the full list of
-testable behaviours — each test asserts a subset of those, identified
-by `WF-..`, `SX-..`, `BT-..` or `VL-..` IDs in comments and test names.
+See [`SPECIFICATIONS.md`](SPECIFICATIONS.md) for the full list of testable
+behaviours — each test asserts a subset of those, identified by `WF-..`,
+`SX-..`, `BT-..`, `BC-..`, `CFG-..`, `CLU-..`, `DSC-..`, `FN-..`, `KR-..`,
+`PRV-..` or `VL-..` IDs in comments and test names.
+[`COVERAGE.md`](COVERAGE.md) maps every ID to the test(s) that cite it, and
+`bash tests/coverage-gate.sh` fails if the two ever disagree — so the
+per-file table further down is a convenience, not the source of truth.
 
 ## Layout
 
 ```
 tests/
 ├── SPECIFICATIONS.md     ← what we test and why
+├── COVERAGE.md           ← every spec ID -> its test(s) -> status
+├── coverage-gate.sh      ← enforces that the mapping cannot drift
 ├── README.md             ← this file
 ├── run_all.sh            ← convenience runner for CI
 ├── nextflow.config       ← test-only Nextflow overrides
