@@ -5,6 +5,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v1.8.0 - 2026-07-29
+
+Runs on the machine you have, and says what it did. No change to any
+existing parameter's meaning.
+
 ### `Added`
 
 - **resource ceiling, so the pipeline runs on the machine you have.** The
@@ -37,6 +42,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "Not a valid FileSize value" on the first task submission. Unit-tested
   (FN-05) across both forms the param arrives in — a CLI string and a
   real `MemoryUnit` — plus zero, negative and malformed sizes.
+- **`manifest.nextflowVersion = '>=24.04.0'`** and
+  `manifest.defaultBranch = 'main'`. The floor is the requirement of
+  `process.resourceLimits`, which the resource ceiling is built on: an
+  older Nextflow ignores an unknown directive *silently*, so every request
+  would go through unclamped and the "requirement exceeds available"
+  failure would return with no diagnostic. Declaring it turns that into a
+  clear refusal at startup. `CFG-05b` guards the floor against being
+  lowered below 24.04 by mistake. Caveat: CI exercises one Nextflow
+  version, so this is the documented requirement of the feature we use,
+  not a version the suite has been run against — a pinned + latest matrix
+  is what would make it trustworthy, and is planned with the cluster work.
+- **startup run summary.** Nextflow's header reports the version, profile
+  and work directory but never the effective *parameters*, which is
+  exactly what a lab needs later to answer "what did this table come
+  from?". Every result-affecting parameter is now logged as a one-screen
+  block, with the ambiguous ones spelled out (`discard_untrimmed = true
+  (strict amplicon filtering)`, `subsample = 0 (disabled)`) and the
+  resolved ceiling including the thread count `SINTAX` will actually get.
+  Until `versions.yml` lands this block is the pipeline's only provenance
+  record. Covered by CFG-06.
+- **`randseed` reproducibility warning.** vsearch sintax is
+  order-dependent across threads, so a fixed seed does **not** make a
+  multithreaded run replayable — a caveat that previously lived only in
+  comments and the README, leaving a user who set a seed believing they
+  had reproducibility they did not have. Setting `randseed` now warns when
+  `SINTAX` will run on more than one thread, and points at the fix
+  (`--max_cpus 1`). It keys off the *effective* thread count via the new
+  `effective_threads()` helper (FN-06), so a genuinely single-threaded
+  seeded run is not warned about — a warning that fires when it does not
+  apply just teaches people to ignore it. (vsearch 2.32.0 is expected to
+  remove the underlying limitation; when the pin is bumped this warning
+  goes away and `SINTAX`'s tests can assert exact content.)
+
+### `Fixed`
+
+- the fastq enumeration added in v1.7.1 used `file()` with a glob, which
+  Nextflow 26 deprecates in favour of `files()` ("use `files()` instead")
+  — it emitted a warning on every run. Switched to `files()`; caching and
+  the `-resume` behaviour are unchanged (SX-35, DSC-06 still pass).
 
 ## v1.7.1 - 2026-07-29
 

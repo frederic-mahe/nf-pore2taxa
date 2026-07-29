@@ -23,6 +23,28 @@ def valid_bool(v) {
     "${v}" in ['true', 'false']
 }
 
+// How many threads a process will actually get: its configured request,
+// reduced by the resource ceiling (process.resourceLimits clamps it).
+//
+// Used to decide whether the `randseed` reproducibility warning applies —
+// vsearch sintax is only exactly reproducible single-threaded, so the
+// warning must fire on the EFFECTIVE thread count, not the configured
+// one: `--max_cpus 1` genuinely makes a seeded run replayable and must not
+// be warned about.
+//
+// Defensive because both inputs come from resolved config: a request that
+// cannot be read as a number (e.g. someone set `cpus = { ... }` as a
+// closure) is assumed to want the whole ceiling, which is the
+// conservative reading for a warning — better to mention reproducibility
+// when it may not hold than to stay silent when it does not.
+def effective_threads(configured, ceiling) {
+    int limit = 1
+    try { limit = "${ceiling}" as int } catch (Exception ignored) { limit = 1 }
+    int want = limit
+    try { want = "${configured}" as int } catch (Exception ignored) { }
+    Math.max(1, Math.min(want, limit))
+}
+
 // True when v is usable as a memory ceiling: something Nextflow can read
 // as a memory size, and strictly greater than zero.
 //

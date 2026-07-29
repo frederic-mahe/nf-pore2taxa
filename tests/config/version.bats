@@ -51,3 +51,41 @@ setup() {
     # tests itself rather than anything the pipeline uses.
     run ! grep -qE '^params\.version=' <<< "${properties}"
 }
+
+# ------------------------------------------------------------------- CFG-05
+
+@test "CFG-05a manifest declares a minimum Nextflow version" {
+    cd "${REPO_ROOT}"
+    run nextflow config -properties
+    [ "${status}" -eq 0 ]
+    [[ "${output}" == *"manifest.nextflowVersion="* ]]
+}
+
+@test "CFG-05b the declared floor is high enough for process.resourceLimits" {
+    # The resource ceiling (CFG-04) is built on process.resourceLimits,
+    # added in Nextflow 24.04. On an older Nextflow the directive is
+    # ignored *silently* — an unknown directive is not an error — so every
+    # request would go through unclamped and the "requirement exceeds
+    # available" failure would come back with no diagnostic. Lowering this
+    # floor therefore breaks CFG-04 invisibly; this test is the guard.
+    # -flat, not -properties: the latter is Java-properties format, which
+    # escapes '=' in a value ('>\=24.04.0') and would defeat the match.
+    cd "${REPO_ROOT}"
+    local declared major minor
+    declared="$(nextflow config -flat 2>/dev/null \
+                | sed -nE "s/^manifest\.nextflowVersion = '>=([0-9]+)\.([0-9]+).*/\1 \2/p")"
+    [ -n "${declared}" ]  # must be a '>=X.Y' form for this check to mean anything
+    major="${declared% *}"
+    minor="${declared#* }"
+    # >= 24.04
+    [ "${major}" -gt 24 ] || { [ "${major}" -eq 24 ] && [ "${minor#0}" -ge 4 ]; }
+}
+
+@test "CFG-05c manifest declares the default branch" {
+    # So `nextflow run frederic-mahe/nf-pore2taxa` resolves the intended
+    # branch rather than guessing.
+    cd "${REPO_ROOT}"
+    run nextflow config -properties
+    [ "${status}" -eq 0 ]
+    [[ "${output}" == *"manifest.defaultBranch=main"* ]]
+}

@@ -557,14 +557,37 @@ and repoint `CFG-01` at `manifest.version` ↔ `CITATION.cff`.
   that raising the request would not help. A startup notice now reports
   the effective ceiling.
 
-Still outstanding in `v1.8.0`:
+- **`manifest.nextflowVersion` + `defaultBranch` (P2-13): done.** The
+  floor is `>=24.04.0` — the release that added `resourceLimits`, which
+  the ceiling above depends on. This is not cosmetic: an older Nextflow
+  ignores an unknown directive *silently*, so the clamping would stop
+  working with no diagnostic and the "exceeds available" failure would
+  return. `CFG-05b` guards the floor arithmetically so it cannot be
+  lowered by mistake. Honest caveat recorded in the config: CI runs one
+  Nextflow version, so the floor is the documented requirement of the
+  feature, not a version the suite has been run against — the pinned +
+  latest matrix in `v1.10.0` is what would make it trustworthy.
 
-- `manifest.nextflowVersion` + `defaultBranch` (P2-13) — cheap, and it
-  belongs with "will this run on my machine".
-- The full startup summary block (pipeline version, resolved profile,
-  every effective parameter), including the `randseed` reproducibility
-  warning from `D04`. The ceiling notice added above is the first line of
-  it; the rest is unwritten.
+- **Startup summary + `randseed` warning (`D04`): done.** Nextflow's own
+  header covers version/profile/workDir, so the block covers what it never
+  shows — the effective *parameters*, with the ambiguous ones spelled out
+  (`discard_untrimmed = true (strict amplicon filtering)`) and the
+  resolved ceiling including the thread count `SINTAX` will really get.
+  Until `versions.yml` lands (`v1.9.0`) this is the pipeline's only
+  provenance record.
+
+  The `randseed` warning keys off the **effective** thread count, not the
+  configured one, via `effective_threads()` (FN-06) reading
+  `process.withName:SINTAX.cpus` out of the resolved config. That matters:
+  `--max_cpus 1` genuinely does make a seeded run replayable, and a
+  warning that fires when it does not apply just teaches people to ignore
+  warnings. `CFG-06g` pins the negative case.
+
+`v1.8.0` is complete. Two incidental fixes came with it: the `file()`
+glob deprecation introduced by `v1.7.1`'s enumeration (Nextflow 26 asks
+for `files()`), and three `resources.bats` assertions that had been
+written against the interim ceiling message before the summary block
+absorbed it.
 
 ### v1.9.0 — provenance
 

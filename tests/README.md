@@ -37,6 +37,7 @@ tests/
 │   ├── publish_modes.bats  ← publish_mode matrix + its cleanup interaction
 │   ├── resources.bats      ← resource ceiling / resourceLimits clamping
 │   ├── resume.bats         ← two successive runs against a mutating input dir
+│   ├── summary.bats        ← startup run summary + randseed warning
 │   └── version.bats
 ├── modules/              ← nf-test files for processes + shared functions
 │   ├── functions.nf.test
@@ -98,12 +99,13 @@ nf-test test tests/workflow/main.nf.test
 | `bin/test_build_occurrence_table.py`   | BT-01..BT-07, BT-10..BT-17, BT-20..BT-25, BT-30, BT-32..BT-34 |
 | `bin/test_build_krona.py`              | KR-01..KR-04, KR-30..KR-35                                |
 | `bin/build_krona_cli.bats`             | KR-40, KR-41, KR-42                                       |
-| `config/version.bats`                  | CFG-01                                                    |
+| `config/version.bats`                  | CFG-01, CFG-05                                            |
 | `config/deprecation.bats`              | WF-08 (the `log.warn` half)                               |
 | `config/publish_modes.bats`            | CFG-02, CFG-03                                            |
 | `config/resources.bats`                | CFG-04                                                    |
+| `config/summary.bats`                  | CFG-06                                                    |
 | `config/resume.bats`                   | SX-35, DSC-06                                             |
-| `modules/functions.nf.test`            | FN-01..FN-05                                              |
+| `modules/functions.nf.test`            | FN-01..FN-06                                              |
 | `modules/sintax.nf.test`               | SX-30, SX-31, SX-32, SX-33, SX-40, SX-44                  |
 | `workflow/main.nf.test`                | WF-03, WF-04, WF-06, WF-08..WF-17, CFG-03, SX-41, BT-10, BT-11, BT-13, BT-20, BT-22, BT-23 |
 

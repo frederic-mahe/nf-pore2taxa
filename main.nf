@@ -11,6 +11,7 @@ include { valid_bool        } from './modules/local/functions'
 include { optimistic_name   } from './modules/local/functions'
 include { fastq_extensions  } from './modules/local/functions'
 include { valid_memory      } from './modules/local/functions'
+include { effective_threads } from './modules/local/functions'
 
 
 // Hand-written help (printed by `--help`). Kept in sync with the params
@@ -93,6 +94,53 @@ def helpMessage() {
 }
 
 
+// One-screen record of what this run is actually doing: every parameter
+// that can change the result, plus the resolved resource ceiling.
+//
+// Written for the run log, not for interactive reading. Nextflow's own
+// header covers the pipeline version, profile and work directory; what it
+// never shows is the effective *parameters*, which is exactly what a lab
+// needs six months later to answer "what did this table come from?".
+// Until versions.yml lands, this block is the pipeline's only provenance.
+def runSummary(sintax_threads) {
+    def references = params.sintax_references ?: params.sintax_silva
+    def rows = [
+        'mode'             : coerce_bool(params.skip_basecall)
+                                 ? 'reuse existing fastq (skip_basecall)'
+                                 : 'basecall pod5 with dorado',
+        'fastq_dir'        : params.fastq_dir,
+    ]
+    if (!coerce_bool(params.skip_basecall))
+        rows['pod5_dir'] = params.pod5_dir
+    rows += [
+        'sintax_references': references,
+        'results_table'    : params.results_table,
+        'primer_f'         : params.primer_f,
+        'primer_r'         : params.primer_r,
+        'discard_untrimmed': "${params.discard_untrimmed}" +
+                             (coerce_bool(params.discard_untrimmed)
+                                  ? ' (strict amplicon filtering)'
+                                  : ' (keep every read)'),
+        'subsample'        : "${params.subsample}" +
+                             ("${params.subsample}" == '0' ? ' (disabled)' : ' reads per barcode'),
+        'randseed'         : "${params.randseed}" +
+                             ("${params.randseed}" == '0' ? ' (pseudo-random each run)' : ''),
+        'krona'            : params.krona,
+        'publish_mode'     : params.publish_mode,
+        'cleanup'          : params.cleanup,
+        'resource ceiling' : "${params.max_cpus} cpus / ${params.max_memory}" +
+                             " (every request is clamped to this; SINTAX gets ${sintax_threads} thread(s))",
+    ]
+    def width = rows.keySet()*.length().max()
+    def body = rows.collect { key, value ->
+        "  ${key.padRight(width)} : ${value}"
+    }.join('\n')
+    // Trailing newline: Nextflow's own header follows immediately after,
+    // and without it the last row and that header share a line.
+    "${workflow.manifest.name} ${workflow.manifest.version}\n${body}\n"
+}
+
+
 workflow {
 
     // Print help and exit before any validation, so `--help` works on its
@@ -171,12 +219,33 @@ workflow {
     if (errors)
         error "Parameter validation failed:\n${errors.join('\n')}\nRun with --help for the full parameter list, or see the README for the expected project config."
 
-    // Report the effective ceiling. Clamping is silent in Nextflow, so
-    // without this a run where SINTAX asked for 20 threads and got 8
-    // gives no clue why — and no clue that raising the request would not
-    // help. On the default (local) profile these are the machine's own
-    // capacity, detected at startup.
-    log.info "Resource ceiling: max_cpus = ${params.max_cpus}, max_memory = ${params.max_memory} — every process request is clamped to these (override with --max_cpus / --max_memory)."
+    // How many threads SINTAX will really get: its configured request,
+    // reduced by the ceiling. Read from the resolved config so a project
+    // config that lowers the request is reflected, rather than assuming
+    // the shipped 20.
+    def sintax_cpus = workflow.session?.config?.navigate('process.withName:SINTAX.cpus')
+                   ?: workflow.session?.config?.navigate('process.cpus')
+    def sintax_threads = effective_threads(sintax_cpus, params.max_cpus)
+
+    // Effective configuration, including the ceiling — clamping is silent
+    // in Nextflow, so without this a run where SINTAX asked for 20 threads
+    // and got 8 gives no clue why, nor that raising the request would not
+    // help.
+    log.info runSummary(sintax_threads)
+
+    // vsearch sintax is order-dependent across threads, so a fixed seed
+    // does NOT make a multithreaded run replayable. Say so at the point
+    // where the user has just asked for reproducibility, instead of only
+    // in the README — a seed that quietly fails to deliver what it
+    // promises is worse than no seed at all.
+    //
+    // (vsearch 2.32.0 is expected to make sintax reproducible under
+    // multithreading. When the pin is bumped, drop this warning and raise
+    // MIN_VSEARCH_VERSION in bin/assign_with_sintax.sh — see the
+    // "Upstream-blocked" section of docs/plans/TBD_20260729_hardening.md.)
+    if ("${params.randseed}" != '0' && sintax_threads > 1) {
+        log.warn "randseed = ${params.randseed} is set, but SINTAX runs on ${sintax_threads} threads and vsearch sintax is not exactly reproducible above one thread, even with a fixed seed. For a replayable run, cap the threads (--max_cpus 1); otherwise expect small run-to-run differences in the assignments."
+    }
 
     // .first() turns the reference into a value channel so it is reused
     // across every barcode SINTAX task (a queue channel would be consumed
@@ -211,9 +280,11 @@ workflow {
     // removed fastq re-runs discovery. Content changes to an existing
     // file are caught downstream instead: SINTAX stages its fastq as real
     // `path` inputs, so they are content-hashed there.
+    // `files()` rather than `file()`: the latter warns when a glob matches
+    // a collection ("use `files()` instead") and is on its way out.
     fastq_files_ch = fastq_pass_ch.map { dir ->
         fastq_extensions()
-            .collect { ext -> file("${dir}/**.${ext}") }
+            .collect { ext -> files("${dir}/**.${ext}") }
             .flatten()
             .collect { it.toString() }
             .sort()

@@ -157,6 +157,14 @@ params {
 > refuses that combination at startup instead of producing it.
 
 > [!NOTE]
+> **Reproducibility**: `randseed` only makes a run exactly replayable when
+> the assignment step runs single-threaded — `vsearch --sintax` is
+> order-dependent across threads. Setting a seed therefore prints a warning
+> unless the threads are capped (`--max_cpus 1`). The startup log records
+> every effective parameter, so a run's own log says what produced its
+> tables.
+
+> [!NOTE]
 > **Resources**: the per-step requests are written for a well-provisioned
 > machine (the taxonomic assignment asks for 20 cores and 16 GB), and every
 > request is then *clamped* to `max_cpus`/`max_memory`, which default to

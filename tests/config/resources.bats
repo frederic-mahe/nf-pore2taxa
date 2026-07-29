@@ -110,10 +110,12 @@ run_pipeline() {
     run_pipeline --max_cpus 3 \
         --sintax_references "${FIXTURES}/__does_not_exist__.fasta"
     [ "${status}" -ne 0 ]
-    [[ "${output}" == *"Resource ceiling: max_cpus = 3"* ]]
+    # The ceiling row of the startup summary (CFG-06 owns its exact shape).
+    [[ "${output}" == *"resource ceiling"* ]]
+    [[ "${output}" == *"3 cpus"* ]]
     # Not the machine's own count.
     if [ "$(nproc --all)" -ne 3 ] ; then
-        [[ "${output}" != *"max_cpus = $(nproc --all)"* ]]
+        [[ "${output}" != *"$(nproc --all) cpus"* ]]
     fi
 }
 
@@ -121,7 +123,8 @@ run_pipeline() {
     run_pipeline --max_memory '7.GB' \
         --sintax_references "${FIXTURES}/__does_not_exist__.fasta"
     [ "${status}" -ne 0 ]
-    [[ "${output}" == *"max_memory = 7.GB"* ]]
+    [[ "${output}" == *"resource ceiling"* ]]
+    [[ "${output}" == *"7.GB"* ]]
 }
 
 @test "CFG-04e a non-positive max_cpus is rejected at startup" {
@@ -153,7 +156,9 @@ run_pipeline() {
 
     # The ceiling is announced, so a run that used fewer threads than the
     # config requests is explicable.
-    [[ "${output}" == *"Resource ceiling: max_cpus = 2"* ]]
+    [[ "${output}" == *"resource ceiling"* ]]
+    [[ "${output}" == *"2 cpus"* ]]
+    [[ "${output}" == *"SINTAX gets 2 thread(s)"* ]]
 
     # The clamp reached the tool: vsearch was given 2 threads, not 20.
     run bash -c "grep -ho -- '--threads \"[0-9]*\"' '${BATS_TEST_TMPDIR}'/work/*/*/.command.sh | sort -u"

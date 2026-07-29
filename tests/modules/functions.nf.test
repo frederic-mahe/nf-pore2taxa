@@ -170,4 +170,53 @@ nextflow_function {
         when { function { """ input[0] = "-1.GB" """ } }
         then { assert function.success; assert function.result == false }
     }
+
+    // ------------------------------------------------------------- FN-06
+    //
+    // The thread count a process really gets: its configured request,
+    // reduced by the ceiling. The randseed reproducibility warning keys
+    // off this rather than the configured value, so that `--max_cpus 1`
+    // (which genuinely does make a seeded run replayable) is not warned
+    // about.
+
+    test("FN-06a effective_threads: the ceiling wins when it is lower") {
+        function "effective_threads"
+        when { function { """ input[0] = 20 ; input[1] = 4 """ } }
+        then { assert function.success; assert function.result == 4 }
+    }
+
+    test("FN-06b effective_threads: the request wins when it is lower") {
+        function "effective_threads"
+        when { function { """ input[0] = 2 ; input[1] = 24 """ } }
+        then { assert function.success; assert function.result == 2 }
+    }
+
+    test("FN-06c effective_threads: a ceiling of 1 means single-threaded") {
+        function "effective_threads"
+        when { function { """ input[0] = 20 ; input[1] = 1 """ } }
+        then { assert function.success; assert function.result == 1 }
+    }
+
+    test("FN-06d effective_threads: CLI string forms are handled") {
+        // Both values can arrive as strings from resolved config / CLI.
+        function "effective_threads"
+        when { function { """ input[0] = "20" ; input[1] = "6" """ } }
+        then { assert function.success; assert function.result == 6 }
+    }
+
+    test("FN-06e effective_threads: an unreadable request assumes the ceiling") {
+        // e.g. someone set `cpus = { ... }` as a closure. For a warning,
+        // assuming the whole ceiling is the conservative reading — better
+        // to mention reproducibility when it may not hold than to stay
+        // silent when it does not.
+        function "effective_threads"
+        when { function { """ input[0] = "not-a-number" ; input[1] = 8 """ } }
+        then { assert function.success; assert function.result == 8 }
+    }
+
+    test("FN-06f effective_threads never returns less than 1") {
+        function "effective_threads"
+        when { function { """ input[0] = 0 ; input[1] = 0 """ } }
+        then { assert function.success; assert function.result == 1 }
+    }
 }
