@@ -1,8 +1,9 @@
 # Review + hardening plan: preparing nf-pore2taxa for external labs
 
-Status: **in progress** — `v1.7.1`, `v1.8.0` and `v1.9.0` **implemented,
-committed and tagged** 2026-07-29; `v1.10.0` (HPC) next, blocked only on
-the GPU-routing question in `v1.10.0`. `D01`–`D04`, `D08` and `D10`–`D13`
+Status: **in progress** — `v1.7.1`, `v1.8.0`, `v1.9.0` and `v1.10.0`
+**implemented, committed and tagged** 2026-07-29. Remaining: `v1.11.0`
+(basecalling parameterisation), `v1.12.0` (`--outdir`), `v1.13.0`
+(nf-schema), plus the "Continuous" items. `D01`–`D04`, `D08`, `D10`–`D14`
 **resolved**
 2026-07-29; `D05` and `D07` **revised** by the `D08` resolution;
 `D06`/`D09` proposed and awaiting confirmation (§6). Review of `dev` @
@@ -625,7 +626,32 @@ Two findings worth recording:
 Together these make a lab's output self-describing, which is the
 precondition for two labs comparing tables at all.
 
-### v1.10.0 — HPC readiness (`D08`), imported from nf-metabarcoding
+### v1.10.0 — HPC readiness (`D08`) — **IMPLEMENTED 2026-07-29**
+
+Landed as planned, with `D14` resolved as **BASECALL local-only** — and
+enforced, not merely documented: a run that requests basecalling under a
+scheduler is refused at startup (`CLU-09`). Queueing a job for a node with
+no GPU, then failing after the wait with "dorado: command not found", puts
+the cause a long way from the reason.
+
+Two things worth recording:
+
+- **The import was as clean as predicted.** The five site configs needed no
+  structural change — only their headers rewritten and the GPU note added.
+  What did *not* port was `conf/slurm.config`'s per-process tiers, and
+  rather than restate this pipeline's cpus/memory there I left them in
+  `nextflow.config` so they apply identically on a workstation and a
+  cluster and cannot drift. `conf/slurm.config` adds only what a scheduler
+  needs: submission, queue, account, arrays, walltime.
+- **`CFG-04c` caught a real regression during the work.** Replacing the
+  inline `cluster` profile with `conf/slurm.config` left bare
+  `-profile slurm` inheriting the *auto-detected* ceiling — the submit
+  host's capacity, the exact harm `v1.8.0` documented. A v1.8.0 test
+  failing during v1.10.0 work is the suite doing its job.
+
+The original plan for this milestone follows.
+
+#### Plan as written
 
 The two pipelines serve the **same users at the same sites**, so this is
 an **import**, not a design exercise. I checked what is actually in the
@@ -1109,3 +1135,22 @@ README. Confirm, or say you prefer trunk-based with tags only.
 > - **`D13` a separate `params.json`**, keeping the sibling's and nf-core's
 >   naming so a lab running both pipelines gets comparable artefacts, and
 >   so tool versions can be diffed independently of settings.
+
+### D14 — GPU routing for BASECALL on a cluster
+
+**Blocks:** `v1.10.0` (resolved). **Status:** `resolved` (2026-07-29)
+
+> **Resolution:** **BASECALL is local-only, for now** — and the pipeline
+> enforces it. `conf/slurm.config` ships no BASECALL tier, no site profile
+> routes to a GPU partition, and `main.nf` refuses at startup when
+> basecalling is requested under a non-local executor.
+>
+> The alternative — per-site GPU routing — needs a partition name, `--gres`
+> syntax, possibly a separate account, *and* an answer to how `dorado` is
+> reached on a compute node at all (it is in no container and no conda env).
+> None of that can be guessed for a site nobody has run on yet, and the
+> hybrid it would replace is the one people will use anyway: basecall once
+> on the GPU workstation, then run the cheap CPU half at scale.
+>
+> Revisit when a site actually asks. The refusal message names the
+> workaround, so a user who hits it is not left guessing.

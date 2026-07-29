@@ -1,0 +1,101 @@
+/*
+ * Site configuration template.
+ *
+ * Copy this file, edit the values for your cluster, and pass it on the
+ * command line with `-c`:
+ *
+ *     nextflow run main.nf -profile slurm,apptainer \
+ *         -c /path/to/my-site.config \
+ *         -config /path/to/myproject.config
+ *
+ * `-c` is native Nextflow: these values are merged over the pipeline
+ * defaults and the selected profiles, so a site never has to edit
+ * nextflow.config itself. Delete the lines you do not need — everything
+ * here is optional and has a working default.
+ *
+ * If your site is one of the five shipped profiles (abims, genotoul,
+ * ifb_core, meso, saga) you need almost none of this: use
+ * `-profile <site>` and it is already set.
+ */
+
+params {
+    // --- slurm submission (consumed by -profile slurm) -----------------
+    slurm_queue   = 'normal'
+    slurm_account = 'my_account'
+
+    // Extra sbatch options appended verbatim to every submit line: QoS,
+    // constraints, reservations. Combined with --account automatically.
+    slurm_clusterOptions = '--qos=long --constraint=haswell'
+
+    // Max concurrent sbatch jobs the driver keeps in flight.
+    slurm_queue_size = 50
+
+    // Batch up to N ready tasks of a process into one `sbatch --array`
+    // submission instead of one sbatch each. Worth setting here: this
+    // pipeline runs one task per barcode, up to 96 per run, which is
+    // exactly the load arrays exist to reduce. null = one job per task.
+    slurm_array_size = 50
+
+    // --- resource ceiling ----------------------------------------------
+    // Clamped onto every (escalating) request, so a step never asks for
+    // more than the largest node your partition offers. On the local
+    // executor these default to the machine's own capacity; under slurm
+    // they must be set, because auto-detection would describe the submit
+    // host. Unquoted Nextflow MemoryUnit / Duration values.
+    max_cpus   = 32
+    max_memory = 256.GB
+    max_time   = 72.h
+
+    // --- resource scaling ----------------------------------------------
+    // Approximate size of your sintax reference database, in GB. vsearch
+    // loads the reference and builds a k-mer index several times its size,
+    // so SINTAX scales its memory request off this. Leave unset to use the
+    // fixed 16 GB fallback, which is generous for a small ITS/COI database
+    // and may be too little for a full SILVA.
+    reference_size_gb = 2
+}
+
+// --- per-step resource overrides (optional) ----------------------------
+// The reference-size hint above scales the assignment step. To override a
+// single step instead, set it directly by process name; these win over the
+// profile defaults.
+// process {
+//     withName: 'SINTAX' {
+//         cpus   = 32
+//         memory = '64.GB'
+//         time   = '8.h'
+//     }
+// }
+
+// --- shared caches -----------------------------------------------------
+// Point the container / conda caches at shared scratch visible to every
+// compute node, so the image (or the conda env) is built once and reused
+// instead of rebuilt per node.
+// apptainer.cacheDir   = '/scratch/shared/nf-pore2taxa/apptainer_cache'
+// singularity.cacheDir = '/scratch/shared/nf-pore2taxa/singularity_cache'
+// conda.cacheDir       = '/scratch/shared/nf-pore2taxa/conda_cache'
+
+// --- air-gapped / pre-built image --------------------------------------
+// If your compute nodes have no outbound network, Wave cannot build the
+// image at task start. Either build once on a connected node (run with an
+// engine profile so the image is cached in the cacheDir above), or point at
+// a pre-pulled image yourself: enable the engine here and set
+// process.container, then run WITHOUT the engine profile (which would turn
+// Wave back on).
+// apptainer.enabled    = true
+// apptainer.autoMounts = true
+// process.container    = '/scratch/shared/nf-pore2taxa/nf-pore2taxa.sif'
+
+// --- driver tuning -----------------------------------------------------
+// Keep the work directory on shared scratch, visible to all nodes. The
+// pipeline defaults to cleanup = false so work/ survives for -resume
+// across invocations; set --cleanup for throwaway runs.
+// workDir = '/scratch/shared/nf-pore2taxa/work'
+
+// --- basecalling -------------------------------------------------------
+// Not supported under a scheduler: dorado is an ONT GPU binary outside the
+// conda environment and any container built here, and the shipped queue
+// closures route on memory/time, so BASECALL would land on a CPU node.
+// main.nf refuses at startup if basecalling is requested under slurm.
+// Basecall on the GPU workstation, then run the cluster half with
+// --skip_basecall and --fastq_dir pointing at the result.

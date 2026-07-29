@@ -38,6 +38,42 @@ jobs:
             shellcheck -x "${scripts[@]}"
           fi
 
+  # Cluster / container profile resolution, on a PINNED Nextflow as well as
+  # the latest stable. Config resolution only — no scheduler, no engine, no
+  # image build — so this needs nothing but Nextflow and runs in seconds.
+  #
+  # The matrix is the point, not decoration: a cluster config that ships a
+  # block-form `singularity { }` scope silently loses the engine profile's
+  # `singularity.enabled` on Nextflow 25.10.x (the version most of our sites
+  # run) but not on 26.x. A single-version check cannot see that class of
+  # regression, and the failure mode is a run that quietly falls back to a
+  # local conda env instead of the container.
+  cluster-profiles:
+    strategy:
+      fail-fast: false
+      matrix:
+        nxf_ver: ['25.10.2', 'latest-stable']
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Nextflow
+        uses: nf-core/setup-nextflow@v3
+        with:
+          version: ${{ matrix.nxf_ver }}
+
+      - name: Install bats
+        run: sudo apt-get update && sudo apt-get install -y bats
+
+      - name: Validate cluster, site and container profile wiring
+        run: bats tests/config/cluster_profiles.bats
+
   # bats unit + CLI tests. The helper/validation tests need no external
   # tool; the CLI tests need cutadapt + vsearch and the config tests need
   # Nextflow (each skips gracefully if its tool is absent, but CI installs

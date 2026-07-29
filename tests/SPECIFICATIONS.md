@@ -311,7 +311,39 @@ capture, extract and record it faithfully.
 | PRV-13 | `to_yaml` is sorted and deterministic: the same versions in any order render byte-identically. |
 
 
-## 11. Out of scope (will not be tested)
+## 11. Cluster and container profiles (`conf/`)
+
+Scheduler execution is a supported target. The five institutional profiles
+are imported from nf-metabarcoding — same author, same users, same sites —
+whose `conf/clusters/` files carry only site facts.
+
+Everything here is **config resolution**, testable with nothing but
+Nextflow: no scheduler, no container engine, no image build. That is the
+point — the bugs these guard against are profiles that resolve *wrongly*,
+invisible until a real submission and cheap to catch statically. Real
+`sbatch` submission and a real image build stay manual smoke tests at the
+adopting site; a fake scheduler would only prove the fake works.
+
+**Basecalling is local-only.** `dorado` is an ONT GPU binary that is not on
+bioconda, so it is in neither `environment.yml` nor any image built from it,
+and the sites' queue closures route by memory and time — they would send
+`BASECALL` to a CPU node. Basecall on a GPU workstation, then run the
+cluster half with `--skip_basecall`.
+
+| ID     | Specification                                                                                                                                          |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| CLU-01 | Every shipped profile resolves (`standard`, `slurm`, `cluster`, the five sites, `conda`, and the four engines) (a), and an executor profile composes with an engine profile, e.g. `-profile abims,apptainer` (b). |
+| CLU-02 | A cluster profile *implies* slurm — each includes `conf/slurm.config`, so a user never lists `slurm` as well (a). The `slurm` profile carries the submission plumbing: queue, account, extra sbatch options, queue size, the `clusterOptions` closure and `executor.queueSize` (b). |
+| CLU-03 | Each site sets its own ceiling to its largest node, and `resourceLimits` is rebuilt from it (a). A site ceiling is **never** the running host's capacity (b): the auto-detected default describes the *submit* host under a scheduler, and inheriting it would silently shrink every submitted job — bare `-profile slurm` did exactly that until this caught it, and `conf/slurm.config` now sets conservative explicit defaults. Walltime is set under slurm and absent locally (c), since the local executor has no walltime enforcer and a job with no `time` inherits the queue default and is killed there. |
+| CLU-04 | `cluster` remains an **exact** alias of `slurm`: the two resolve identically. It shipped in v1.0.0 and project configs in the wild use it. |
+| CLU-05 | The sites batch tasks into slurm job arrays (`process.array`). One task per barcode, up to 96 a run, is exactly the submission load arrays exist to reduce. |
+| CLU-06 | Each engine profile enables its engine plus Wave, which builds the image from the same pinned `environment.yml` that drives `-profile conda` (a). An engine profile must **not** also set `conda.enabled` (b): that switches on Nextflow's native conda integration *as well as* Wave, adding a local `conda env create` on the launch node — which on an HPC login node blocks on a slow solve and can fail, stalling the run before a task is submitted. Wave needs only the per-process `conda` directive, which must be present. The engine's `enabled` and the site's bind mounts survive together through `includeConfig` (c) — the dotted-assignment discipline, since a block-form engine scope silently drops `enabled` on Nextflow 25.10.x and the run falls back to conda with no error. |
+| CLU-07 | `BASECALL` is never given a `conda` directive under any profile, so it is never containerised or conda-packaged: dorado is not in the environment, and handing it one without the tool it needs would only hide the problem. |
+| CLU-08 | Every `conf/clusters/<name>.config` is registered as a profile (dead config otherwise) and `_template.config` is **not** (it is a starting point, not a site). |
+| CLU-09 | Basecalling under a scheduler is refused at startup, with a message that says what to do instead (a) — rather than queueing a job for a node with no GPU and failing after the wait, with the cause far from the reason. Local basecalling is unaffected (b). A site that declares `require_slurm_account` refuses without one, naming both ways to supply it (c); the other sites do not inherit that requirement (d). |
+
+
+## 12. Out of scope (will not be tested)
 
 - The numerical correctness of `dorado` basecalls.
 - The numerical correctness of `cutadapt` primer trimming or
@@ -319,5 +351,9 @@ capture, extract and record it faithfully.
   these tools with the documented options and consumes their outputs
   faithfully.
 - GPU-bound BASECALL execution: covered only via a `dorado` stub.
-- Cluster execution (`profile = cluster`): smoke-test only, no real
-  Slurm submission.
+- Cluster execution: config resolution is fully tested (CLU-01..CLU-09);
+  real `sbatch` submission and a real container image build are manual
+  smoke tests at the adopting site. A fake scheduler would only prove the
+  fake works.
+- GPU basecalling on a cluster: unsupported by design, and refused at
+  startup (CLU-09).

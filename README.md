@@ -196,6 +196,41 @@ summary of every parameter and profile, run:
 nextflow run main.nf --help
 ```
 
+### Running on a cluster
+
+Scheduler execution is supported. Five institutional profiles ship ready to
+use — they imply slurm, so never list `slurm` as well:
+
+```bash
+nextflow run main.nf -profile abims,apptainer -config myproject.config \
+    --skip_basecall --fastq_dir /path/to/run --slurm_account my_account
+```
+
+| Profile | Site |
+| ------- | ---- |
+| `abims` | ABiMS, Roscoff (requires `--slurm_account`) |
+| `genotoul` | Genotoul, Toulouse |
+| `ifb_core` | IFB Core cluster |
+| `meso` | MESO@LR / CIRAD dedicated partitions |
+| `saga` | Saga, Sigma2 (Norway) |
+| `slurm` | generic slurm; set your own queue/account/ceiling |
+
+For a site not listed, use `-profile slurm` with a `-c site.config` (copy
+[`conf/site.config.example`](conf/site.config.example)), or add a profile
+from [`conf/clusters/_template.config`](conf/clusters/_template.config).
+Tell the pipeline how big your reference database is
+(`--reference_size_gb`) and the assignment step will size its memory
+request accordingly instead of using a fixed fallback.
+
+> [!IMPORTANT]
+> **Basecalling is local-only.** `dorado` is an Oxford Nanopore GPU binary
+> that is not on bioconda, so it is in neither the conda environment nor any
+> container, and the cluster profiles route jobs to partitions by memory and
+> time — basecalling would land on a CPU node. The pipeline therefore
+> **refuses at startup** if you ask for basecalling under a scheduler.
+> Basecall on the GPU workstation, then run the (much cheaper) rest on the
+> cluster with `--skip_basecall` and `--fastq_dir` pointing at the result.
+
 ### Providing the dependencies
 
 `cutadapt` and `vsearch` (and `python3`) must be available. The simplest
@@ -205,6 +240,17 @@ way is the bundled `conda` profile, which resolves them from the pinned
 ```bash
 nextflow run main.nf -profile standard,conda -config /path/to/myproject.config
 ```
+
+On a cluster, prefer a container to conda — conda on a shared filesystem is
+slow and a shared cache races between concurrent runs. Add an engine profile
+and Seqera Wave builds the image from the same pinned `environment.yml`, so
+there is nothing to publish or maintain:
+
+```bash
+nextflow run main.nf -profile abims,apptainer -config myproject.config
+```
+
+`apptainer`, `singularity`, `docker` and `podman` are all available.
 
 Otherwise, ensure `cutadapt` and `vsearch` (>= 2.31.0) are on your `PATH`.
 Basecalling (`dorado`, `pigz`) is **not** provided by the `conda` profile —

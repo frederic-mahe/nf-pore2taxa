@@ -5,6 +5,100 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v1.10.0 - 2026-07-29
+
+Cluster support. Scheduler execution is a supported target, not a
+hypothetical one; basecalling is explicitly not part of it.
+
+### `Added`
+
+- **Five institutional cluster profiles** — `abims`, `genotoul`,
+  `ifb_core`, `meso`, `saga` — imported from nf-metabarcoding, which serves
+  the same users at the same sites and whose `conf/clusters/` files carry
+  only site facts (ceilings, queue-routing closures, bind mounts, array
+  sizes) with no pipeline-specific content. Each *implies* slurm, so run
+  `-profile abims` or `-profile abims,apptainer` and never list `slurm` as
+  well. A sixth site starts from `conf/clusters/_template.config`.
+- **`slurm` profile** (`conf/slurm.config`) with the submission plumbing:
+  `--slurm_queue`, `--slurm_account`, `--slurm_clusterOptions`,
+  `--slurm_queue_size`, `--slurm_array_size`, and a resource ceiling set
+  **explicitly** rather than auto-detected — under a scheduler the
+  auto-detected value describes the *submit* host, and inheriting it would
+  silently shrink every submitted job. `cluster` is retained as an exact
+  alias, since it shipped in v1.0.0 and project configs use it.
+- **Walltime.** `time` directives, scaled by `task.attempt`, in
+  `conf/slurm.config` only — the local executor has no walltime enforcer,
+  but under a scheduler a job with no `time` inherits the queue default and
+  is killed there. The existing `errorStrategy` already retries exit
+  137..140, the range a walltime kill lands in, so a job that outgrew its
+  slot gets a longer one on retry. This is also where the attempt-scaled
+  memory escalation finally earns its keep: a retry can land on a bigger
+  node, which a fixed-RAM workstation could never provide.
+- **Slurm job arrays** (`--slurm_array_size`, default 50 at every shipped
+  site): one `sbatch --array` submission instead of one job per task. This
+  pipeline runs one task per barcode, up to 96 a run — exactly the
+  submission load arrays exist to reduce.
+- **Container profiles** `apptainer`, `singularity`, `docker`, `podman`.
+  Each enables its engine plus Seqera Wave, which builds the image from the
+  same pinned `environment.yml` that drives `-profile conda` — no
+  Dockerfile, no registry, one source of truth for versions. Preferred over
+  conda on a cluster, where conda on a shared filesystem is slow and a
+  shared cache races between concurrent runs.
+- **`--reference_size_gb`**: vsearch loads the reference and builds a k-mer
+  index several times its size, so `SINTAX` now scales its memory request
+  off the reference rather than a fixed 16 GB — generous for a small
+  ITS/COI database and potentially too little for a full SILVA. Unset keeps
+  the previous behaviour.
+- **`conf/site.config.example`** and `--slurm_account` enforcement: a site
+  profile can declare `require_slurm_account`, and the run then stops at
+  startup naming both ways to supply one, instead of every `sbatch`
+  bouncing. `abims` declares it.
+- **CI resolves the cluster and container profiles on a pinned Nextflow
+  (25.10.2) as well as the latest stable.** The matrix is the point, not
+  decoration: a cluster config shipping a block-form `singularity { }`
+  scope silently loses the engine profile's `singularity.enabled` on
+  25.10.x but not on 26.x, and the run then falls back to a local conda env
+  with no error. Every engine setting in `conf/` therefore uses dotted
+  assignment, and CLU-06c pins that `enabled` and the site's bind mounts
+  survive `includeConfig` together.
+
+### `Changed`
+
+- **Basecalling is local-only, and now refused rather than merely
+  undocumented.** `dorado` is an Oxford Nanopore GPU binary that is not on
+  bioconda, so it is in neither `environment.yml` nor any image built from
+  it, and the sites' queue closures route by memory and time — `BASECALL`
+  would land on a CPU node. A run that requests basecalling under a
+  scheduler now aborts at startup with a message that says what to do
+  instead, rather than queueing a job that cannot work and failing after
+  the wait with the cause far from the reason. Basecall on the GPU
+  workstation, then run the cluster half with `--skip_basecall`. Local
+  basecalling is unaffected. Covered by CLU-09.
+- the per-process `conda` specification moved to `conf/tool_env.config`,
+  shared by the `conda` profile and all four engine profiles so the two
+  paths cannot disagree about which processes are packaged. `BASECALL` is
+  deliberately absent from it: giving it a container or an env without the
+  one tool it needs would only hide the problem.
+- an engine profile does **not** set `conda.enabled`. That switch turns on
+  Nextflow's native conda integration *in addition to* Wave, adding a local
+  `conda env create` on the launch node — which on an HPC login node blocks
+  on a slow solve and can fail, stalling the run before a single task is
+  submitted. Wave needs only the process `conda` directive. CLU-06b pins it.
+
+### `Fixed`
+
+- bare `-profile slurm` inherited the **auto-detected** resource ceiling,
+  i.e. the submit host's capacity — the exact failure the v1.8.0 note warns
+  about. Caught by CFG-04c when the inline `cluster` profile was replaced
+  by `conf/slurm.config`; the file now sets conservative explicit defaults
+  that a site profile or `-c site.config` overrides.
+
+New specs CLU-01..CLU-09, all config-resolution only: no scheduler, no
+container engine, no image build, so they run in CI with nothing but
+Nextflow installed. Real `sbatch` submission and a real image build remain
+manual smoke tests at the adopting site — a fake scheduler would only prove
+the fake works.
+
 ## v1.9.0 - 2026-07-29
 
 Provenance: every run now explains itself. No change to any existing

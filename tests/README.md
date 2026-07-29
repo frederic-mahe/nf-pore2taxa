@@ -35,6 +35,7 @@ tests/
 │   └── validation.bats
 ├── config/               ← bats tests for config invariants + whole-run behaviour
 │   ├── deprecation.bats
+│   ├── cluster_profiles.bats ← slurm / site / container profile resolution
 │   ├── provenance.bats     ← versions.yml / params.json / execution reports
 │   ├── publish_modes.bats  ← publish_mode matrix + its cleanup interaction
 │   ├── resources.bats      ← resource ceiling / resourceLimits clamping
@@ -59,6 +60,7 @@ tests/
 | config invariants    | `nextflow`; skips if absent. CFG-02c/CFG-03c/CFG-04g also need `cutadapt` + `vsearch` (they run to completion, to prove the outputs are readable / the clamped request reached the tool) |
 | resume (SX-35/DSC-06)| `nextflow`, `cutadapt`, `vsearch`; skips if absent   |
 | provenance (PRV-05..08)| `nextflow`, `cutadapt`, `vsearch`; skips if absent |
+| cluster profiles (CLU) | `nextflow` only — config resolution, no scheduler or engine |
 | SINTAX module        | `nextflow`, `nf-test`, `cutadapt`, `vsearch >= 2.31.0` |
 | Krona (KR-40..42)    | `ktImportText` (KronaTools); skips if absent         |
 | Workflow             | all of the above (WF-13/WF-15 need `ktImportText`)   |
@@ -110,6 +112,7 @@ nf-test test tests/workflow/main.nf.test
 | `config/publish_modes.bats`            | CFG-02, CFG-03                                            |
 | `config/resources.bats`                | CFG-04                                                    |
 | `config/provenance.bats`               | PRV-05..PRV-08                                            |
+| `config/cluster_profiles.bats`         | CLU-01..CLU-09                                            |
 | `config/summary.bats`                  | CFG-06                                                    |
 | `config/resume.bats`                   | SX-35, DSC-06                                             |
 | `modules/functions.nf.test`            | FN-01..FN-06                                              |

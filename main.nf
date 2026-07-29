@@ -77,13 +77,38 @@ def helpMessage() {
                            is clamped to these — so the pipeline runs on a
                            small workstation without editing any config.
                            Lower them to leave headroom for other work.
+      --reference_size_gb  Approximate size of the reference database, in GB.
+                           The assignment step sizes its memory request from
+                           this instead of a fixed fallback (default: unset).
       --help               Show this message and exit.
+
+    Cluster parameters (with -profile slurm or a site profile):
+      --slurm_queue        Partition to submit to.
+      --slurm_account      Account for sbatch. Required at some sites.
+      --slurm_array_size   Batch up to N ready tasks into one sbatch --array
+                           submission instead of one job each.
+      --slurm_queue_size   Max concurrent jobs the driver keeps in flight.
+      --max_time           Walltime ceiling clamped onto every request.
+                           See conf/site.config.example for the full set.
 
     Profiles (-profile):
       standard             Local executor (default).
-      cluster              SLURM executor.
-      conda                Resolve cutadapt/vsearch/python from environment.yml.
-                           Compose with an executor, e.g. -profile standard,conda.
+      slurm                SLURM executor (generic; set --slurm_queue /
+                           --slurm_account, or use a site profile below).
+                           'cluster' is an alias, kept for compatibility.
+      abims, genotoul,     Institutional clusters. Each implies slurm, so do
+      ifb_core, meso,      not also pass 'slurm'.
+      saga
+      conda                Resolve cutadapt/vsearch/krona/python from
+                           environment.yml (native conda, no container).
+      apptainer,           Run those same tools in a container built from
+      singularity,         environment.yml by Seqera Wave. Preferred on a
+      docker, podman       cluster. Compose with an executor, e.g.
+                           -profile abims,apptainer.
+
+    Basecalling is local-only: dorado is a GPU binary outside the packaged
+    environment, so a run that requests it under a scheduler is refused at
+    startup. Basecall on the workstation, then use --skip_basecall.
 
     Example:
 
@@ -268,6 +293,26 @@ workflow {
     def link_modes = ['symlink', 'rellink']
     if (coerce_bool(params.cleanup) && params.publish_mode in link_modes)
         errors << "  - 'publish_mode = ${params.publish_mode}' cannot be combined with 'cleanup = true': the published outputs are links into the work directory, which cleanup deletes. Use 'copy' (or leave cleanup off)."
+    if (params.reference_size_gb != null && !("${params.reference_size_gb}" ==~ /\d+(\.\d+)?/))
+        errors << "  - 'reference_size_gb' must be a positive number of GB (got: '${params.reference_size_gb}')."
+
+    // Basecalling is local-only. dorado is an ONT GPU binary that is not on
+    // bioconda — so it is in neither the conda environment nor any
+    // container built from it — and the shipped cluster profiles route
+    // partitions by memory and time, which would put BASECALL on a CPU
+    // node with no GPU. Refuse here rather than submit a job that cannot
+    // work: the alternative is a queue wait followed by a failure whose
+    // cause ("dorado: command not found", on a node the user never chose)
+    // is far from its reason.
+    def scheduler = workflow.session?.config?.navigate('process.executor')
+    if (scheduler && "${scheduler}" != 'local' && !coerce_bool(params.skip_basecall))
+        errors << "  - basecalling is not supported under the '${scheduler}' executor (dorado is a GPU binary outside the packaged environment, and the cluster profiles route by memory/time, not to GPU partitions). Basecall on a GPU workstation, then run here with 'skip_basecall = true' and 'fastq_dir' pointing at the result."
+
+    // Some sites reject a submission with no account. A cluster profile
+    // that knows this sets require_slurm_account, so the run stops here
+    // with a specific message instead of every sbatch bouncing.
+    if (coerce_bool(params.require_slurm_account ?: false) && !params.slurm_account)
+        errors << "  - 'slurm_account' is required on this cluster (the profile sets require_slurm_account). Pass --slurm_account <account>, or set it in a -c site.config (see conf/site.config.example)."
     if (errors)
         error "Parameter validation failed:\n${errors.join('\n')}\nRun with --help for the full parameter list, or see the README for the expected project config."
 
