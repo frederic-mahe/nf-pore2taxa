@@ -1,8 +1,9 @@
 # Review + hardening plan: preparing nf-pore2taxa for external labs
 
-Status: **in progress** — `v1.7.1` **implemented** and committed 2026-07-29;
-`v1.8.0` resource clamping implemented (§4), rest of `v1.8.0`
-outstanding. `D01`–`D04` and `D08` **resolved**
+Status: **in progress** — `v1.7.1`, `v1.8.0` and `v1.9.0` **implemented,
+committed and tagged** 2026-07-29; `v1.10.0` (HPC) next, blocked only on
+the GPU-routing question in `v1.10.0`. `D01`–`D04`, `D08` and `D10`–`D13`
+**resolved**
 2026-07-29; `D05` and `D07` **revised** by the `D08` resolution;
 `D06`/`D09` proposed and awaiting confirmation (§6). Review of `dev` @
 `24a1396` (post-`v1.7.0`), against the goal: *thoroughly tested, easy to
@@ -589,13 +590,37 @@ for `files()`), and three `resources.bats` assertions that had been
 written against the interim ceiling message before the summary block
 absorbed it.
 
-### v1.9.0 — provenance
+### v1.9.0 — provenance — **IMPLEMENTED 2026-07-29**
 
-- Software-version capture → `versions.yml` published with the results
-  (P2-12): vsearch, cutadapt, KronaTools, python, dorado when it ran,
-  plus the pipeline version and git commit.
-- Execution reports (`report`/`timeline`/`trace`/`dag`) written under the
-  results directory by default.
+Everything in `pipeline_info/` beside the tables — the layout `--outdir`
+will adopt, so `v1.11.0` re-roots rather than relocates.
+
+- **`software_versions.yml`** (P2-12) via a new `DUMP_VERSIONS` process
+  over a stdlib `bin/collect_versions.py`, ported from the sibling. Tools
+  + pipeline release + Nextflow, sorted. An unprobeable tool is `n/a`, not
+  omitted — an absent line reads as "not used", a different claim.
+- **`dorado` from `BASECALL` itself** (`D10`), as a text fragment
+  `DUMP_VERSIONS` merges. Worth the extra output: dorado is not in the
+  conda env and may not exist on the probe's node, so the task that ran it
+  is the only honest source — and this is now the *first* part of the
+  basecalling path with any test coverage, since a hand-written fragment
+  exercises the merge without dorado, a GPU or a model download.
+- **`params.json`** — the effective configuration, booleans coerced, alias
+  resolved.
+- **Execution reports on by default**, fixed names + `overwrite`, with a
+  trace field list built for the `v1.8.0` ceiling (requested vs observed).
+
+Two findings worth recording:
+
+- **`params.json` had to shed the session id and command line.** Including
+  them made the task re-run on every `-resume`, costing `SX-35`'s clean
+  "nothing changed" signal to duplicate what Nextflow's report and log
+  already hold. Each artefact now answers one question: `params.json`
+  "with what settings?", the report "which run?". `PRV-08b` pins it.
+- **`--sintax_references ''` is parsed by Nextflow as a flag**, discarding
+  the empty value and setting the param to the string `'true'`. Harmless
+  here (it then fails as a missing path) but it shaped a test, and it is
+  the kind of thing `nf-schema` (`v1.13.0`) would catch properly.
 
 Together these make a lab's output self-describing, which is the
 precondition for two labs comparing tables at all.
@@ -1059,3 +1084,28 @@ first step for the workstation.
 `CHANGELOG.md`; use `dev` as real staging (merge to `main` only at
 release) so `main` is always exactly a tag; document `-r vX.Y.Z` in the
 README. Confirm, or say you prefer trunk-based with tags only.
+
+### D10–D13 — provenance design (`v1.9.0`)
+
+**Status:** `resolved` (2026-07-29)
+
+> Four decisions taken together before implementing `v1.9.0`:
+>
+> - **`D10` version capture: probe process + dorado emitted by BASECALL.**
+>   The sibling's single probe, plus the one thing a probe cannot get
+>   right. dorado is absent from the conda environment and may be absent
+>   from the probe's node entirely, so a probe-only design would record
+>   `n/a` for the GPU step — the least reproducible part of the run.
+>   Rejected full per-process emission as more machinery than four tools
+>   justify; revisit if `v1.10.0`'s container profiles give each process a
+>   different environment.
+> - **`D11` location: `pipeline_info/` beside `results_table`.** The layout
+>   `--outdir` adopts in `v1.11.0`, so that release re-roots one directory
+>   instead of moving files.
+> - **`D12` reports on by default, fixed names + `overwrite`.** Provenance
+>   you must remember to enable is provenance you will not have. The cost
+>   is explicit in the config and the README: a `-resume` report replaces
+>   the earlier run's.
+> - **`D13` a separate `params.json`**, keeping the sibling's and nf-core's
+>   naming so a lab running both pipelines gets comparable artefacts, and
+>   so tool versions can be diffed independently of settings.

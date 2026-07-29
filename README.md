@@ -234,6 +234,23 @@ The second output table, marked as *optimistic*, has the same
 structure as the first table. It contains full taxonomic assignments,
 including assignments that are below the probability threshold (0.9).
 
+Every run also writes a `pipeline_info/` directory beside the results
+table, so a run can explain itself long after the fact:
+
+| File | What it records |
+| ---- | --------------- |
+| `software_versions.yml` | the version of every tool that ran (`vsearch`, `cutadapt`, KronaTools, Python, and `dorado` when basecalling happened), plus the pipeline release and the Nextflow that ran it |
+| `params.json` | the *effective* configuration — every parameter as it was actually in force, after defaults, aliases and command-line overrides |
+| `execution_report.html` | per-task resource use, runtimes, exit codes |
+| `execution_timeline.html` | when each task ran |
+| `execution_trace.txt` | the same as a TSV, with requested vs observed cpu/memory per task |
+| `pipeline_dag.html` | the workflow graph |
+
+Archive that directory alongside the tables and two labs can diff exactly
+what differed between their runs. The reports use fixed filenames and are
+refreshed in place, so a `-resume` describes the resumed run; copy
+`pipeline_info/` first if you need to keep an earlier one.
+
 When `--krona` is set, the pipeline also writes two interactive
 [Krona](https://github.com/marbl/Krona) charts beside the results table:
 `krona.html` (from the filtered table) and `krona_optimistic.html` (from

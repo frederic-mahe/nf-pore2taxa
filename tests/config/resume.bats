@@ -77,9 +77,10 @@ column_total() {
 @test "SX-35 an unchanged -resume is a full cache hit" {
     pipeline
     pipeline -resume
-    # Every task cached: the fix must not defeat caching altogether.
-    [[ "${output}" == *"cached=5"* ]]
-    [[ "${output}" != *"completed=1"* ]]
+    # Nothing re-executed. Asserted as completed=0 rather than a hardcoded
+    # cached=N, so adding a process later does not silently turn this into
+    # a test of the wrong number.
+    [[ "${output}" == *"completed=0"* ]]
 }
 
 # ------------------------------------------------------------------- DSC-06
@@ -103,10 +104,12 @@ column_total() {
     cp "${DATA}/fastq_pass/barcode01/reads.fastq.gz" \
        "${DATA}/fastq_pass/barcode02/reads_extra.fastq.gz"
     pipeline -resume
-    # barcode01 and barcode03 are unaffected, so only discovery, barcode02
-    # and the table rebuild re-run: the invalidation is targeted, not a
-    # blanket cache miss.
-    [[ "${output}" == *"cached=2"* ]]
+    # The invalidation is targeted, not a blanket cache miss: only the
+    # barcode whose files changed is re-assigned. Asserted on which tasks
+    # ran rather than on a task count, so it survives new processes.
+    [[ "${output}" == *"SINTAX (barcode02)"* ]]
+    [[ "${output}" != *"SINTAX (barcode01)"* ]]
+    [[ "${output}" != *"SINTAX (barcode03)"* ]]
     [ "$(column_total barcode01)" -eq 5 ]
 }
 

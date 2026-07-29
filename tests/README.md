@@ -28,18 +28,22 @@ tests/
 │   ├── build_krona_cli.bats
 │   ├── build_occurrence_table.bats
 │   ├── reference_format.bats
+│   ├── test_collect_versions.py
 │   ├── test_build_krona.py
 │   ├── test_build_occurrence_table.py
 │   ├── test_discover_barcodes.py
 │   └── validation.bats
 ├── config/               ← bats tests for config invariants + whole-run behaviour
 │   ├── deprecation.bats
+│   ├── provenance.bats     ← versions.yml / params.json / execution reports
 │   ├── publish_modes.bats  ← publish_mode matrix + its cleanup interaction
 │   ├── resources.bats      ← resource ceiling / resourceLimits clamping
 │   ├── resume.bats         ← two successive runs against a mutating input dir
 │   ├── summary.bats        ← startup run summary + randseed warning
 │   └── version.bats
 ├── modules/              ← nf-test files for processes + shared functions
+│   ├── dump_params.nf.test
+│   ├── dump_versions.nf.test
 │   ├── functions.nf.test
 │   └── sintax.nf.test
 └── workflow/             ← nf-test files for the end-to-end workflow
@@ -54,6 +58,7 @@ tests/
 | bats unit tests      | `bats` (>= 1.5), `python3`, `awk`, `grep`            |
 | config invariants    | `nextflow`; skips if absent. CFG-02c/CFG-03c/CFG-04g also need `cutadapt` + `vsearch` (they run to completion, to prove the outputs are readable / the clamped request reached the tool) |
 | resume (SX-35/DSC-06)| `nextflow`, `cutadapt`, `vsearch`; skips if absent   |
+| provenance (PRV-05..08)| `nextflow`, `cutadapt`, `vsearch`; skips if absent |
 | SINTAX module        | `nextflow`, `nf-test`, `cutadapt`, `vsearch >= 2.31.0` |
 | Krona (KR-40..42)    | `ktImportText` (KronaTools); skips if absent         |
 | Workflow             | all of the above (WF-13/WF-15 need `ktImportText`)   |
@@ -98,14 +103,18 @@ nf-test test tests/workflow/main.nf.test
 | `bin/build_occurrence_table.bats`      | BT-01..BT-04, BT-06, BT-07, BT-10..BT-13, BT-21..BT-24    |
 | `bin/test_build_occurrence_table.py`   | BT-01..BT-07, BT-10..BT-17, BT-20..BT-25, BT-30, BT-32..BT-34 |
 | `bin/test_build_krona.py`              | KR-01..KR-04, KR-30..KR-35                                |
+| `bin/test_collect_versions.py`         | PRV-10..PRV-13                                            |
 | `bin/build_krona_cli.bats`             | KR-40, KR-41, KR-42                                       |
 | `config/version.bats`                  | CFG-01, CFG-05                                            |
 | `config/deprecation.bats`              | WF-08 (the `log.warn` half)                               |
 | `config/publish_modes.bats`            | CFG-02, CFG-03                                            |
 | `config/resources.bats`                | CFG-04                                                    |
+| `config/provenance.bats`               | PRV-05..PRV-08                                            |
 | `config/summary.bats`                  | CFG-06                                                    |
 | `config/resume.bats`                   | SX-35, DSC-06                                             |
 | `modules/functions.nf.test`            | FN-01..FN-06                                              |
+| `modules/dump_versions.nf.test`        | PRV-01, PRV-02, PRV-03                                    |
+| `modules/dump_params.nf.test`          | PRV-04                                                    |
 | `modules/sintax.nf.test`               | SX-30, SX-31, SX-32, SX-33, SX-40, SX-44                  |
 | `workflow/main.nf.test`                | WF-03, WF-04, WF-06, WF-08..WF-17, CFG-03, SX-41, BT-10, BT-11, BT-13, BT-20, BT-22, BT-23 |
 
@@ -128,6 +137,11 @@ The current suite is a starting point. Specs not yet covered:
   runs the real resource config (no `tests/nextflow.config`) against a
   deliberately tiny ceiling. The nf-tests still override `cpus`/`memory`,
   so that bats case is the only place the shipped numbers are exercised.
+
+> **Note.** `dorado`'s version capture (PRV-03) is covered *without*
+> dorado, a GPU or a model download: `BASECALL` emits it as a text
+> fragment, so `modules/dump_versions.nf.test` merges a hand-written one.
+> That is the only part of the basecalling path currently under test.
 
 > **Note.** SX-35 and DSC-06 live in `config/resume.bats` rather than
 > nf-test: they need two successive `nextflow run` invocations against an

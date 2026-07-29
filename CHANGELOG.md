@@ -5,6 +5,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v1.9.0 - 2026-07-29
+
+Provenance: every run now explains itself. No change to any existing
+parameter or to the analysis.
+
+### `Added`
+
+- **`pipeline_info/` beside the occurrence tables**, holding everything
+  needed to account for a run. Archive it with the tables and two labs can
+  diff exactly what differed between them, instead of guessing. This is
+  the layout `--outdir` will adopt, so that release re-roots the directory
+  rather than relocating files.
+- **`software_versions.yml`** — the version of every tool that ran
+  (`vsearch`, `cutadapt`, KronaTools, Python) plus the pipeline release
+  and the Nextflow that ran it, sorted so two runs' files compare
+  directly. A tool that cannot be probed is recorded as `n/a` rather than
+  omitted: an absent line reads as "not used", which is a different and
+  more misleading claim than "could not determine". Built by a new
+  `DUMP_VERSIONS` process over the new stdlib `bin/collect_versions.py`,
+  which reduces the tools' wildly different version formats (a bare `5.2`,
+  `vsearch v2.31.0_linux_x86_64, ...`, dorado's `1.1.1+3c7eef9`, and
+  KronaTools, which has **no** `--version` and only states it in a banner)
+  to one clean token. Covered by PRV-01, PRV-02, PRV-06, PRV-10..13.
+- **`dorado`'s version comes from `BASECALL` itself**, emitted as a text
+  fragment that `DUMP_VERSIONS` merges. dorado is an ONT GPU binary,
+  absent from the conda environment, and on a cluster it may not exist at
+  all on the node the probe lands on — so the task that actually ran it is
+  the only honest source. No `dorado` entry appears when basecalling was
+  skipped, since recording a version for a tool that never executed would
+  be a false claim about how the data was produced. Covered by PRV-03,
+  PRV-06b — and covered *without* dorado, a GPU or a model download, which
+  makes it the first part of the basecalling path under test at all.
+- **`params.json`** — the **effective** configuration: every parameter as
+  it was really in force. Booleans are recorded as JSON booleans rather
+  than the CLI's truthy `'false'` string, and `sintax_references` records
+  the path actually read after the deprecated `sintax_silva` alias is
+  resolved, so the file cannot document the opposite of what the run did.
+  Covered by PRV-04, PRV-07.
+- **execution reports on by default** — `execution_report.html`,
+  `execution_timeline.html`, `execution_trace.txt` and `pipeline_dag.html`
+  in `pipeline_info/`, with no flag to remember: provenance you have to
+  opt into is provenance you will not have. Fixed filenames with
+  `overwrite = true`, so a re-run refreshes them in place instead of
+  aborting at the *end* of the run because the file already exists. The
+  trade-off, stated plainly: a `-resume` report describes the resumed run
+  and replaces the earlier one — copy `pipeline_info/` first if you need
+  both. The trace carries requested-vs-observed `cpus`/`memory`/`realtime`/
+  `peak_rss`, which is how a lab sees the effect of the v1.8.0 ceiling. The
+  DAG is rendered as HTML (bundled mermaid), so no graphviz is needed.
+  Covered by PRV-05.
+
+`params.json` deliberately omits the session id and command line. Both
+vary per *invocation* rather than per configuration, and including them
+made the task re-run on every `-resume` — costing the clean "nothing
+changed" signal (SX-35) to duplicate what Nextflow's own report and
+`.nextflow.log` already record. This file answers "with what settings?";
+the report answers "which run?". PRV-08b pins that `-resume` still
+re-executes nothing.
+
 ## v1.8.0 - 2026-07-29
 
 Runs on the machine you have, and says what it did. No change to any

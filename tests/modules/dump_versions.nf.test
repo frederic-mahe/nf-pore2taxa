@@ -1,0 +1,98 @@
+// Module-level tests for the provenance processes (PRV-01..PRV-04).
+//
+// Scope, per the ground rules: we assert that our orchestration produces
+// the right artefacts with the right content, not that vsearch reports its
+// own version correctly.
+//
+// The dorado fragment is the interesting case. dorado is an ONT GPU binary
+// that is not in the conda environment and may not exist at all on the
+// node DUMP_VERSIONS lands on, so BASECALL emits its version as a
+// `<name><TAB><raw>` fragment and DUMP_VERSIONS merges it. That merge is
+// testable here with a hand-written fragment, without dorado, a GPU, or a
+// model download — which is the only way this path gets covered at all.
+
+nextflow_process {
+
+    name "DUMP_VERSIONS"
+    script "modules/provenance.nf"
+    process "DUMP_VERSIONS"
+
+    test("PRV-01 records the tools, the pipeline and Nextflow") {
+
+        when {
+            params {
+                results_table = "${outputDir}/sintax.tsv"
+            }
+            process {
+                """
+                input[0] = []   // no fragments: the skip_basecall case
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def yml = path("${outputDir}/pipeline_info/software_versions.yml")
+            assert yml.exists()
+            def versions = [:]
+            yml.readLines().each { line ->
+                def parts = line.split(':', 2)
+                versions[parts[0].trim()] = parts[1].trim()
+            }
+
+            // The tools whose output shapes the tables, plus the pipeline
+            // and Nextflow: enough to answer "did we run the same thing?".
+            ['vsearch', 'cutadapt', 'krona', 'python',
+             'nf-pore2taxa', 'nextflow'].each { key ->
+                assert versions.containsKey(key) : "no '${key}' in software_versions.yml"
+                assert versions[key] : "'${key}' has no value"
+            }
+
+            // Real versions, not placeholders, for what CI installs.
+            assert versions['vsearch'] ==~ /\d+\.\d+\.\d+/
+            assert versions['nf-pore2taxa'] ==~ /\d+\.\d+\.\d+/
+
+            // PRV-03: no dorado line when basecalling did not run —
+            // recording a version for a tool that never executed would be
+            // a false claim about how the data was produced.
+            assert !versions.containsKey('dorado')
+
+            // PRV-02: sorted, so two runs produce comparable files.
+            def keys = yml.readLines().collect { it.split(':', 2)[0] }
+            assert keys == keys.sort(false)
+        }
+    }
+
+    test("PRV-03 merges the dorado fragment emitted by BASECALL") {
+
+        setup {
+            // Stand in for BASECALL's output. Using the real git-describe
+            // shape dorado prints, so the extraction is exercised too.
+            new File("${outputDir}").mkdirs()
+            new File("${outputDir}/versions_dorado.tsv")
+                .text = "dorado\t1.1.1+3c7eef9\n"
+        }
+
+        when {
+            params {
+                results_table = "${outputDir}/sintax.tsv"
+            }
+            process {
+                """
+                input[0] = [ file("${outputDir}/versions_dorado.tsv") ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            def yml = path("${outputDir}/pipeline_info/software_versions.yml")
+            assert yml.exists()
+            // The build hash is dropped; the version is kept.
+            assert yml.readLines().any { it == 'dorado: 1.1.1' }
+            // And the probe's own tools are still there.
+            assert yml.readLines().any { it.startsWith('vsearch: ') }
+        }
+    }
+}

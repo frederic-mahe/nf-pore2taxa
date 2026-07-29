@@ -284,7 +284,34 @@ nf-test's function harness (`tests/modules/functions.nf.test`).
 | FN-05  | `valid_memory(v)` is `true` for anything Nextflow can read as a positive memory size, in both forms `max_memory` arrives in: a CLI string (`'32.GB'`, `'125.3 GB'`) and a real `MemoryUnit` (`8.GB`) (a–c). It is `false` for a non-memory string, a malformed size (`'8.5.GB'`), zero — which parses but would clamp every request to nothing — and a negative size (d–g). Used by startup validation so a bad ceiling is caught before the first task submission, where it otherwise surfaces as a bare "Not a valid FileSize value". |
 | FN-06  | `effective_threads(configured, ceiling)` is the thread count a process really gets: the lower of its configured request and the resource ceiling (a–d), never less than 1 (f). A request that cannot be read as a number (e.g. `cpus` set to a closure) is assumed to want the whole ceiling (e) — the conservative reading for a warning. The `randseed` warning keys off this rather than the configured value, so `--max_cpus 1` is not warned about. |
 
-## 10. Out of scope (will not be tested)
+## 10. Provenance (`DUMP_VERSIONS`, `DUMP_PARAMS`, execution reports)
+
+Every run must be able to explain itself. One directory beside the
+occurrence tables — `pipeline_info/`, the layout `--outdir` will adopt —
+holds what software ran, with what settings, and what the execution cost.
+Two labs comparing tables can then diff those files instead of guessing.
+
+As elsewhere, we assert *our* artefacts, not the tools' self-reporting: we
+do not check that vsearch states its own version correctly, only that we
+capture, extract and record it faithfully.
+
+| ID     | Specification                                                                                                                                          |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| PRV-01 | `software_versions.yml` is published to `pipeline_info/` and records `vsearch`, `cutadapt`, `krona`, `python`, plus the pipeline release and the Nextflow that ran it. Keys are sorted, so two runs' files are directly comparable. |
+| PRV-02 | A tool that cannot be probed is recorded as `n/a`, never dropped: an absent line reads as "not used", which is a different and more misleading claim than "could not determine". |
+| PRV-03 | `dorado`'s version comes from `BASECALL` itself, as a `<name><TAB><raw>` fragment merged by `DUMP_VERSIONS` — dorado is an ONT GPU binary absent from the conda environment, and on a cluster may not exist on the node the probe runs on, so the task that actually ran it is the only honest source. No `dorado` line appears when `skip_basecall = true`. |
+| PRV-04 | `params.json` is published to `pipeline_info/` holding exactly the JSON `main.nf` rendered — byte-preserved, including values containing shell metacharacters (the process uses a quoted heredoc; an unquoted one would let the shell expand a path and silently misreport the run's inputs). |
+| PRV-05 | The four execution reports (`execution_report.html`, `execution_timeline.html`, `execution_trace.txt`, `pipeline_dag.html`) are written to `pipeline_info/` on **every** run, with no flag required (a); the trace carries requested-vs-observed resource columns (`cpus`, `memory`, `realtime`, `peak_rss`) so a lab can see how the v1.8.0 ceiling affected a step (b); `overwrite = true`, so a re-run refreshes them in place instead of aborting at the *end* of the run because the file exists (c). |
+| PRV-06 | End-to-end, `software_versions.yml` records real versions for the tools that ran (a) and no `dorado` entry when basecalling was skipped (b). |
+| PRV-07 | End-to-end, `params.json` records the **effective** configuration: the values actually in force (a); booleans as JSON booleans rather than the CLI's truthy `'false'` string (b); and `sintax_references` as the path actually read after the deprecated `sintax_silva` alias is resolved (c). |
+| PRV-08 | Provenance sits *beside* the analysis outputs, not among them: the results directory holds only the tables, with all metadata under `pipeline_info/` (a). The provenance tasks do not defeat `-resume`: an unchanged re-run still re-executes nothing, which is why `params.json` deliberately omits the session id and command line (b). |
+| PRV-10 | `collect_versions.py::extract_version` finds the version token in every shape the real tools print: `vsearch v2.31.0_linux_x86_64, ...`, a bare `5.2`, `Python 3.12.3`, the KronaTools banner, and dorado's `1.1.1+3c7eef9` git-describe form (the build hash is dropped). |
+| PRV-11 | Unrecognisable output (empty, `command not found`, `Unknown option: version`) yields `n/a`, and the line is kept. |
+| PRV-12 | A later duplicate name wins, which is what lets `BASECALL`'s appended dorado fragment correct a probe that could not see it. |
+| PRV-13 | `to_yaml` is sorted and deterministic: the same versions in any order render byte-identically. |
+
+
+## 11. Out of scope (will not be tested)
 
 - The numerical correctness of `dorado` basecalls.
 - The numerical correctness of `cutadapt` primer trimming or

@@ -1,0 +1,63 @@
+// Module-level tests for the DUMP_PARAMS process (PRV-04).
+//
+// nf-test runs only the last top-level block in a file, so the two
+// provenance processes live in separate files rather than one.
+
+nextflow_process {
+
+    name "DUMP_PARAMS"
+    script "modules/provenance.nf"
+    process "DUMP_PARAMS"
+
+    test("PRV-04 writes the supplied JSON verbatim to pipeline_info/") {
+
+        when {
+            params {
+                results_table = "${outputDir}/sintax.tsv"
+            }
+            process {
+                """
+                input[0] = '{\\n    "params": {\\n        "randseed": 0\\n    }\\n}'
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            def json = path("${outputDir}/pipeline_info/params.json")
+            assert json.exists()
+            // Byte-preserved: main.nf renders the JSON, this process only
+            // persists it, so anything that mangles it here is a bug.
+            assert json.text.contains('"randseed": 0')
+            assert json.text.startsWith('{')
+        }
+    }
+
+    test("PRV-04b a value containing a shell metacharacter survives") {
+        // A path holding shell syntax must reach disk unexpanded — hence
+        // the *quoted* heredoc in the process. With an unquoted delimiter
+        // the shell would command-substitute this and silently write a
+        // params.json that misreports the run's inputs.
+        //
+        // Backticks rather than '$VAR': nf-test evaluates this block as a
+        // Groovy GString, so a literal '$' here is resolved as a property
+        // before it ever reaches the script. Backticks exercise the same
+        // property without fighting that.
+        when {
+            params {
+                results_table = "${outputDir}/sintax.tsv"
+            }
+            process {
+                """
+                input[0] = '{"sintax_references": "/data/`whoami`/refs.fasta"}'
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            def json = path("${outputDir}/pipeline_info/params.json")
+            assert json.text.contains('/data/`whoami`/refs.fasta')
+        }
+    }
+}

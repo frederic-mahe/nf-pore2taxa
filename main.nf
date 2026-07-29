@@ -6,6 +6,8 @@ include { DISCOVER_BARCODES } from './modules/discover'
 include { SINTAX            } from './modules/sintax'
 include { BUILD_TABLE       } from './modules/build_table'
 include { KRONA             } from './modules/krona'
+include { DUMP_VERSIONS     } from './modules/provenance'
+include { DUMP_PARAMS       } from './modules/provenance'
 include { coerce_bool       } from './modules/local/functions'
 include { valid_bool        } from './modules/local/functions'
 include { optimistic_name   } from './modules/local/functions'
@@ -91,6 +93,56 @@ def helpMessage() {
           --results_table results/sintax.tsv \\
           --primer_f GTACACACCGCCCGTCG --primer_r CGCCTSCSCTTANTDATATGC
     """.stripIndent()
+}
+
+
+// The run's effective parameters, as JSON, for
+// pipeline_info/params.json.
+//
+// Deliberately an explicit list rather than a dump of `params`: the map
+// also holds the deprecated alias, `help`, and a MemoryUnit that does not
+// serialise cleanly — and an explicit list keeps the artefact's shape
+// stable across releases, which is the point of a provenance record.
+//
+// Values are the EFFECTIVE ones, not the raw ones: booleans go through
+// coerce_bool (so a CLI `--krona false`, which arrives as the string
+// 'false', is recorded as JSON `false`, not as a truthy string), and
+// sintax_references records the path actually used after the
+// sintax_silva alias is resolved.
+//
+// Deliberately excluded: the session id and the command line. They vary
+// per *invocation* rather than per configuration, so including them made
+// DUMP_PARAMS re-run on every `-resume` — costing the clean "nothing
+// changed" signal (SX-35) to duplicate what Nextflow's own execution
+// report and .nextflow.log already record. This file answers "with what
+// settings?", the report answers "which run?". Everything kept below is
+// stable for a given checkout + configuration, so the task caches.
+def paramsJson(references) {
+    def record = [
+        pipeline         : "${workflow.manifest.name} ${workflow.manifest.version}",
+        nextflow         : "${workflow.nextflow.version}",
+        revision         : "${workflow.revision ?: 'n/a'}",
+        commitId         : "${workflow.commitId ?: 'n/a'}",
+        profile          : "${workflow.profile}",
+        params           : [
+            skip_basecall    : coerce_bool(params.skip_basecall),
+            pod5_dir         : params.pod5_dir,
+            fastq_dir        : params.fastq_dir,
+            sintax_references: references,
+            results_table    : params.results_table,
+            primer_f         : params.primer_f,
+            primer_r         : params.primer_r,
+            discard_untrimmed: coerce_bool(params.discard_untrimmed),
+            randseed         : params.randseed,
+            subsample        : params.subsample,
+            krona            : coerce_bool(params.krona),
+            publish_mode     : params.publish_mode,
+            cleanup          : coerce_bool(params.cleanup),
+            max_cpus         : params.max_cpus,
+            max_memory       : "${params.max_memory}",
+        ],
+    ]
+    groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(record))
 }
 
 
@@ -255,11 +307,15 @@ workflow {
     if (coerce_bool(params.skip_basecall)) {
         // fastq_dir must already exist on disk and hold a fastq_pass tree.
         fastq_pass_ch = Channel.fromPath("${params.fastq_dir}/fastq_pass", type: 'dir', checkIfExists: true)
+        // No dorado ran, so there is no dorado version to record. An
+        // empty list (not an empty channel) so DUMP_VERSIONS still runs.
+        dorado_versions_ch = Channel.value([])
     } else {
         pod5_dir_ch = Channel.fromPath(params.pod5_dir, type: 'dir', checkIfExists: true)
         BASECALL(pod5_dir_ch)
         // the sentinel sits beside the freshly written fastq_pass
         fastq_pass_ch = BASECALL.out.done.map { file("${it.parent}/fastq_pass") }
+        dorado_versions_ch = BASECALL.out.versions.collect()
     }
 
     // Enumerate the run's fastq files here, in the workflow, and hand the
@@ -312,4 +368,12 @@ workflow {
     if (coerce_bool(params.krona)) {
         KRONA(BUILD_TABLE.out.filtered.mix(BUILD_TABLE.out.optimistic).collect())
     }
+
+    // Provenance, published into pipeline_info/ beside the tables: what
+    // software ran (software_versions.yml, including dorado's version when
+    // basecalling happened) and with what effective parameters
+    // (params.json). Independent of the analysis channels on purpose — a
+    // run that fails part-way still records what it was attempting.
+    DUMP_VERSIONS(dorado_versions_ch)
+    DUMP_PARAMS(paramsJson(sintax_references))
 }
