@@ -5,6 +5,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### `Added`
+
+- **resource ceiling, so the pipeline runs on the machine you have.** The
+  per-step requests are written for a well-provisioned host (`SINTAX`
+  asks for 20 cpus and 16 GB), and the local executor does not scale
+  those down — it refuses: `Process requirement exceeds available CPUs
+  -- req: 20; avail: 8`. Any workstation with fewer than 20 cores
+  therefore died before doing any biology, with an error that reads like
+  the machine's fault. `process.resourceLimits` now clamps every request,
+  including a retry's `* task.attempt` escalation, to two new params:
+  - `--max_cpus` (default: the host's core count)
+  - `--max_memory` (default: the host's RAM)
+
+  The defaults come from the same helper the local executor uses for that
+  comparison, so the two cannot disagree — a request can no longer exceed
+  what the executor will allow. A request above the ceiling is silently
+  reduced rather than refused, so the startup log now reports the
+  effective ceiling: a run that used fewer threads than the config asks
+  for is explicable rather than mysterious. Covered by CFG-04, including
+  an end-to-end case that runs the **real** resource config under a
+  2-cpu / 3 GB ceiling and checks `--threads 2` reached vsearch.
+
+  The `cluster` profile sets both **explicitly** (16 cpus / 128 GB,
+  conservative placeholders for a site to override) and never
+  auto-detects: under a scheduler the detected value describes the
+  *submit* host, whose size says nothing about the compute nodes, so
+  detection there would silently shrink every submitted job.
+- `valid_memory()` in `modules/local/functions.nf`, so an unparseable
+  `--max_memory` is rejected at startup instead of surfacing as a bare
+  "Not a valid FileSize value" on the first task submission. Unit-tested
+  (FN-05) across both forms the param arrives in — a CLI string and a
+  real `MemoryUnit` — plus zero, negative and malformed sizes.
+
 ## v1.7.1 - 2026-07-29
 
 Correctness release ahead of external adoption: five defects that could

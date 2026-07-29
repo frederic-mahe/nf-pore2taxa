@@ -35,6 +35,7 @@ tests/
 ├── config/               ← bats tests for config invariants + whole-run behaviour
 │   ├── deprecation.bats
 │   ├── publish_modes.bats  ← publish_mode matrix + its cleanup interaction
+│   ├── resources.bats      ← resource ceiling / resourceLimits clamping
 │   ├── resume.bats         ← two successive runs against a mutating input dir
 │   └── version.bats
 ├── modules/              ← nf-test files for processes + shared functions
@@ -50,7 +51,7 @@ tests/
 | -------------------- | ---------------------------------------------------- |
 | python unit tests    | `python3` (standard library only)                    |
 | bats unit tests      | `bats` (>= 1.5), `python3`, `awk`, `grep`            |
-| config invariants    | `nextflow`; skips if absent. CFG-02c/CFG-03c also need `cutadapt` + `vsearch` (they run to completion to prove the outputs are readable) |
+| config invariants    | `nextflow`; skips if absent. CFG-02c/CFG-03c/CFG-04g also need `cutadapt` + `vsearch` (they run to completion, to prove the outputs are readable / the clamped request reached the tool) |
 | resume (SX-35/DSC-06)| `nextflow`, `cutadapt`, `vsearch`; skips if absent   |
 | SINTAX module        | `nextflow`, `nf-test`, `cutadapt`, `vsearch >= 2.31.0` |
 | Krona (KR-40..42)    | `ktImportText` (KronaTools); skips if absent         |
@@ -100,8 +101,9 @@ nf-test test tests/workflow/main.nf.test
 | `config/version.bats`                  | CFG-01                                                    |
 | `config/deprecation.bats`              | WF-08 (the `log.warn` half)                               |
 | `config/publish_modes.bats`            | CFG-02, CFG-03                                            |
+| `config/resources.bats`                | CFG-04                                                    |
 | `config/resume.bats`                   | SX-35, DSC-06                                             |
-| `modules/functions.nf.test`            | FN-01, FN-02, FN-03, FN-04                                |
+| `modules/functions.nf.test`            | FN-01..FN-05                                              |
 | `modules/sintax.nf.test`               | SX-30, SX-31, SX-32, SX-33, SX-40, SX-44                  |
 | `workflow/main.nf.test`                | WF-03, WF-04, WF-06, WF-08..WF-17, CFG-03, SX-41, BT-10, BT-11, BT-13, BT-20, BT-22, BT-23 |
 
@@ -120,9 +122,10 @@ The current suite is a starting point. Specs not yet covered:
   (blocked on the same `dorado` stub).
 - OBS-05's bare-filename `results_table` form (the extension half is now
   covered by WF-15).
-- The production resource defaults: every nf-test overrides
-  `cpus`/`memory` via `tests/nextflow.config`, so nothing catches a
-  default that no real machine can satisfy.
+- ~~The production resource defaults~~ — now covered by CFG-04g, which
+  runs the real resource config (no `tests/nextflow.config`) against a
+  deliberately tiny ceiling. The nf-tests still override `cpus`/`memory`,
+  so that bats case is the only place the shipped numbers are exercised.
 
 > **Note.** SX-35 and DSC-06 live in `config/resume.bats` rather than
 > nf-test: they need two successive `nextflow run` invocations against an

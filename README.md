@@ -116,6 +116,12 @@ params {
     // --cleanup) for throwaway runs; `nextflow clean -f` does the same
     // afterwards.
     cleanup           = false
+
+    // Ceiling on any single task's cpu / memory request. Defaults to
+    // what the machine has, so nothing needs setting here; lower them
+    // to leave headroom for other work on a shared workstation.
+    // max_cpus       = 8
+    // max_memory     = "32.GB"
 }
 ```
 
@@ -149,6 +155,16 @@ params {
 > leave every published output — the occurrence tables, the per-barcode
 > `.sintax` files, the Krona charts — a dangling link, so the pipeline
 > refuses that combination at startup instead of producing it.
+
+> [!NOTE]
+> **Resources**: the per-step requests are written for a well-provisioned
+> machine (the taxonomic assignment asks for 20 cores and 16 GB), and every
+> request is then *clamped* to `max_cpus`/`max_memory`, which default to
+> what your machine actually has. So the pipeline runs unmodified on a
+> laptop or a workstation — it simply uses fewer threads — and no config
+> editing is needed to fit a smaller box. The startup log reports the
+> effective ceiling, so a run that used fewer threads than the config asks
+> for is explicable. Lower the two values to leave room for other work.
 
 > [!NOTE]
 > **Resuming a run**: because `cleanup` defaults to `false`, `-resume`

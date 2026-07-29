@@ -10,6 +10,7 @@ include { coerce_bool       } from './modules/local/functions'
 include { valid_bool        } from './modules/local/functions'
 include { optimistic_name   } from './modules/local/functions'
 include { fastq_extensions  } from './modules/local/functions'
+include { valid_memory      } from './modules/local/functions'
 
 
 // Hand-written help (printed by `--help`). Kept in sync with the params
@@ -65,6 +66,14 @@ def helpMessage() {
                            (default: ${params.cleanup}). Off by default so
                            -resume works across runs and published links stay
                            valid; turn on for throwaway runs.
+      --max_cpus           Ceiling on any single task's cpu request
+                           (default: this machine's ${params.max_cpus}).
+      --max_memory         Ceiling on any single task's memory request
+                           (default: this machine's ${params.max_memory}).
+                           Every request, including a retry's escalated one,
+                           is clamped to these — so the pipeline runs on a
+                           small workstation without editing any config.
+                           Lower them to leave headroom for other work.
       --help               Show this message and exit.
 
     Profiles (-profile):
@@ -141,6 +150,12 @@ workflow {
         errors << "  - 'randseed' must be a non-negative integer (got: '${params.randseed}')."
     if (!("${params.subsample}" ==~ /\d+/))
         errors << "  - 'subsample' must be a non-negative integer (got: '${params.subsample}')."
+    // Resource ceiling. Caught here rather than at first task submission,
+    // where a bad value surfaces as a bare "Not a valid FileSize value".
+    if (!("${params.max_cpus}" ==~ /[1-9]\d*/))
+        errors << "  - 'max_cpus' must be a positive integer (got: '${params.max_cpus}')."
+    if (!valid_memory(params.max_memory))
+        errors << "  - 'max_memory' must be a positive memory size such as '32.GB' (got: '${params.max_memory}')."
     // 'move' is deliberately absent: BASECALL's downstream handoff reads
     // the freshly written fastq_pass back out of the task work directory,
     // and moving the files away empties it.
@@ -155,6 +170,13 @@ workflow {
         errors << "  - 'publish_mode = ${params.publish_mode}' cannot be combined with 'cleanup = true': the published outputs are links into the work directory, which cleanup deletes. Use 'copy' (or leave cleanup off)."
     if (errors)
         error "Parameter validation failed:\n${errors.join('\n')}\nRun with --help for the full parameter list, or see the README for the expected project config."
+
+    // Report the effective ceiling. Clamping is silent in Nextflow, so
+    // without this a run where SINTAX asked for 20 threads and got 8
+    // gives no clue why — and no clue that raising the request would not
+    // help. On the default (local) profile these are the machine's own
+    // capacity, detected at startup.
+    log.info "Resource ceiling: max_cpus = ${params.max_cpus}, max_memory = ${params.max_memory} — every process request is clamped to these (override with --max_cpus / --max_memory)."
 
     // .first() turns the reference into a value channel so it is reused
     // across every barcode SINTAX task (a queue channel would be consumed

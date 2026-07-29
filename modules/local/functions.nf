@@ -23,6 +23,25 @@ def valid_bool(v) {
     "${v}" in ['true', 'false']
 }
 
+// True when v is usable as a memory ceiling: something Nextflow can read
+// as a memory size, and strictly greater than zero.
+//
+// params.max_memory arrives either as a real MemoryUnit (the auto-detected
+// default, or `128.GB` written in a config) or as a String (a CLI
+// `--max_memory '32.GB'`). Both must be accepted; a value Nextflow cannot
+// parse must be rejected at startup, because otherwise it surfaces much
+// later as "Not a valid FileSize value" on the first task submission. A
+// zero ceiling parses fine and would clamp every request to nothing, so
+// it is rejected too.
+def valid_memory(v) {
+    try {
+        new nextflow.util.MemoryUnit("${v}").toBytes() > 0
+    }
+    catch (Exception ignored) {
+        false
+    }
+}
+
 // The fastq extensions the pipeline supports.
 //
 // MUST stay in lock-step with FASTQ_SUFFIXES in

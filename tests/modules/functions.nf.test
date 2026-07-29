@@ -116,4 +116,58 @@ nextflow_function {
             assert function.result == ['fastq', 'fastq.gz', 'fastq.bz2', 'fastq.xz']
         }
     }
+
+    // ------------------------------------------------------------- FN-05
+    //
+    // params.max_memory arrives as a real MemoryUnit (the auto-detected
+    // default, or `128.GB` in a config) or as a String (a CLI
+    // `--max_memory '32.GB'`). Both must pass; an unparseable value must
+    // be caught at startup rather than at first task submission, where it
+    // surfaces as a bare "Not a valid FileSize value".
+
+    test("FN-05a valid_memory accepts the CLI string form") {
+        function "valid_memory"
+        when { function { """ input[0] = "32.GB" """ } }
+        then { assert function.success; assert function.result == true }
+    }
+
+    test("FN-05b valid_memory accepts a spaced form") {
+        // What a MemoryUnit stringifies to, e.g. '125.3 GB' from
+        // auto-detection — it must survive a round trip.
+        function "valid_memory"
+        when { function { """ input[0] = "125.3 GB" """ } }
+        then { assert function.success; assert function.result == true }
+    }
+
+    test("FN-05c valid_memory accepts a real MemoryUnit") {
+        function "valid_memory"
+        when { function { """ input[0] = 8.GB """ } }
+        then { assert function.success; assert function.result == true }
+    }
+
+    test("FN-05d valid_memory rejects a non-memory string") {
+        function "valid_memory"
+        when { function { """ input[0] = "banana" """ } }
+        then { assert function.success; assert function.result == false }
+    }
+
+    test("FN-05e valid_memory rejects a malformed size") {
+        function "valid_memory"
+        when { function { """ input[0] = "8.5.GB" """ } }
+        then { assert function.success; assert function.result == false }
+    }
+
+    test("FN-05f valid_memory rejects zero") {
+        // '0' parses as a MemoryUnit but would clamp every request to
+        // nothing, so it is not a usable ceiling.
+        function "valid_memory"
+        when { function { """ input[0] = "0" """ } }
+        then { assert function.success; assert function.result == false }
+    }
+
+    test("FN-05g valid_memory rejects a negative size") {
+        function "valid_memory"
+        when { function { """ input[0] = "-1.GB" """ } }
+        then { assert function.success; assert function.result == false }
+    }
 }

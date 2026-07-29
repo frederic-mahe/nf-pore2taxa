@@ -52,7 +52,7 @@ EOF
 }
 
 pipeline() {
-    cd "${BATS_TEST_TMPDIR}"
+    cd "${BATS_TEST_TMPDIR}" || return 1
     run nextflow run "${REPO_ROOT}/main.nf" \
         -c "${BATS_TEST_TMPDIR}/test.config" \
         -work-dir "${BATS_TEST_TMPDIR}/work" \

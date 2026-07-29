@@ -1,7 +1,8 @@
 # Review + hardening plan: preparing nf-pore2taxa for external labs
 
-Status: **in progress** — `v1.7.1` **implemented** 2026-07-29 (§4);
-`v1.8.0` onwards outstanding. `D01`–`D04` and `D08` **resolved**
+Status: **in progress** — `v1.7.1` **implemented** and committed 2026-07-29;
+`v1.8.0` resource clamping implemented (§4), rest of `v1.8.0`
+outstanding. `D01`–`D04` and `D08` **resolved**
 2026-07-29; `D05` and `D07` **revised** by the `D08` resolution;
 `D06`/`D09` proposed and awaiting confirmation (§6). Review of `dev` @
 `24a1396` (post-`v1.7.0`), against the goal: *thoroughly tested, easy to
@@ -507,34 +508,63 @@ and repoint `CFG-01` at `manifest.version` ↔ `CITATION.cff`.
 
 ### v1.8.0 — runnable out of the box (resource clamping)
 
-- `max_cpus`/`max_memory` params + a `check_max` helper in
-  `modules/local/functions.nf`, clamping every `withName` block (P1-6).
-  Unit-test the helper like `coerce_bool`; add a config check that the
-  shipped defaults are satisfiable on a 4-core/8 GB runner.
+**Resource clamping: IMPLEMENTED 2026-07-29.** Remaining `v1.8.0` items
+(`nextflowVersion`, the full startup summary) outstanding — see below.
 
-  **The clamp must be profile-aware.** On the local executor,
-  auto-detecting the box (`Runtime.runtime.availableProcessors()`,
-  total RAM) is right: the fan-out is already serialised against the core
-  count, so the only requirement is that one task never asks for more
-  than the machine has, and auto-detect uses a powerstation fully without
-  a lab having to tune anything. Under a scheduler the same code is
-  **actively harmful** — `availableProcessors()` on a submit/login host
-  describes that host, not the compute node, so a 4-core login node would
-  silently shrink every submitted `SINTAX` job to 4 threads. So:
+- ~~`max_cpus`/`max_memory` params + a `check_max` helper~~ →
+  **`process.resourceLimits`**, done. The plan called for a hand-rolled
+  `check_max` in `modules/local/functions.nf`; native `resourceLimits`
+  (Nextflow ≥ 24.04, and what nf-metabarcoding's slurm profile already
+  uses) is strictly better and was used instead. It clamps every request
+  *and* every retry's `* task.attempt` escalation, at directive-resolution
+  time, with no helper to maintain and nothing to remember to wrap a new
+  process in.
 
-  - `standard`/local: `max_cpus`/`max_memory` **default** to detected
-    capacity;
-  - `cluster`: the profile sets them explicitly (the sibling's slurm
-    profile uses `128.GB` / `240.h`), and detection is never consulted;
-  - either way an explicit `--max_cpus`/`--max_memory` wins.
+  Two things were verified before committing to the design, because the
+  whole fix rests on them:
 
-  Both branches need a `check-*.sh` assertion, since this is precisely
-  the config-resolution blind spot of P3-18.
+  - `resourceLimits` genuinely prevents the local executor's refusal — a
+    40-cpu request on a 24-core host ran, clamped, instead of aborting;
+  - `nextflow.util.SysHelper.getAvailCpus()` / `getAvailMemory()` resolve
+    inside a config file and return exactly what the executor compares a
+    request against (24 / 125.3 GB on the dev box).
+
+  Using `SysHelper` for the defaults — rather than nf-core's fixed
+  `max_cpus = 16` — is what makes the failure *impossible* rather than
+  merely unlikely: the ceiling and the executor's check read the same
+  number, so `req <= avail` holds by construction. (It is a
+  Nextflow-internal class; the risk is noted in `nextflow.config` and both
+  params are overridable, which is the mitigation.)
+
+  **Profile-aware, as the plan required.** Top-level params auto-detect
+  (correct for local); the `cluster` profile sets both explicitly and
+  never consults the helper, because on a submit host the detected value
+  describes the wrong machine and would silently shrink every submitted
+  job. `CFG-04c` asserts the cluster profile's ceiling differs from the
+  running host's.
+
+  Covered by `CFG-04a`–`CFG-04g` + `FN-05`, in
+  `tests/config/resources.bats`. `CFG-04g` is the one that matters: it
+  runs the **production** resource config (no `tests/nextflow.config`, so
+  `SINTAX` asks for its real 20 cpus / 16 GB) under a 2-cpu / 3 GB
+  ceiling and asserts `--threads 2` reached vsearch. That also closes the
+  "production resource defaults are never exercised" gap from P3-20 —
+  every nf-test overrides `cpus`/`memory`, so this is the only place the
+  shipped numbers are tested.
+
+  One thing the plan did not anticipate: **clamping is silent**. A user
+  whose `SINTAX` asked for 20 threads and got 8 has no way to know why, or
+  that raising the request would not help. A startup notice now reports
+  the effective ceiling.
+
+Still outstanding in `v1.8.0`:
+
 - `manifest.nextflowVersion` + `defaultBranch` (P2-13) — cheap, and it
   belongs with "will this run on my machine".
-- Startup summary block (pipeline version, resolved profile, every
-  effective parameter), including the `randseed` reproducibility warning
-  from `D04`.
+- The full startup summary block (pipeline version, resolved profile,
+  every effective parameter), including the `randseed` reproducibility
+  warning from `D04`. The ceiling notice added above is the first line of
+  it; the rest is unwritten.
 
 ### v1.9.0 — provenance
 

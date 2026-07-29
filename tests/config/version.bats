@@ -49,5 +49,5 @@ setup() {
     properties="$(nextflow config -properties 2>/dev/null)"
     # Nothing reads it; re-adding it would resurrect an invariant that
     # tests itself rather than anything the pipeline uses.
-    ! grep -qE '^params\.version=' <<< "${properties}"
+    run ! grep -qE '^params\.version=' <<< "${properties}"
 }

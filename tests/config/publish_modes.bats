@@ -46,7 +46,7 @@ setup() {
 # given. Most invocations here stop in validation; the two that do not
 # (CFG-02c, CFG-03c) run to completion, hence the copied input above.
 run_pipeline() {
-    cd "${BATS_TEST_TMPDIR}"
+    cd "${BATS_TEST_TMPDIR}" || return 1
     run nextflow run "${REPO_ROOT}/main.nf" \
         -work-dir "${BATS_TEST_TMPDIR}/work" \
         --skip_basecall true \
