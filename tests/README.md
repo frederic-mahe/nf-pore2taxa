@@ -22,8 +22,11 @@ tests/
 │   ├── flat_dir/         ← flat layout (barcode in filename) + fastq_fail to ignore
 │   ├── sintax_dir/       ← pre-computed inputs for the table-builder tests
 │   └── krona/            ← occurrence tables (filtered + optimistic) for Krona tests
+├── stubs/                ← stand-ins for tools that cannot run in CI
+│   └── dorado            ← records its argv, fabricates the outputs
 ├── bin/                  ← bats tests for bin/ scripts + python unittest
 │   ├── assign_with_sintax_cli.bats
+│   ├── basecall_cli.bats
 │   ├── assign_with_sintax_helpers.bats
 │   ├── build_krona_cli.bats
 │   ├── build_occurrence_table.bats
@@ -48,6 +51,7 @@ tests/
 │   ├── functions.nf.test
 │   └── sintax.nf.test
 └── workflow/             ← nf-test files for the end-to-end workflow
+    ├── basecall.nf.test  ← the basecalling branch, via the dorado stub
     └── main.nf.test
 ```
 
@@ -98,6 +102,7 @@ nf-test test tests/workflow/main.nf.test
 | Layer                                  | Specs covered (see `SPECIFICATIONS.md`)                  |
 | -------------------------------------- | --------------------------------------------------------- |
 | `bin/validation.bats`                  | VL-01, VL-02, VL-03, VL-04                                |
+| `bin/basecall_cli.bats`                | BC-01..BC-07, BC-09..BC-12                                |
 | `bin/reference_format.bats`            | SX-12                                                     |
 | `bin/assign_with_sintax_cli.bats`      | SX-05, SX-11, SX-12, SX-13, SX-14, SX-15, SX-16, SX-40    |
 | `bin/assign_with_sintax_helpers.bats`  | SX-22, SX-23, SX-24, SX-25                                |
@@ -119,21 +124,22 @@ nf-test test tests/workflow/main.nf.test
 | `modules/dump_versions.nf.test`        | PRV-01, PRV-02, PRV-03                                    |
 | `modules/dump_params.nf.test`          | PRV-04                                                    |
 | `modules/sintax.nf.test`               | SX-30, SX-31, SX-32, SX-33, SX-40, SX-44                  |
+| `workflow/basecall.nf.test`            | BC-08, WF-02, WF-05                                       |
 | `workflow/main.nf.test`                | WF-03, WF-04, WF-06, WF-08..WF-17, CFG-03, SX-41, BT-10, BT-11, BT-13, BT-20, BT-22, BT-23 |
 
 ## Known gaps (next iterations)
 
 The current suite is a starting point. Specs not yet covered:
 
-- `BASECALL` module tests (BC-01..BC-08). These need a `dorado` stub
-  on the test PATH — see SPECIFICATIONS.md §2. This is the largest
-  remaining hole: it is also the least parameterised code in the repo
-  (model, kit and device are hardcoded in the shell script).
+- ~~`BASECALL` module tests~~ — closed in v1.11.0 by `tests/stubs/dorado`,
+  which records its argv and fabricates the outputs (BC-01..BC-12). The
+  real dorado needs a GPU and a ~1 GB model download, so the stub is the
+  only way this branch is testable at all.
 - The remaining CLI validation specs for `assign_with_sintax.sh`
   (SX-01..SX-04, SX-06..SX-10). Add as new cases in
   `bin/assign_with_sintax_cli.bats`.
-- WF-01, WF-02, WF-05, WF-07 — the basecalling branch of the workflow
-  (blocked on the same `dorado` stub).
+- WF-01 and WF-07 — the remaining workflow-level assertions. WF-02 and
+  WF-05 are covered by `workflow/basecall.nf.test`.
 - OBS-05's bare-filename `results_table` form (the extension half is now
   covered by WF-15).
 - ~~The production resource defaults~~ — now covered by CFG-04g, which

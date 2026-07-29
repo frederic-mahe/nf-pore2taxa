@@ -57,7 +57,10 @@ barcode embedded in the filename (`…_barcode01_0.fastq.gz`) work; a
 sibling `fastq_fail/` is ignored.
 
 The basecalling step can be skipped if `fastq` files are already
-available.
+available — and it must be, on a cluster: see the basecalling note below.
+The model, kit and compute device are all parameters
+(`--basecall_model`, `--basecall_kit`, `--basecall_device`), and the model
+is cached after its first download.
 
 
 ## Usage
@@ -81,6 +84,18 @@ params {
     // Set to true if basecalling was already done
     // and fastq_dir already exists
     skip_basecall     = false
+
+    // Basecalling (only used when skip_basecall = false). These were
+    // hardcoded until v1.11.0, so a different kit meant editing the
+    // shell script. Model: the short form gets the flowcell/chemistry
+    // prefix 'dna_r10.4.1_e8.2_400bps_'; pass a full dorado model name
+    // for other chemistry (e.g. "dna_r9.4.1_e8_hac@v3.3.0").
+    basecall_model    = "sup@v5.2.0"
+    basecall_kit      = "EXP-PBC096"
+    basecall_device   = "cuda:0"          // or cpu, cuda:all, cuda:0,1
+    // The ~1 GB model is downloaded once and kept here, outside the work
+    // directory, so later runs need neither the download nor a network.
+    basecall_model_dir = "/big/drive/dorado_models"
 
     // Primer-presence filtering. true (default): drop reads in which a
     // primer is not found (strict amplicon filtering). false: keep every
@@ -124,6 +139,15 @@ params {
     // max_memory     = "32.GB"
 }
 ```
+
+> [!IMPORTANT]
+> **Basecalling is local-only.** `dorado` is an Oxford Nanopore GPU binary
+> that is not on bioconda, so it is in neither the conda environment nor any
+> container, and the cluster profiles route jobs by memory and time — it
+> would land on a CPU node. A run that requests basecalling under a scheduler
+> is refused at startup. Basecall on the GPU workstation, then run the rest
+> on the cluster with `--skip_basecall`. Set `--basecall_device cpu` if you
+> have no GPU at all (slow, but it works).
 
 > [!NOTE]
 > **Primer filtering (`discard_untrimmed`)**: by default a read is kept

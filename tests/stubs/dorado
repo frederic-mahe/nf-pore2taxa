@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+#
+# dorado stub for the BASECALL tests.
+#
+# The real dorado needs a GPU and a ~1 GB model download, so it can never
+# run in CI. This records the argv it was called with and fabricates the
+# outputs the pipeline expects, which is enough to assert everything that
+# is *ours*: that the model, kit and device parameters reach the tool, that
+# the model cache is used, and that the module publishes what it declares.
+#
+# Set DORADO_STUB_LOG to capture the argv; each invocation appends one line
+# of the form `<subcommand> <args...>`.
+set -euo pipefail
+
+if [[ -n "${DORADO_STUB_LOG:-}" ]] ; then
+    printf '%s\n' "$*" >> "${DORADO_STUB_LOG}"
+fi
+
+case "${1:-}" in
+    --version)
+        # Same shape the real binary prints: version plus a build hash.
+        echo "1.1.1+stubbed"
+        exit 0
+        ;;
+    download)
+        # Create the model directory dorado would have fetched, so the
+        # storeDir cache and the script's "already present" check behave as
+        # they do with the real tool.
+        model="" ; dir="."
+        while [[ $# -gt 0 ]] ; do
+            case "${1}" in
+                --model)             model="${2}"; shift 2 ;;
+                --models-directory)  dir="${2}";   shift 2 ;;
+                *)                   shift ;;
+            esac
+        done
+        mkdir -p "${dir}/${model}"
+        echo "stub model" > "${dir}/${model}/config.toml"
+        exit 0
+        ;;
+    basecaller)
+        # Emit the demultiplexed layout: one fastq per barcode under
+        # fastq_pass/, which is what the script then compresses and the
+        # pipeline discovers.
+        outdir="."
+        while [[ $# -gt 0 ]] ; do
+            case "${1}" in
+                --output-dir) outdir="${2}"; shift 2 ;;
+                *)            shift ;;
+            esac
+        done
+        mkdir -p "${outdir}/fastq_pass/barcode01" "${outdir}/fastq_pass/barcode02"
+        # One 4-line record each; the sequence is irrelevant to these tests.
+        for bc in barcode01 barcode02 ; do
+            printf '@stub_%s_read1\nACGT\n+\nIIII\n' "${bc}" \
+                > "${outdir}/fastq_pass/${bc}/${bc}.fastq"
+        done
+        exit 0
+        ;;
+    *)
+        echo "stub dorado: unhandled invocation: $*" >&2
+        exit 64
+        ;;
+esac

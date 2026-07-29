@@ -1,3 +1,38 @@
+// Fetch the basecalling model once and keep it.
+//
+// storeDir makes this a persistent cache OUTSIDE the work directory: on the
+// second run Nextflow finds the model already there and does not execute the
+// process at all, so basecalling stops needing ~1 GB of download and a
+// network connection every time. Previously the model was fetched into the
+// task directory and then deleted by the script's own clean_up.
+process DOWNLOAD_MODEL {
+    tag "${model}"
+
+    storeDir params.basecall_model_dir
+
+    input:
+    // The FULL dorado model name, resolved by full_model_name() in main.nf.
+    // Passed in rather than derived here for two reasons: an `output:`
+    // declaration cannot call an included function, and the stored output has
+    // to be named after the model — storeDir decides whether to skip the
+    // process by whether that output already exists, so a name that did not
+    // vary with the model would serve a cached copy of the WRONG one to
+    // anyone who changed --basecall_model.
+    val model
+
+    output:
+    path model, emit: model
+
+    script:
+    """
+    dorado \\
+        download \\
+        --model "${model}" \\
+        --models-directory .
+    """
+}
+
+
 process BASECALL {
     tag "basecall"
 
@@ -7,6 +42,10 @@ process BASECALL {
 
     input:
     path pod5_dir
+    // Staged under models/ rather than at the top level so the script's
+    // clean_up, which deletes every other top-level directory, has a stable
+    // name to exclude.
+    path model, stageAs: 'models/*'
 
     output:
     path 'fastq_pass/**', emit: fastq_dir   // glob captures the full hierarchy
@@ -23,7 +62,11 @@ process BASECALL {
     bash \\
     basecall_pod5_files.sh \
         --input-dir "${pod5_dir}" \
-        --output-dir "./"
+        --output-dir "./" \
+        --model "${params.basecall_model}" \
+        --kit-name "${params.basecall_kit}" \
+        --device "${params.basecall_device}" \
+        --models-dir "models"
     printf 'dorado\\t%s\\n' "\$(dorado --version 2>&1 | head -n 1 || true)" \\
         > versions_dorado.tsv
     touch done_basecalling.txt

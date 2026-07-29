@@ -7,6 +7,8 @@
 #
 # Layout produced:
 #   references.fasta              -- sintax-formatted reference DB (2 taxa)
+#   pod5/stub_reads.pod5          -- placeholder for the basecalling tests
+#                                    (tests/stubs/dorado never reads it)
 #   fastq_dir/fastq_pass/
 #     barcode01/reads.fastq.gz    -- reads matching ref1 (primers attached)
 #     barcode02/reads.fastq.gz    -- reads matching ref2 (primers attached)
@@ -125,3 +127,12 @@ KR_B="d:Synthetica,k:Betakingdom,p:Betaphylum,c:Betaclass,o:Betaorder,f:Betafami
 
 echo "Wrote:"
 find references.fasta fastq_dir flat_dir krona -type f | sort
+
+# --- pod5 placeholder ---------------------------------------------------------
+#
+# The basecalling tests shadow dorado with tests/stubs/dorado, which
+# fabricates its output and never opens the input, so a real pod5 file (which
+# is large and binary) is not needed — only a directory with something in it,
+# since the pipeline checks the path exists.
+mkdir -p pod5
+printf 'not a real pod5 file; the dorado stub never reads it\n' > pod5/stub_reads.pod5

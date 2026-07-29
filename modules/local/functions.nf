@@ -45,6 +45,26 @@ def effective_threads(configured, ceiling) {
     Math.max(1, Math.min(want, limit))
 }
 
+// Flowcell/chemistry prefix dorado's model names carry. Must stay in
+// lock-step with MODEL_PREFIX in bin/basecall_pod5_files.sh: the pipeline
+// downloads the model under this name and the script checks for it under
+// that same name, so a mismatch means a model fetched to one path and
+// looked for at another (BC-11 pins that they agree).
+def model_prefix() {
+    'dna_r10.4.1_e8.2_400bps_'
+}
+
+// The full dorado model directory name for a `basecall_model` value.
+//
+// A short name (`sup@v5.2.0`) names a speed and a version and gets the
+// prefix; anything else is already a full dorado model name and is passed
+// through, which is how a different flowcell or chemistry is targeted
+// (`dna_r9.4.1_e8_hac@v3.3.0`). Mirrors full_model_name() in
+// bin/basecall_pod5_files.sh.
+def full_model_name(String model) {
+    model ==~ /^(fast|hac|sup)@.*/ ? "${model_prefix()}${model}" : model
+}
+
 // True when v is usable as a memory ceiling: something Nextflow can read
 // as a memory size, and strictly greater than zero.
 //

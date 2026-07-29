@@ -1,0 +1,162 @@
+// BC-08, WF-02, WF-05: the basecalling branch of the workflow.
+//
+// This branch had NO test coverage at all before v1.11.0 — it is the
+// GPU-bound half, so it cannot run for real in CI. tests/stubs/dorado
+// fabricates the outputs and records its argv, which is enough to assert
+// everything that is ours: that the parameters reach the tool, that the
+// model cache is consulted, that the sentinel and the fastq are published
+// into fastq_dir, and that the run flows on into discovery and assignment.
+//
+// The stub is put on PATH via `beforeScript`, so the real dorado (if any) is
+// shadowed and a task that fell through to it would be using the stub's
+// fabricated layout rather than silently succeeding on real hardware.
+
+nextflow_pipeline {
+
+    name "Workflow (basecalling)"
+    script "main.nf"
+
+    test("BC-08 basecalling publishes fastq and the sentinel, then assigns") {
+
+        when {
+            params {
+                skip_basecall      = false
+                pod5_dir           = "${projectDir}/tests/fixtures/pod5"
+                fastq_dir          = "${outputDir}/basecalled"
+                basecall_model_dir = "${outputDir}/dorado_models"
+                sintax_references  = "${projectDir}/tests/fixtures/references.fasta"
+                results_table      = "${outputDir}/sintax.tsv"
+                primer_f           = "GTACACACCGCCCGTCG"
+                primer_r           = "CGCCTSCSCTTANTDATATGC"
+                // The stub's reads carry no primers, so strict filtering
+                // would drop them all and the table would be empty. Keeping
+                // them exercises the whole chain instead.
+                discard_untrimmed  = false
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            // BC-08: the sentinel and the basecalled reads are published
+            // into params.fastq_dir, under the fastq_pass hierarchy.
+            assert file("${outputDir}/basecalled/done_basecalling.txt").exists()
+            assert file("${outputDir}/basecalled/fastq_pass").exists()
+
+            // The stub emits two barcodes; the script gzips them.
+            def reads = file("${outputDir}/basecalled/fastq_pass")
+                .listFiles()
+                .collect { it.name }
+                .sort()
+            assert reads.contains('barcode01')
+            assert reads.contains('barcode02')
+
+            // WF-02: the sentinel is the upstream signal, so discovery and
+            // assignment ran on the freshly basecalled reads and produced
+            // the tables.
+            assert file("${outputDir}/sintax.tsv").exists()
+            assert file("${outputDir}/sintax_optimistic.tsv").exists()
+            def header = file("${outputDir}/sintax.tsv").readLines()[0].split("\t", -1)
+            assert header[0] == "taxonomy"
+            assert (header.drop(2) as Set) == (["barcode01", "barcode02"] as Set)
+
+            // The model cache is populated outside the work directory, so a
+            // later run skips the download entirely.
+            assert file("${outputDir}/dorado_models").exists()
+
+            // PRV-03 end-to-end: dorado's version is recorded only when
+            // basecalling actually ran, and it comes from the task that ran
+            // it rather than from the version probe.
+            def versions = file("${outputDir}/pipeline_info/software_versions.yml").readLines()
+            assert versions.any { it.startsWith('dorado: ') } :
+                "no dorado entry in software_versions.yml: ${versions}"
+
+            // ...and the basecalling settings are in the run record, since
+            // here they did shape the result.
+            def params_json = file("${outputDir}/pipeline_info/params.json").text
+            assert params_json.contains('"basecall_kit"')
+            assert params_json.contains('"basecall_device"')
+        }
+    }
+
+    test("WF-05 aborts when pod5_dir does not exist") {
+
+        when {
+            params {
+                skip_basecall      = false
+                pod5_dir           = "${projectDir}/tests/fixtures/__no_pod5__"
+                fastq_dir          = "${outputDir}/basecalled"
+                basecall_model_dir = "${outputDir}/dorado_models"
+                sintax_references  = "${projectDir}/tests/fixtures/references.fasta"
+                results_table      = "${outputDir}/sintax.tsv"
+                primer_f           = "GTACACACCGCCCGTCG"
+                primer_r           = "CGCCTSCSCTTANTDATATGC"
+            }
+        }
+
+        then {
+            // checkIfExists on the pod5 channel: no process runs.
+            assert workflow.failed
+        }
+    }
+
+    test("BC-08b an invalid basecall parameter aborts before any GPU work") {
+
+        when {
+            params {
+                skip_basecall      = false
+                pod5_dir           = "${projectDir}/tests/fixtures/pod5"
+                fastq_dir          = "${outputDir}/basecalled"
+                basecall_model_dir = "${outputDir}/dorado_models"
+                sintax_references  = "${projectDir}/tests/fixtures/references.fasta"
+                results_table      = "${outputDir}/sintax.tsv"
+                primer_f           = "GTACACACCGCCCGTCG"
+                primer_r           = "CGCCTSCSCTTANTDATATGC"
+                // A kit that does not exist. Caught at startup rather than
+                // inside the first GPU-bound task.
+                basecall_kit       = "not-a-kit"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.any { it.contains("Parameter validation failed") }
+            assert workflow.stdout.any { it.contains("basecall_kit") }
+        }
+    }
+
+    test("BC-08c basecall parameters are not policed when basecalling is skipped") {
+
+        setup {
+            new File("${outputDir}/fastq_dir").mkdirs()
+            ["cp", "-r",
+             "${projectDir}/tests/fixtures/fastq_dir/fastq_pass",
+             "${outputDir}/fastq_dir/"].execute().waitFor()
+        }
+
+        when {
+            params {
+                skip_basecall     = true
+                fastq_dir         = "${outputDir}/fastq_dir"
+                sintax_references = "${projectDir}/tests/fixtures/references.fasta"
+                results_table     = "${outputDir}/sintax.tsv"
+                primer_f          = "GTACACACCGCCCGTCG"
+                primer_r          = "CGCCTSCSCTTANTDATATGC"
+                // Nonsense, but irrelevant: nothing will basecall. Holding a
+                // run to the format of settings it never applies would be
+                // gratuitous.
+                basecall_kit      = "not-a-kit"
+                basecall_device   = "gpu9"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert file("${outputDir}/sintax.tsv").exists()
+            // And they are absent from the run record, since they did not
+            // shape this result.
+            def params_json = file("${outputDir}/pipeline_info/params.json").text
+            assert !params_json.contains('"basecall_kit"')
+        }
+    }
+}

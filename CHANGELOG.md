@@ -5,6 +5,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v1.11.0 - 2026-07-29
+
+Usable basecalling. The GPU half of the pipeline had **no test coverage at
+all** and three settings hardcoded in a shell script; both are now fixed.
+
+### `Added`
+
+- **`--basecall_model`, `--basecall_kit`, `--basecall_device`.** These
+  existed as flags on `bin/basecall_pod5_files.sh` but nothing passed them
+  and no parameter exposed them, so every run basecalled as
+  `sup@v5.2.0` + `EXP-PBC096` + `cuda:0`: **a lab with a different
+  sequencing kit could not use basecalling at all**, and a machine without
+  an NVIDIA GPU could not use it either. All three are validated at startup
+  against the patterns the script enforces, so a typo fails immediately
+  rather than inside the first GPU-bound task — and only when basecalling
+  will actually run, since holding a `--skip_basecall` run to the format of
+  settings it never applies would be gratuitous. Covered by BC-07, BC-09.
+- **a full dorado model name is accepted** for `--basecall_model`
+  (e.g. `dna_r9.4.1_e8_hac@v3.3.0`). The short form still gets the
+  flowcell/chemistry prefix `dna_r10.4.1_e8.2_400bps_`, which was hardcoded
+  — so until now *only* that chemistry could be basecalled. Covered by
+  BC-04b.
+- **the basecalling model is cached.** A new `DOWNLOAD_MODEL` process holds
+  it in a `storeDir` at `--basecall_model_dir` (default
+  `<launchDir>/dorado_models`), outside the work directory, so Nextflow
+  skips the process entirely once it is there. Previously the ~1 GB model
+  was fetched into the task directory and then deleted by the script's own
+  `clean_up`, so **every run re-downloaded it and every run needed
+  network**. The storeDir output is named after the model, so changing
+  `--basecall_model` correctly fetches the new one rather than serving a
+  cached copy of the old. Covered by BC-10.
+- **`tests/stubs/dorado`** — records the argv it was called with and
+  fabricates the outputs. The real dorado needs a GPU and a large download,
+  so it can never run in CI; the stub is what makes this branch testable at
+  all. BC-01..BC-12 now cover the script's CLI, the defaults, the model
+  cache, and (BC-08) the whole basecalling branch end to end — publishing
+  the sentinel and the `fastq_pass` tree, then flowing on into discovery and
+  assignment. That also closes **WF-02** and **WF-05**, and confirms
+  PRV-03's dorado version capture on a real run.
+
+### `Fixed`
+
+- **the script could delete and move directories in the caller's current
+  directory.** `clean_up` and `compress_fastq` walked `.` rather than
+  `--output-dir`: it moved every `fastq_pass` it found there to the top
+  level and `rm -rf`'d every other top-level directory. Invisible under
+  Nextflow, where the task directory *is* the output directory — and
+  destructive for anyone running the script by hand from anywhere else.
+  (Found by running it from the repository root during this work, which
+  moved a test fixture.) Both are now scoped to `--output-dir`. Covered by
+  BC-11.
+- `clean_up` aborted the script when `fastq_pass` was already at the top of
+  the output directory: `mv ./fastq_pass .` fails, and under `find -exec`
+  that made `find` exit non-zero, which `set -e` turned into a failed run.
+  That is the pipeline's own layout (`--output-dir "./"`). Covered by
+  BC-11b.
+- the hermeticity gate in `tests/run_all.sh` compared `tests/fixtures/`
+  against git, which cannot tell "the test run wrote this" from "the author
+  is editing a fixture and has not committed yet" — and failed on the
+  latter. It now compares a content snapshot taken before the run. The CI
+  steps keep using git, which is correct there: the checkout is pristine and
+  the run happened in an earlier step.
+
 ## v1.10.0 - 2026-07-29
 
 Cluster support. Scheduler execution is a supported target, not a

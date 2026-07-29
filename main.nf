@@ -14,6 +14,8 @@ include { optimistic_name   } from './modules/local/functions'
 include { fastq_extensions  } from './modules/local/functions'
 include { valid_memory      } from './modules/local/functions'
 include { effective_threads } from './modules/local/functions'
+include { DOWNLOAD_MODEL     } from './modules/basecall'
+include { full_model_name   } from './modules/local/functions'
 
 
 // Hand-written help (printed by `--help`). Kept in sync with the params
@@ -167,6 +169,16 @@ def paramsJson(references) {
             max_memory       : "${params.max_memory}",
         ],
     ]
+    // Only meaningful when basecalling ran: recording a model and kit for a
+    // run that reused existing fastq would claim they shaped the result.
+    if (!coerce_bool(params.skip_basecall)) {
+        record['params'] += [
+            basecall_model    : params.basecall_model,
+            basecall_kit      : params.basecall_kit,
+            basecall_device   : params.basecall_device,
+            basecall_model_dir: params.basecall_model_dir,
+        ]
+    }
     groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(record))
 }
 
@@ -187,8 +199,12 @@ def runSummary(sintax_threads) {
                                  : 'basecall pod5 with dorado',
         'fastq_dir'        : params.fastq_dir,
     ]
-    if (!coerce_bool(params.skip_basecall))
-        rows['pod5_dir'] = params.pod5_dir
+    if (!coerce_bool(params.skip_basecall)) {
+        rows['pod5_dir']        = params.pod5_dir
+        rows['basecall_model']  = params.basecall_model
+        rows['basecall_kit']    = params.basecall_kit
+        rows['basecall_device'] = params.basecall_device
+    }
     rows += [
         'sintax_references': references,
         'results_table'    : params.results_table,
@@ -296,6 +312,23 @@ workflow {
     if (params.reference_size_gb != null && !("${params.reference_size_gb}" ==~ /\d+(\.\d+)?/))
         errors << "  - 'reference_size_gb' must be a positive number of GB (got: '${params.reference_size_gb}')."
 
+    // Basecalling parameters, checked only when basecalling will run — the
+    // common case reuses existing fastq and should not be held to the
+    // format of settings it never applies. The patterns mirror the ones
+    // bin/basecall_pod5_files.sh enforces, so the failure arrives at
+    // startup instead of inside the first (GPU-bound) task.
+    if (!coerce_bool(params.skip_basecall)) {
+        if (!("${params.basecall_model}" ==~ /(fast|hac|sup)@v\d+\.\d+\.\d+/) &&
+            !("${params.basecall_model}" ==~ /[a-z]+_[a-z0-9._]+_(fast|hac|sup)@v\d+\.\d+\.\d+/))
+            errors << "  - 'basecall_model' must be fast|hac|sup@vX.Y.Z (e.g. 'sup@v5.2.0'), or a full dorado model name for other chemistry (e.g. 'dna_r9.4.1_e8_hac@v3.3.0'); got: '${params.basecall_model}'."
+        if (!("${params.basecall_kit}" ==~ /[A-Z]{3}-[A-Z]{3}\d{3}/))
+            errors << "  - 'basecall_kit' must look like XXX-XXX000 (e.g. 'EXP-PBC096', 'SQK-LSK114'); got: '${params.basecall_kit}'."
+        if (!("${params.basecall_device}" ==~ /cpu|auto|metal|cuda:(all|\d+(,\d+)*)/))
+            errors << "  - 'basecall_device' must be cpu, auto, metal, cuda:all, cuda:0 or cuda:0,1 (got: '${params.basecall_device}')."
+        if (!params.basecall_model_dir)
+            errors << "  - 'basecall_model_dir' is required when basecalling (the model cache location)."
+    }
+
     // Basecalling is local-only. dorado is an ONT GPU binary that is not on
     // bioconda — so it is in neither the conda environment nor any
     // container built from it — and the shipped cluster profiles route
@@ -357,7 +390,10 @@ workflow {
         dorado_versions_ch = Channel.value([])
     } else {
         pod5_dir_ch = Channel.fromPath(params.pod5_dir, type: 'dir', checkIfExists: true)
-        BASECALL(pod5_dir_ch)
+        // storeDir cache: fetched once, then reused by every later run
+        // without the process executing at all.
+        DOWNLOAD_MODEL(full_model_name(params.basecall_model as String))
+        BASECALL(pod5_dir_ch, DOWNLOAD_MODEL.out.model)
         // the sentinel sits beside the freshly written fastq_pass
         fastq_pass_ch = BASECALL.out.done.map { file("${it.parent}/fastq_pass") }
         dorado_versions_ch = BASECALL.out.versions.collect()

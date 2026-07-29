@@ -43,26 +43,38 @@ changes accidentally, the corresponding test should catch it.
 | WF-16 | `skip_basecall` is validated and branched on the string form, like every other boolean (WF-14): `skip_basecall = "false"` is honoured as false — basecalling is *not* skipped, so the `pod5_dir` requirement applies (a); a non-boolean value such as `"yes"` is rejected at startup rather than silently read as truthy (b). |
 | WF-17 | `fastq_dir` is required in **both** modes, not only when `skip_basecall = true`: `BASECALL` publishes into it and `SINTAX` publishes each barcode's results beneath it, so leaving it unset used to resolve `publishDir 'null/...'` and silently write a directory named `null` — after basecalling had run. |
 
-## 2. `BASECALL` module — *light coverage only*
+## 2. `BASECALL` module + `basecall_pod5_files.sh`
 
-The module simply shells out to `bin/basecall_pod5_files.sh`, which in
-turn drives `dorado`. We do not test basecalling itself. Worth
-asserting:
+Basecalling is **local-only**: `dorado` is an Oxford Nanopore GPU binary
+that is not on bioconda, so it is in neither `environment.yml` nor any
+container built from it, and the cluster profiles route partitions by memory
+and time. A run that requests basecalling under a scheduler is refused at
+startup (CLU-09).
+
+The real dorado needs a GPU and a ~1 GB model download, so it can never run
+in CI. `tests/stubs/dorado` records the argv it was called with and
+fabricates the expected outputs, which covers everything that is *ours*: the
+parameters reaching the tool, the model cache, the published artefacts and
+the flow onward into discovery. We do not test basecalling itself.
+
+Until v1.11.0 the model, kit and device were hardcoded in the shell script
+and not exposed as parameters at all, so a lab with a different sequencing
+kit could not basecall.
 
 | ID    | Specification                                                                                                                                          |
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| BC-01 | `basecall_pod5_files.sh --help` exits 0 and prints the usage block.                                                                                    |
-| BC-02 | The script exits non-zero with a clear error when `--input-dir` is missing.                                                                            |
-| BC-03 | The script exits non-zero with a clear error when `--input-dir` does not exist or is unreadable.                                                       |
-| BC-04 | The script exits non-zero when `--model` does not match the `(fast|hac|sup)@v<X.Y.Z>` pattern.                                                         |
-| BC-05 | The script exits non-zero when `--kit-name` does not match `XXX-XXX000`.                                                                               |
-| BC-06 | Unknown long flags exit non-zero with `Unknown option:` on stderr.                                                                                     |
-| BC-07 | Default model is `sup@v5.2.0` and default kit is `EXP-PBC096` (assert by injecting a `dorado` stub and inspecting the command it received).            |
-| BC-08 | The module's `done_basecalling.txt` sentinel is produced and `publishDir` writes outputs into `params.fastq_dir` via `link` mode (use a dorado stub).  |
-
-> Note: BC-07 and BC-08 require a `dorado` stub on the PATH (a shell
-> script that records its argv and emits empty `fastq_pass/*.fastq`
-> files). This avoids any GPU/runtime requirement on CI.
+| BC-01 | `--help` exits 0 and prints the usage block, including `--device` and `--models-dir`.                                                                   |
+| BC-02 | A missing `--input-dir` (a) or `--output-dir` (b) is a clear error.                                                                                    |
+| BC-03 | An `--input-dir` that does not exist is a clear error.                                                                                                 |
+| BC-04 | An unrecognised `--model` is rejected, and the message shows both accepted forms (a). A **full** dorado model name is accepted and passed through untouched, which is how other flowcells and chemistries are targeted — the prefix `dna_r10.4.1_e8.2_400bps_` was hardcoded, so only that chemistry could ever be basecalled (b). |
+| BC-05 | An unrecognised `--kit-name` is rejected.                                                                                                              |
+| BC-06 | An unknown flag exits non-zero with `Unknown option:` (a); an unrecognised `--device` is rejected (b).                                                  |
+| BC-07 | The defaults are `sup@v5.2.0`, `EXP-PBC096` and `cuda:0`, asserted by inspecting the argv the dorado stub received. A short model name is prefixed for the *download* and passed as given to the *basecaller*, which resolves it against `--models-directory`. |
+| BC-08 | End-to-end (`main.nf`): basecalling publishes `done_basecalling.txt` and the `fastq_pass` hierarchy into `params.fastq_dir`, and the sentinel carries the run onward — discovery and assignment produce both tables with one column per basecalled barcode (a). This also closes WF-02 and WF-05. An invalid basecalling parameter aborts at startup, before any GPU work (b); those parameters are **not** policed when `skip_basecall = true`, since holding a run to the format of settings it never applies would be gratuitous, and they are then absent from `params.json` (c). |
+| BC-09 | `--model`, `--kit-name` and `--device` are each overridable (a), and `cpu` is a valid device, so a machine with no GPU can basecall (b).                |
+| BC-10 | A model already present in `--models-dir` is **not** downloaded again (a), and the model directory survives the script's own `clean_up` (b). Previously the model was fetched into the output directory and then deleted, so every run re-downloaded ~1 GB and every run needed network; the pipeline now holds it in a `storeDir` cache outside the work directory. |
+| BC-11 | The script confines itself to `--output-dir`. `clean_up` and `compress_fastq` used to walk `.` — the *caller's* directory — moving and deleting directories there; invisible under Nextflow, where the two coincide, and destructive when run by hand from anywhere else (a). A `fastq_pass` already at the top of the output directory is not moved onto itself, which used to abort the script under `set -e` (b) — and that is the pipeline's own layout. |
+| BC-12 | The model-prefix logic in `bin/basecall_pod5_files.sh` and in `modules/local/functions.nf` agree. One decides where to *look* for the model and the other where to *download* it, so a mismatch means fetching to one path and looking in another. |
 
 ## 3. `SINTAX` module + `assign_with_sintax.sh`
 

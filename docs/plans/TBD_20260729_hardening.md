@@ -1,9 +1,8 @@
 # Review + hardening plan: preparing nf-pore2taxa for external labs
 
-Status: **in progress** — `v1.7.1`, `v1.8.0`, `v1.9.0` and `v1.10.0`
-**implemented, committed and tagged** 2026-07-29. Remaining: `v1.11.0`
-(basecalling parameterisation), `v1.12.0` (`--outdir`), `v1.13.0`
-(nf-schema), plus the "Continuous" items. `D01`–`D04`, `D08`, `D10`–`D14`
+Status: **in progress** — `v1.7.1`, `v1.8.0`, `v1.9.0`, `v1.10.0`
+and `v1.11.0` **implemented, committed and tagged** 2026-07-29. Remaining:
+`v1.12.0` (`--outdir`), `v1.13.0` (nf-schema), plus the "Continuous" items. `D01`–`D04`, `D08`, `D10`–`D14`
 **resolved**
 2026-07-29; `D05` and `D07` **revised** by the `D08` resolution;
 `D06`/`D09` proposed and awaiting confirmation (§6). Review of `dev` @
@@ -773,7 +772,44 @@ should not pretend to be.
   forward-looking; `resourceLimits` is what keeps it from looping to
   failure against a ceiling that does not exist.
 
-### v1.11.0 — usable basecalling (`D01`)
+### v1.11.0 — usable basecalling (`D01`) — **IMPLEMENTED 2026-07-29**
+
+`D01` was resolved as "parameterise without waiting for an answer", and that
+turned out to be the right call for a reason the decision did not anticipate:
+the moment the branch became testable, it produced a **destructive bug**.
+
+`clean_up` and `compress_fastq` walked `.` rather than `--output-dir`,
+moving every `fastq_pass` found there to the top level and `rm -rf`-ing
+every other top-level directory. Under Nextflow the two paths coincide, so
+it was invisible; run by hand from anywhere else it eats the caller's
+directory. I found it by running the script from the repository root while
+building the tests — it moved a committed fixture. That is a bug a lab would
+have hit the first time they invoked the driver script manually to debug a
+basecalling problem, which is exactly when they would be least able to
+diagnose it. `BC-11` pins it.
+
+Also fixed: `clean_up` aborted under `set -e` when `fastq_pass` was already
+at the top of the output directory (`mv ./fastq_pass .` fails, `find -exec`
+propagates it) — the pipeline's own layout.
+
+Delivered as planned: `--basecall_model` / `--basecall_kit` /
+`--basecall_device`, a full-dorado-model-name escape hatch for other
+chemistry, and the model held in a `storeDir` cache so the ~1 GB download
+happens once instead of every run. `tests/stubs/dorado` records its argv and
+fabricates the outputs, which is the only way this branch is testable at
+all — BC-01..BC-12, plus WF-02 and WF-05 closed.
+
+Two design notes worth keeping:
+
+- The storeDir output is named after the **model**, not a fixed `models/`.
+  storeDir decides whether to skip the process by whether its output already
+  exists, so a fixed name would have served a cached copy of the wrong model
+  to anyone who changed `--basecall_model`.
+- The model-prefix logic exists in both bash and Groovy (one decides where
+  to look, the other where to download). `BC-12` asserts they agree, the
+  same shape of drift guard as `DSC-07`.
+
+#### Plan as written
 
 Expose `basecall_model`, `basecall_kit`, `basecall_device` as params
 threaded through to the script (P3-16), validated at startup with the
