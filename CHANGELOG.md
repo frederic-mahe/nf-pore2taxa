@@ -3,6 +3,94 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+## v1.7.1 - 2026-07-29
+
+Correctness release ahead of external adoption: five defects that could
+each make a run report **SUCCESS** while producing a wrong, stale, or
+unreadable result. No new features, no change to the meaning of any
+existing parameter. See
+[`docs/plans/TBD_20260729_hardening.md`](docs/plans/TBD_20260729_hardening.md)
+for the full review this comes from.
+
+### `Fixed`
+
+- **published outputs could be silently unreadable.** `cleanup = true`
+  was the shipped default while `publish_mode` accepted `symlink` and
+  `rellink`, so the work directory was deleted *after* links into it were
+  published: both occurrence tables, every per-barcode `.sintax`, and
+  both Krona HTMLs became dangling links, under a run that exited 0.
+  `cleanup` now defaults to **false** (a successful run also stays
+  resumable and inspectable) and is exposed as `--cleanup` for throwaway
+  runs; the incompatible `cleanup = true` + link-mode combination is
+  rejected at startup rather than trusted to a default. `move` is no
+  longer an accepted `publish_mode` at all — `BASECALL`'s downstream
+  handoff reads the fastq back out of the task work directory, which
+  moving them away empties. Covered by CFG-02, CFG-03.
+- **`-resume` silently ignored new reads.** `DISCOVER_BARCODES` received
+  the `fastq_pass` path as an unstaged value, so Nextflow's cache key did
+  not reflect the tree's contents: adding a fastq to an **existing**
+  barcode directory — a topped-up library, a second flow cell for one
+  barcode — was a full cache hit, and the run republished the previous
+  table with the new reads dropped. (Adding a *new* barcode directory
+  happened to work, via the parent's mtime, which made the failure look
+  like working behaviour.) `main.nf` now enumerates the run's fastq and
+  passes the sorted list into the process, so any added or removed file
+  invalidates discovery while an unchanged re-run stays a full cache hit.
+  Covered by SX-35, DSC-06.
+- **a `results_table` not ending in `.tsv` lost every result.**
+  `BUILD_TABLE` declared `output: path "*.tsv"` but wrote the filename
+  taken from `results_table`, so e.g. `results/table.txt` ran every
+  `SINTAX` task, exited 0 from the script, and then failed the task on a
+  missing output — publishing nothing, at the most expensive possible
+  moment. The two outputs are now declared by exact name via the new
+  `optimistic_name()` helper (mirroring `name_optimistic_output()` in
+  `build_occurrence_table.py`), so any extension works. Covered by
+  WF-15, FN-03.
+- **`--skip_basecall false` skipped basecalling.** A command-line
+  override arrives as the *string* `'false'`, which is truthy in Groovy,
+  and the branch tested `params.skip_basecall` directly — so asking for
+  basecalling silently reused whatever was in `fastq_dir` instead. This
+  is the boolean the v1.7.0 `discard_untrimmed`/`krona` fix did not
+  reach. Every declared boolean (`skip_basecall`, `discard_untrimmed`,
+  `krona`, `cleanup`, `help`) now goes through `valid_bool()` in
+  validation and `coerce_bool()` at the point of use, from a single list,
+  so the next boolean added cannot repeat this. Covered by WF-16.
+- **`fastq_dir` was required in only one of the two modes.** `BASECALL`
+  publishes into it and `SINTAX` publishes each barcode's results
+  beneath it, but it was validated only when `skip_basecall = true`. With
+  basecalling enabled and `fastq_dir` unset, the run proceeded into
+  basecalling and Nextflow silently created a directory literally named
+  `null` in the launch directory. Now required unconditionally. Covered
+  by WF-17.
+- `assign_with_sintax.sh` no longer requires `file(1)`, which it never
+  invoked — a spurious hard dependency that would abort on a minimal
+  image.
+- `BASECALL`'s no-op `saveAs: { filename -> filename }` closure removed;
+  the output glob already carries the `fastq_pass/` prefix.
+
+### `Removed`
+
+- `params.version`, which nothing in any `.nf` or `.config` read. CFG-01
+  compared it against `manifest.version` — a dead invariant — and now
+  compares `manifest.version` against `CITATION.cff` instead, which is
+  the duplicate that actually drifts on a release.
+
+### `Added`
+
+- `--cleanup` (default `false`): delete the work directory on successful
+  completion. Off by default; see the `Fixed` entry above.
+- `optimistic_name()` and `fastq_extensions()` in
+  `modules/local/functions.nf`, both unit-tested (FN-03, FN-04), plus a
+  drift guard (DSC-07) asserting `fastq_extensions()` and
+  `discover_barcodes.py`'s `FASTQ_SUFFIXES` list the same extensions —
+  they are what the discovery cache key is built from.
+- tests: `tests/config/publish_modes.bats` (the publish-mode matrix and
+  its `cleanup` interaction) and `tests/config/resume.bats` (two
+  successive runs against a mutating input directory — the shape nf-test
+  cannot express, and the gap that let the `-resume` defect through).
+
 ## v1.7.0 - 2026-07-24
 
 ### `Added`

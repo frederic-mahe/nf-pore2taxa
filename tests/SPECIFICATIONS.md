@@ -39,6 +39,9 @@ changes accidentally, the corresponding test should catch it.
 | WF-12 | End-to-end, `params.subsample = n` caps each barcode at `n` reads: with `subsample = 3` a 5-read barcode's column totals 3 (a); a non-integer `subsample` aborts at startup via the aggregated validation report (b). |
 | WF-13 | `params.krona = true` renders `krona.html` and `krona_optimistic.html` beside `results_table` (a); the default (`false`) runs no `KRONA` and produces no HTML (b); a non-boolean `krona` aborts at startup via the aggregated validation report (c). |
 | WF-14 | Boolean params set on the command line arrive as strings (`'true'`/`'false'`), so `discard_untrimmed` is validated and switched on the string form: `discard_untrimmed = "false"` is honoured as `--keep-untrimmed` (the primer-less `barcode03` survives and is counted), not rejected and not mis-read as truthy. Same coercion as `krona` (WF-13). |
+| WF-15 | `results_table` is honoured whatever its extension: `results/table.txt` publishes `table.txt` + `table_optimistic.txt` (and, with `--krona`, both HTMLs). `BUILD_TABLE` declares its outputs by exact name, so a non-`.tsv` name no longer runs the whole pipeline and then fails the last task on a missing output. |
+| WF-16 | `skip_basecall` is validated and branched on the string form, like every other boolean (WF-14): `skip_basecall = "false"` is honoured as false — basecalling is *not* skipped, so the `pod5_dir` requirement applies (a); a non-boolean value such as `"yes"` is rejected at startup rather than silently read as truthy (b). |
+| WF-17 | `fastq_dir` is required in **both** modes, not only when `skip_basecall = true`: `BASECALL` publishes into it and `SINTAX` publishes each barcode's results beneath it, so leaving it unset used to resolve `publishDir 'null/...'` and silently write a directory named `null` — after basecalling had run. |
 
 ## 2. `BASECALL` module — *light coverage only*
 
@@ -111,7 +114,7 @@ barcode, not once per file).
 | SX-32  | Query identifiers in `*.sintax` carry a `;length=N` annotation appended by `append_read_length` (regex: `;length=[0-9]+$` on column 1).                |
 | SX-33  | If a barcode's reads do not survive primer trimming, its `<barcode>.sintax` exists and is empty (0 bytes); it is emitted (non-optional) so it reaches `BUILD_TABLE`. |
 | ~~SX-34~~ | **Removed.** The `done_sintax.txt` sentinel is gone; the gather is now a real `.collect()` data dependency on the per-barcode `.sintax` outputs.    |
-| SX-35  | The module is idempotent: re-running with `-resume` is a per-barcode Nextflow cache hit.                                                               |
+| SX-35  | The pipeline is idempotent: re-running with `-resume` against an unchanged input tree is a **full** cache hit (no task re-executed). Covered in `tests/config/resume.bats`, which drives two successive `nextflow run` invocations — a shape nf-test cannot express. Paired with DSC-06, which pins the other half: a *changed* tree must not be a cache hit. |
 | SX-36  | Each supported extension (`.fastq`, `.fastq.{gz,bz2,xz}`) is accepted (covered at the CLI level by SX-05).                                             |
 | SX-40  | A barcode split across **several** fastq files is trimmed file-by-file, concatenated, and assigned with a **single** `vsearch` run, producing one `<barcode>.sintax` whose read count is the sum across the files. |
 | SX-41  | End-to-end (`main.nf`): a **flat** `fastq_pass/` (barcode embedded in the filename) with a multi-file barcode produces a correct table, and a sibling `fastq_fail/` is **ignored** (its reads are not counted). |
@@ -132,6 +135,8 @@ Covered by `tests/bin/test_discover_barcodes.py`.
 | DSC-03 | A barcode-like token in a **parent** directory is not picked up (matching is on the path relative to the input dir).                                   |
 | DSC-04 | A file with **no** recognisable barcode token aborts the run (D2), listing the offending paths; an input dir with no fastq files, or that is not a directory, also aborts with a clear error. |
 | DSC-05 | Discovery is rooted at `fastq_pass`, so a sibling `fastq_fail/` is never seen (also asserted end-to-end by SX-41).                                     |
+| DSC-06 | Discovery's Nextflow cache key reflects the **set of fastq files present**, not just the directory path. `main.nf` enumerates the reads and passes the sorted list into `DISCOVER_BARCODES`, so on `-resume`: a fastq added to an **existing** barcode directory is picked up and that barcode's column grows (a); the untouched barcodes stay cached, so the invalidation is targeted rather than a blanket miss (b); a **new** barcode directory is picked up (c); a **removed** fastq is reflected too (d). Before v1.7.1 case (a) was a silent full cache hit that republished the previous table — the run reported SUCCESS with the new reads dropped. |
+| DSC-07 | `fastq_extensions()` (`modules/local/functions.nf`, used to build that cache key) and `FASTQ_SUFFIXES` (`discover_barcodes.py`, used to walk the tree) list the **same** extensions. A drift guard, not a behaviour: an extension in one and not the other means a file that is discovered without invalidating the cache, or the reverse. |
 
 ## 4. `BUILD_TABLE` module + `build_occurrence_table.py`
 
@@ -174,6 +179,7 @@ byte-for-byte compatible with the former R implementation.
 | BT-21  | The optimistic `taxonomy` column is derived from `full_taxonomy` (column 2 of `.sintax`), retaining low-confidence levels that the filtered table drops. |
 | BT-22  | Total reads in the optimistic table ≥ total reads in the filtered table when both contain assignments (no reads are lost when keeping low-confidence). |
 | BT-23  | The probability annotations are still stripped (no `(0.xx)` substrings remain in the `taxonomy` column).                                               |
+| BT-24  | An all-blank filtered column (every read unassigned) neither aborts nor vanishes: those reads are bucketed under `taxonomy == "unknown"` (the column form of BT-14). |
 | BT-25  | A barcode with at least one non-empty `.sintax` chunk is never re-added as an empty column; only barcodes whose every chunk is empty appear, once, as zero-filled right-most columns. |
 
 ### 4.4 Pure helper functions (unit-testable via `python3 -m unittest`)
@@ -206,17 +212,19 @@ script's functions directly.
 
 | ID     | Specification                                                                                                                                          |
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| CFG-01 | `manifest.version` and `params.version` resolve to the same value (kept in sync on every version bump). Tested in `tests/config/version.bats`.          |
+| CFG-01 | `manifest.version` and `CITATION.cff`'s `version` resolve to the same value (bump both on every release, per the CHANGELOG). Tested in `tests/config/version.bats`. Until v1.7.1 this compared `manifest.version` with `params.version`, which nothing read — a dead invariant; the param is gone, and (b) asserts it stays gone. |
+| CFG-02 | `publish_mode` accepts `link` (default), `copy`, `copyNoFollow`, `symlink` and `rellink`, and rejects anything else. `move` is deliberately **not** accepted: `BASECALL`'s downstream handoff reads the freshly written `fastq_pass` back out of the task work directory, which moving the files away empties. `cleanup` defaults to **false**. |
+| CFG-03 | `cleanup = true` combined with a link publish mode (`symlink`/`rellink`) aborts at startup, before any process runs. The two together published links *into* the work directory and then deleted it, leaving every output — both tables, every `.sintax`, both Krona HTMLs — a dangling link under a run that reported SUCCESS. `copy` + `cleanup` is allowed (real files survive), and a non-boolean `cleanup` is rejected like any other boolean (WF-16). |
 
 ## 7. Observations worth noting in the spec (not bugs, but ambiguities)
 
 | ID     | Note                                                                                                                                                   |
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | ~~OBS-01~~ | **Resolved.** `validate_inputs` in `assign_with_sintax.sh` originally counted only `*.fastq.gz` when deciding whether the input dir was empty, contradicting the script's main loop and the v1.1.0 CHANGELOG. Validation now uses the same `FASTQ_REGEX` constant as the main loop. Covered by SX-05 + the `SX-05-{gz,plain,bz2,xz,empty}` cases in `tests/bin/assign_with_sintax_cli.bats`. |
-| OBS-02 | `trim_extension` uses `sed -r` and only strips one of each suffix, right-most. The README does not document multi-suffix behaviour; SX-21 pins it.    |
+| ~~OBS-02~~ | **Resolved.** Described `trim_extension`'s multi-suffix behaviour and SX-21, both removed with the per-barcode refactor (v1.4.0, see SX-20).      |
 | OBS-03 | `SINTAX` runs vsearch with `--threads > 1`, which is non-deterministic. SX-3x tests must therefore be structural (counts, columns) rather than exact. |
 | OBS-04 | The script silently creates the output parent directory (`build_occurrence_table.py`, `validate_args`). BT-05 pins this behaviour; flag if you want it to fail loudly instead. |
-| OBS-05 | `param.results_table` is consumed by `BUILD_TABLE` as `file(params.results_table).name` for the output filename, and `file(params.results_table).parent` for the `publishDir`. Tests should cover both directory and bare-filename forms. |
+| OBS-05 | `param.results_table` is consumed by `BUILD_TABLE` as `file(params.results_table).name` for the output filename, and `file(params.results_table).parent` for the `publishDir`. The *extension* half is now pinned by WF-15; the bare-filename form (no directory component) is still uncovered. |
 
 ## 8. `KRONA` module + `build_krona.py` / `build_krona.sh`
 
@@ -267,7 +275,9 @@ nf-test's function harness (`tests/modules/functions.nf.test`).
 | ID     | Specification                                                                                                                                          |
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | FN-01  | `coerce_bool(v)` returns a real Boolean: the string `'true'` and Boolean `true` → `true`; `'false'`, `false`, and any other value → `false`. This normalises a config boolean and a CLI `--flag`/`--flag false` (which arrives as a string) alike. |
-| FN-02  | `valid_bool(v)` is `true` only when `v` is a Boolean or the string `'true'`/`'false'`; any other value (e.g. `'yes'`) is `false`. Startup validation uses it to reject non-boolean values before `coerce_bool` flattens them. |
+| FN-02  | `valid_bool(v)` is `true` only when `v` is a Boolean or the string `'true'`/`'false'`; any other value (e.g. `'yes'`) is `false`. Startup validation uses it to reject non-boolean values before `coerce_bool` flattens them. **Every** declared boolean param goes through it, from one list in `main.nf` — a new boolean that skips it repeats the `skip_basecall` defect (WF-16). |
+| FN-03  | `optimistic_name(name)` inserts `_optimistic` before the final extension: `sintax.tsv` → `sintax_optimistic.tsv` (a); `table.txt` → `table_optimistic.txt` (b); `table` → `table_optimistic` (c); it splits on the **last** dot only, so `run.1.tsv` → `run.1_optimistic.tsv` (d); a leading dot is not an extension, so `.hidden` → `.hidden_optimistic` (e), matching `pathlib`. Must agree with `name_optimistic_output()` in `build_occurrence_table.py` for every shape, because `BUILD_TABLE` declares its outputs by name (WF-15) — a disagreement is a "missing output file" at the end of a run. |
+| FN-04  | `fastq_extensions()` returns the four supported suffixes without a leading dot (`fastq`, `fastq.gz`, `fastq.bz2`, `fastq.xz`), for interpolation into the `**.<ext>` globs that build discovery's cache key. Kept in lock-step with the Python side by DSC-07. |
 
 ## 10. Out of scope (will not be tested)
 

@@ -106,8 +106,16 @@ params {
 
     // publishDir mode. 'link' (default) requires workDir and the
     // data/results directories to share a filesystem; use 'copy' when
-    // they are on different filesystems.
+    // they are on different filesystems. Also accepted: 'copyNoFollow',
+    // 'symlink', 'rellink' (the link modes require cleanup = false).
     publish_mode      = "link"
+
+    // Delete the work directory when the run succeeds. false (default)
+    // keeps it, so `-resume` works across separate invocations and a
+    // run that looks wrong can still be inspected. Set true (or pass
+    // --cleanup) for throwaway runs; `nextflow clean -f` does the same
+    // afterwards.
+    cleanup           = false
 }
 ```
 
@@ -133,6 +141,21 @@ params {
 > and `fastq_dir`/`results_table` must be on the same filesystem. If they
 > are not, set `publish_mode = "copy"` to fall back to real copies (hard
 > links cannot cross filesystems).
+
+> [!NOTE]
+> **`cleanup` and the link publish modes**: `symlink`/`rellink` publish
+> *pointers* into the work directory, so they only make sense while the
+> work directory survives. Combining either with `cleanup = true` would
+> leave every published output — the occurrence tables, the per-barcode
+> `.sintax` files, the Krona charts — a dangling link, so the pipeline
+> refuses that combination at startup instead of producing it.
+
+> [!NOTE]
+> **Resuming a run**: because `cleanup` defaults to `false`, `-resume`
+> works across separate invocations. Adding fastq files to `fastq_dir`
+> (a topped-up library, or a second flow cell for one barcode) and
+> re-running with `-resume` re-processes only the barcodes whose files
+> changed, and rebuilds the tables; the other barcodes are cache hits.
 
 Now, you can run the pipeline using:
 
@@ -211,6 +234,7 @@ for the catalogue of behaviours under test, and
 bash tests/run_all.sh           # python + bats + nf-test
 python3 -m unittest discover -s tests/bin -p 'test_*.py'  # python unit tests
 bats tests/bin/                 # shell + Python CLI integration tests
+bats tests/config/              # config invariants, publish modes, -resume
 nf-test test tests/             # pipeline tests only
 ```
 

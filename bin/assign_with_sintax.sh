@@ -151,7 +151,10 @@ validate_inputs() {
 
 check_commands() {
     local -a missing=()
-    local -a tools=( file "${CUTADAPT}" "${VSEARCH}" )
+    # Only the tools this script actually invokes. `file(1)` used to be
+    # required here and was never called — a spurious hard dependency that
+    # would abort on a minimal image.
+    local -a tools=( "${CUTADAPT}" "${VSEARCH}" )
     for cmd in "${tools[@]}" ; do
         command -v "${cmd}" > /dev/null 2>&1 || missing+=("${cmd}")
     done

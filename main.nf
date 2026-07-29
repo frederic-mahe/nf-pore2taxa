@@ -8,6 +8,8 @@ include { BUILD_TABLE       } from './modules/build_table'
 include { KRONA             } from './modules/krona'
 include { coerce_bool       } from './modules/local/functions'
 include { valid_bool        } from './modules/local/functions'
+include { optimistic_name   } from './modules/local/functions'
+include { fastq_extensions  } from './modules/local/functions'
 
 
 // Hand-written help (printed by `--help`). Kept in sync with the params
@@ -54,9 +56,15 @@ def helpMessage() {
                            krona_optimistic.html) beside the results table
                            (default: ${params.krona}). Requires KronaTools
                            (ktImportText); provided by the conda profile.
-      --publish_mode       publishDir mode for outputs: link, copy, symlink,
-                           rellink, move, copyNoFollow (default: ${params.publish_mode}).
-                           'link' needs workDir and outputs on one filesystem.
+      --publish_mode       publishDir mode for outputs: link, copy, copyNoFollow,
+                           symlink, rellink (default: ${params.publish_mode}).
+                           'link' needs workDir and outputs on one filesystem;
+                           'copy' when they are not. The link modes require
+                           --cleanup to be off (else the links would dangle).
+      --cleanup            Delete the work directory on success
+                           (default: ${params.cleanup}). Off by default so
+                           -resume works across runs and published links stay
+                           valid; turn on for throwaway runs.
       --help               Show this message and exit.
 
     Profiles (-profile):
@@ -80,7 +88,7 @@ workflow {
 
     // Print help and exit before any validation, so `--help` works on its
     // own (returning from the workflow body invokes no process).
-    if (params.help) {
+    if (coerce_bool(params.help)) {
         println helpMessage()
         return
     }
@@ -104,20 +112,28 @@ workflow {
         errors << "  - 'primer_f' is required (forward primer sequence)."
     if (!params.primer_r)
         errors << "  - 'primer_r' is required (reverse primer sequence)."
-    if (params.skip_basecall) {
-        if (!params.fastq_dir)
-            errors << "  - 'fastq_dir' is required when 'skip_basecall = true'."
-    }
-    else if (!params.pod5_dir) {
+    // fastq_dir is required in BOTH modes, not just when reusing fastq:
+    // BASECALL publishes into it and SINTAX publishes each barcode's
+    // results under ${fastq_dir}/fastq_pass/<barcode>. Left unset with
+    // skip_basecall = false, Nextflow resolved 'null/...' and silently
+    // wrote a directory literally named 'null' in the launch dir — after
+    // basecalling had already run.
+    if (!params.fastq_dir)
+        errors << "  - 'fastq_dir' is required (basecalled reads are written there, and per-barcode results beside them)."
+    if (!coerce_bool(params.skip_basecall) && !params.pod5_dir) {
         errors << "  - 'pod5_dir' is required when 'skip_basecall = false' (set 'skip_basecall = true' to reuse existing fastq)."
     }
     // Boolean params accept a config boolean or a CLI flag (the string
     // 'true'/'false'); valid_bool()/coerce_bool() (modules/local/functions)
     // handle both forms, so e.g. `--discard_untrimmed false` is honoured.
-    if (!valid_bool(params.discard_untrimmed))
-        errors << "  - 'discard_untrimmed' must be true or false (got: '${params.discard_untrimmed}')."
-    if (!valid_bool(params.krona))
-        errors << "  - 'krona' must be true or false (got: '${params.krona}')."
+    // EVERY declared boolean goes through this list: a plain Groovy
+    // truthiness test on a CLI override reads the string 'false' as true
+    // (the v1.7.1 skip_basecall bug), so a new boolean param that skips
+    // valid_bool/coerce_bool is a defect waiting to happen.
+    ['skip_basecall', 'discard_untrimmed', 'krona', 'cleanup', 'help'].each { name ->
+        if (!valid_bool(params[name]))
+            errors << "  - '${name}' must be true or false (got: '${params[name]}')."
+    }
     // CLI overrides arrive as Strings, config values as Integers; match
     // the string form so both a non-negative integer and its CLI spelling
     // pass (and a float, sign, or non-numeric value is rejected).
@@ -125,9 +141,18 @@ workflow {
         errors << "  - 'randseed' must be a non-negative integer (got: '${params.randseed}')."
     if (!("${params.subsample}" ==~ /\d+/))
         errors << "  - 'subsample' must be a non-negative integer (got: '${params.subsample}')."
-    def valid_modes = ['link', 'copy', 'symlink', 'rellink', 'move', 'copyNoFollow']
+    // 'move' is deliberately absent: BASECALL's downstream handoff reads
+    // the freshly written fastq_pass back out of the task work directory,
+    // and moving the files away empties it.
+    def valid_modes = ['link', 'copy', 'copyNoFollow', 'symlink', 'rellink']
     if (!(params.publish_mode in valid_modes))
         errors << "  - 'publish_mode' must be one of ${valid_modes} (got: '${params.publish_mode}')."
+    // The link modes publish pointers *into* the work directory, so
+    // deleting it on success leaves every output dangling — an
+    // unreadable results table under a run that reported SUCCESS.
+    def link_modes = ['symlink', 'rellink']
+    if (coerce_bool(params.cleanup) && params.publish_mode in link_modes)
+        errors << "  - 'publish_mode = ${params.publish_mode}' cannot be combined with 'cleanup = true': the published outputs are links into the work directory, which cleanup deletes. Use 'copy' (or leave cleanup off)."
     if (errors)
         error "Parameter validation failed:\n${errors.join('\n')}\nRun with --help for the full parameter list, or see the README for the expected project config."
 
@@ -136,7 +161,7 @@ workflow {
     // by the first barcode only).
     references_ch = Channel.fromPath(sintax_references, type: 'file', checkIfExists: true).first()
 
-    if (params.skip_basecall) {
+    if (coerce_bool(params.skip_basecall)) {
         // fastq_dir must already exist on disk and hold a fastq_pass tree.
         fastq_pass_ch = Channel.fromPath("${params.fastq_dir}/fastq_pass", type: 'dir', checkIfExists: true)
     } else {
@@ -146,10 +171,36 @@ workflow {
         fastq_pass_ch = BASECALL.out.done.map { file("${it.parent}/fastq_pass") }
     }
 
+    // Enumerate the run's fastq files here, in the workflow, and hand the
+    // sorted list to DISCOVER_BARCODES alongside the directory.
+    //
+    // The directory itself is passed as an *unstaged* `val` (the tree can
+    // hold thousands of files; staging them into the discovery task would
+    // be pure waste). But Nextflow then has nothing content-derived to
+    // hash, so its cache key ignored what the tree actually contained:
+    // adding a fastq to an EXISTING barcode directory and re-running with
+    // -resume was a cache hit, and the run reported SUCCESS with the
+    // previous table — silently dropping the new reads (a topped-up
+    // library, a second flow cell for one barcode). Adding a *new*
+    // barcode directory happened to invalidate the key via the parent's
+    // mtime, which made the failure mode worse by looking like it worked.
+    //
+    // The file list makes the key reflect the input set, so any added or
+    // removed fastq re-runs discovery. Content changes to an existing
+    // file are caught downstream instead: SINTAX stages its fastq as real
+    // `path` inputs, so they are content-hashed there.
+    fastq_files_ch = fastq_pass_ch.map { dir ->
+        fastq_extensions()
+            .collect { ext -> file("${dir}/**.${ext}") }
+            .flatten()
+            .collect { it.toString() }
+            .sort()
+    }
+
     // Discover fastq files and group them by barcode (handles both the
     // demultiplexed-into-folders and flat/embedded-name layouts; a sibling
     // fastq_fail is never seen since discovery is rooted at fastq_pass).
-    DISCOVER_BARCODES(fastq_pass_ch)
+    DISCOVER_BARCODES(fastq_pass_ch, fastq_files_ch)
     barcodes_ch = DISCOVER_BARCODES.out.barcodes
         .splitCsv(header: true, sep: '\t')
         .map { row -> tuple(row.barcode, file(row.path)) }
@@ -161,11 +212,11 @@ workflow {
     BUILD_TABLE(SINTAX.out.assigned.map { barcode, sintax, log -> sintax }.collect())
 
     // Optional Krona charts: one HTML per occurrence table (filtered +
-    // optimistic), each with a per-barcode dataset. BUILD_TABLE emits both
-    // TSVs as a single list, so one KRONA task renders both. coerce_bool
+    // optimistic), each with a per-barcode dataset. Both tables are fed to
+    // a single KRONA task, which renders one HTML each. coerce_bool
     // handles both the config boolean and the CLI-flag string, so
     // `--krona false` disables it as expected.
     if (coerce_bool(params.krona)) {
-        KRONA(BUILD_TABLE.out.results_table)
+        KRONA(BUILD_TABLE.out.filtered.mix(BUILD_TABLE.out.optimistic).collect())
     }
 }

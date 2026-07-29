@@ -32,7 +32,10 @@ tests/
 │   ├── test_build_occurrence_table.py
 │   ├── test_discover_barcodes.py
 │   └── validation.bats
-├── config/               ← bats tests for nextflow.config invariants
+├── config/               ← bats tests for config invariants + whole-run behaviour
+│   ├── deprecation.bats
+│   ├── publish_modes.bats  ← publish_mode matrix + its cleanup interaction
+│   ├── resume.bats         ← two successive runs against a mutating input dir
 │   └── version.bats
 ├── modules/              ← nf-test files for processes + shared functions
 │   ├── functions.nf.test
@@ -47,9 +50,11 @@ tests/
 | -------------------- | ---------------------------------------------------- |
 | python unit tests    | `python3` (standard library only)                    |
 | bats unit tests      | `bats` (>= 1.5), `python3`, `awk`, `grep`            |
+| config invariants    | `nextflow`; skips if absent. CFG-02c/CFG-03c also need `cutadapt` + `vsearch` (they run to completion to prove the outputs are readable) |
+| resume (SX-35/DSC-06)| `nextflow`, `cutadapt`, `vsearch`; skips if absent   |
 | SINTAX module        | `nextflow`, `nf-test`, `cutadapt`, `vsearch >= 2.31.0` |
 | Krona (KR-40..42)    | `ktImportText` (KronaTools); skips if absent         |
-| Workflow             | all of the above (WF-13 needs `ktImportText`)        |
+| Workflow             | all of the above (WF-13/WF-15 need `ktImportText`)   |
 
 ## Running
 
@@ -87,25 +92,44 @@ nf-test test tests/workflow/main.nf.test
 | `bin/reference_format.bats`            | SX-12                                                     |
 | `bin/assign_with_sintax_cli.bats`      | SX-05, SX-11, SX-12, SX-13, SX-14, SX-15, SX-16, SX-40    |
 | `bin/assign_with_sintax_helpers.bats`  | SX-22, SX-23, SX-24, SX-25                                |
-| `bin/test_discover_barcodes.py`        | DSC-01..DSC-05                                            |
+| `bin/test_discover_barcodes.py`        | DSC-01..DSC-05, DSC-07                                    |
 | `bin/build_occurrence_table.bats`      | BT-01..BT-04, BT-06, BT-07, BT-10..BT-13, BT-21..BT-24    |
-| `bin/test_build_occurrence_table.py`   | BT-01..BT-07, BT-10..BT-17, BT-20..BT-24, BT-30, BT-32..BT-34 |
+| `bin/test_build_occurrence_table.py`   | BT-01..BT-07, BT-10..BT-17, BT-20..BT-25, BT-30, BT-32..BT-34 |
 | `bin/test_build_krona.py`              | KR-01..KR-04, KR-30..KR-35                                |
 | `bin/build_krona_cli.bats`             | KR-40, KR-41, KR-42                                       |
-| `modules/functions.nf.test`            | FN-01, FN-02                                             |
+| `config/version.bats`                  | CFG-01                                                    |
+| `config/deprecation.bats`              | WF-08 (the `log.warn` half)                               |
+| `config/publish_modes.bats`            | CFG-02, CFG-03                                            |
+| `config/resume.bats`                   | SX-35, DSC-06                                             |
+| `modules/functions.nf.test`            | FN-01, FN-02, FN-03, FN-04                                |
 | `modules/sintax.nf.test`               | SX-30, SX-31, SX-32, SX-33, SX-40, SX-44                  |
-| `workflow/main.nf.test`                | WF-03, WF-04, WF-06, WF-08, WF-09, WF-10, WF-11, WF-12, WF-13, WF-14, SX-41, BT-10, BT-11, BT-13, BT-20, BT-22, BT-23 |
+| `workflow/main.nf.test`                | WF-03, WF-04, WF-06, WF-08..WF-17, CFG-03, SX-41, BT-10, BT-11, BT-13, BT-20, BT-22, BT-23 |
 
 ## Known gaps (next iterations)
 
 The current suite is a starting point. Specs not yet covered:
 
 - `BASECALL` module tests (BC-01..BC-08). These need a `dorado` stub
-  on the test PATH — see SPECIFICATIONS.md §2.
+  on the test PATH — see SPECIFICATIONS.md §2. This is the largest
+  remaining hole: it is also the least parameterised code in the repo
+  (model, kit and device are hardcoded in the shell script).
 - The remaining CLI validation specs for `assign_with_sintax.sh`
   (SX-01..SX-04, SX-06..SX-10). Add as new cases in
   `bin/assign_with_sintax_cli.bats`.
-- `SINTAX` with `-resume` (SX-35).
+- WF-01, WF-02, WF-05, WF-07 — the basecalling branch of the workflow
+  (blocked on the same `dorado` stub).
+- OBS-05's bare-filename `results_table` form (the extension half is now
+  covered by WF-15).
+- The production resource defaults: every nf-test overrides
+  `cpus`/`memory` via `tests/nextflow.config`, so nothing catches a
+  default that no real machine can satisfy.
+
+> **Note.** SX-35 and DSC-06 live in `config/resume.bats` rather than
+> nf-test: they need two successive `nextflow run` invocations against an
+> input directory that changes between them, and nf-test gives each test
+> a fresh `outputDir` with no resume hook. The `-resume` defect they pin
+> went unnoticed precisely because the suite had no way to express "run
+> it twice".
 
 The table-builder helper-function specs (BT-30, BT-32..BT-34) are now
 covered directly by `bin/test_build_occurrence_table.py`, which imports

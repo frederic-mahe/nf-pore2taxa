@@ -1,8 +1,9 @@
 process BASECALL {
     tag "basecall"
 
-    publishDir params.fastq_dir, mode: params.publish_mode, overwrite: true,
-               saveAs: { filename -> filename }  // preserves subdirectory structure
+    // The output glob already carries the fastq_pass/... prefix, so the
+    // subdirectory structure is preserved without a saveAs closure.
+    publishDir params.fastq_dir, mode: params.publish_mode, overwrite: true
 
     input:
     path pod5_dir

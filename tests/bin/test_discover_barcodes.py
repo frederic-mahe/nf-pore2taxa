@@ -11,6 +11,7 @@ no-token abort (decision D2). Run with:
 
 import importlib.util
 import io
+import re
 import unittest
 from contextlib import redirect_stderr
 from pathlib import Path
@@ -135,6 +136,44 @@ class MainCLI(unittest.TestCase):
             # paths are absolute so Nextflow can stage them
             for line in lines[1:]:
                 self.assertTrue(line.split("\t")[1].startswith("/"))
+
+
+class ExtensionListsAgree(unittest.TestCase):
+    """DSC-07 — the fastq extension list exists twice; keep it one list.
+
+    ``main.nf`` enumerates a run's reads with ``fastq_extensions()`` from
+    ``modules/local/functions.nf`` to build DISCOVER_BARCODES' cache key,
+    and ``discover_barcodes.py`` then re-walks the tree with its own
+    ``FASTQ_SUFFIXES``. If the two disagree, a file can be discovered
+    without invalidating the cache (a silent stale ``-resume``, the very
+    defect the cache key was added to fix) or vice versa.
+    """
+
+    def test_python_and_nextflow_lists_match(self):
+        functions_nf = (
+            Path(__file__).resolve().parents[2]
+            / "modules" / "local" / "functions.nf"
+        )
+        body = functions_nf.read_text(encoding="utf-8")
+
+        match = re.search(
+            r"def\s+fastq_extensions\(\)\s*\{(.*?)\}", body, re.S
+        )
+        self.assertIsNotNone(
+            match, "no fastq_extensions() in modules/local/functions.nf"
+        )
+        nextflow_exts = re.findall(r"'([^']+)'", match.group(1))
+        self.assertTrue(nextflow_exts, "fastq_extensions() listed nothing")
+
+        # FASTQ_SUFFIXES carries the leading dot; fastq_extensions() does
+        # not (it is interpolated into a '**.<ext>' glob).
+        python_exts = [s.lstrip(".") for s in db.FASTQ_SUFFIXES]
+        self.assertEqual(
+            sorted(nextflow_exts),
+            sorted(python_exts),
+            "fastq_extensions() (functions.nf) and FASTQ_SUFFIXES "
+            "(discover_barcodes.py) must list the same extensions",
+        )
 
 
 if __name__ == "__main__":

@@ -19,19 +19,35 @@ setup() {
 }
 
 # ------------------------------------------------------------------- CFG-01
+#
+# Until v1.7.1 this compared manifest.version with params.version — but
+# nothing in any .nf or .config ever read params.version, so it pinned a
+# dead value while the live duplicate (CITATION.cff) went unchecked. The
+# param is gone; the citation metadata is what must not drift, because a
+# release that bumps one and not the other ships a citation disagreeing
+# with the workflow manifest.
 
-@test "CFG-01 manifest.version and params.version are in sync" {
+@test "CFG-01 manifest.version and CITATION.cff version are in sync" {
     cd "${REPO_ROOT}"
-    local properties manifest_version params_version
+    local properties manifest_version citation_version
     properties="$(nextflow config -properties 2>/dev/null)"
 
     manifest_version="$(grep -E '^manifest\.version=' <<< "${properties}" | cut -d= -f2-)"
-    params_version="$(grep -E '^params\.version=' <<< "${properties}" | cut -d= -f2-)"
+    citation_version="$(sed -nE 's/^version:[[:space:]]*"?([^"[:space:]]+)"?[[:space:]]*$/\1/p' CITATION.cff)"
 
     # Both must actually be defined.
     [ -n "${manifest_version}" ]
-    [ -n "${params_version}" ]
+    [ -n "${citation_version}" ]
 
     # And they must agree.
-    [ "${manifest_version}" = "${params_version}" ]
+    [ "${manifest_version}" = "${citation_version}" ]
+}
+
+@test "CFG-01b the dead params.version is gone" {
+    cd "${REPO_ROOT}"
+    local properties
+    properties="$(nextflow config -properties 2>/dev/null)"
+    # Nothing reads it; re-adding it would resurrect an invariant that
+    # tests itself rather than anything the pipeline uses.
+    ! grep -qE '^params\.version=' <<< "${properties}"
 }

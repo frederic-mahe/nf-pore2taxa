@@ -67,4 +67,53 @@ nextflow_function {
         when { function { """ input[0] = "yes" """ } }
         then { assert function.success; assert function.result == false }
     }
+
+    // ------------------------------------------------------------- FN-03
+    //
+    // optimistic_name() must agree with name_optimistic_output() in
+    // bin/build_occurrence_table.py for every shape of results_table,
+    // because BUILD_TABLE declares its two outputs by name: a
+    // disagreement is a "missing output file" at the end of a run.
+
+    test("FN-03a optimistic_name inserts before a .tsv extension") {
+        function "optimistic_name"
+        when { function { """ input[0] = "sintax.tsv" """ } }
+        then { assert function.success; assert function.result == "sintax_optimistic.tsv" }
+    }
+
+    test("FN-03b optimistic_name works for a non-.tsv extension") {
+        function "optimistic_name"
+        when { function { """ input[0] = "table.txt" """ } }
+        then { assert function.success; assert function.result == "table_optimistic.txt" }
+    }
+
+    test("FN-03c optimistic_name appends when there is no extension") {
+        function "optimistic_name"
+        when { function { """ input[0] = "table" """ } }
+        then { assert function.success; assert function.result == "table_optimistic" }
+    }
+
+    test("FN-03d optimistic_name splits on the LAST dot only") {
+        function "optimistic_name"
+        when { function { """ input[0] = "run.1.tsv" """ } }
+        then { assert function.success; assert function.result == "run.1_optimistic.tsv" }
+    }
+
+    test("FN-03e optimistic_name: a leading dot is not an extension") {
+        // Matches pathlib: Path('.hidden').suffix == '' .
+        function "optimistic_name"
+        when { function { """ input[0] = ".hidden" """ } }
+        then { assert function.success; assert function.result == ".hidden_optimistic" }
+    }
+
+    // ------------------------------------------------------------- FN-04
+
+    test("FN-04 fastq_extensions lists the four supported suffixes") {
+        function "fastq_extensions"
+        when { function { """ """ } }
+        then {
+            assert function.success
+            assert function.result == ['fastq', 'fastq.gz', 'fastq.bz2', 'fastq.xz']
+        }
+    }
 }

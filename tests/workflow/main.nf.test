@@ -474,4 +474,141 @@ nextflow_pipeline {
             assert workflow.stdout.any { it.contains("publish_mode") }
         }
     }
+
+    test("WF-15 a results_table with a non-.tsv extension is honoured end to end") {
+
+        setup {
+            new File("${outputDir}/fastq_dir").mkdirs()
+            ["cp", "-r",
+             "${projectDir}/tests/fixtures/fastq_dir/fastq_pass",
+             "${outputDir}/fastq_dir/"].execute().waitFor()
+        }
+
+        when {
+            params {
+                skip_basecall     = true
+                fastq_dir         = "${outputDir}/fastq_dir"
+                sintax_references = "${projectDir}/tests/fixtures/references.fasta"
+                // Any extension, not just .tsv. BUILD_TABLE used to declare
+                // `path "*.tsv"`, so this exact configuration ran every
+                // SINTAX task, exited 0 from the script, and *then* failed
+                // the task on a missing output — publishing nothing.
+                results_table     = "${outputDir}/table.txt"
+                primer_f          = "GTACACACCGCCCGTCG"
+                primer_r          = "CGCCTSCSCTTANTDATATGC"
+                krona             = true
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            // Both tables published under the requested extension, with
+            // '_optimistic' inserted before it (FN-03 pins the naming).
+            def filtered   = file("${outputDir}/table.txt")
+            def optimistic = file("${outputDir}/table_optimistic.txt")
+            assert filtered.exists()
+            assert optimistic.exists()
+            assert filtered.readLines()[0].startsWith("taxonomy\ttotal")
+
+            // Krona reads whatever BUILD_TABLE emitted, so the rewired
+            // two-output contract must still feed it both tables.
+            assert file("${outputDir}/krona.html").exists()
+            assert file("${outputDir}/krona_optimistic.html").exists()
+        }
+    }
+
+    test("WF-16 skip_basecall honours the CLI string form (does not skip)") {
+
+        when {
+            params {
+                // The string a CLI `--skip_basecall false` produces. It is
+                // truthy in Groovy, so `if (params.skip_basecall)` used to
+                // skip basecalling when the user asked for it to RUN —
+                // quietly assigning whatever was already in fastq_dir.
+                // Honoured as false, the pod5_dir requirement now applies.
+                skip_basecall     = "false"
+                fastq_dir         = "${projectDir}/tests/fixtures/fastq_dir"
+                sintax_references = "${projectDir}/tests/fixtures/references.fasta"
+                results_table     = "${outputDir}/sintax.tsv"
+                primer_f          = "GTACACACCGCCCGTCG"
+                primer_r          = "CGCCTSCSCTTANTDATATGC"
+                // pod5_dir deliberately omitted.
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.any { it.contains("Parameter validation failed") }
+            assert workflow.stdout.any { it.contains("pod5_dir") }
+        }
+    }
+
+    test("WF-16b a non-boolean skip_basecall is rejected, not coerced") {
+
+        when {
+            params {
+                skip_basecall     = "yes"
+                fastq_dir         = "${projectDir}/tests/fixtures/fastq_dir"
+                sintax_references = "${projectDir}/tests/fixtures/references.fasta"
+                results_table     = "${outputDir}/sintax.tsv"
+                primer_f          = "GTACACACCGCCCGTCG"
+                primer_r          = "CGCCTSCSCTTANTDATATGC"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.any { it.contains("'skip_basecall' must be true or false") }
+        }
+    }
+
+    test("WF-17 fastq_dir is required when basecalling, not only when skipping") {
+
+        when {
+            params {
+                // BASECALL publishes into fastq_dir and SINTAX publishes
+                // each barcode's results beneath it, so it is required in
+                // both modes. Unset, Nextflow resolved 'null/...' and
+                // silently wrote a directory literally named 'null' — after
+                // basecalling had already run.
+                skip_basecall     = false
+                pod5_dir          = "${projectDir}/tests/fixtures"
+                sintax_references = "${projectDir}/tests/fixtures/references.fasta"
+                results_table     = "${outputDir}/sintax.tsv"
+                primer_f          = "GTACACACCGCCCGTCG"
+                primer_r          = "CGCCTSCSCTTANTDATATGC"
+                // fastq_dir deliberately omitted.
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.any { it.contains("Parameter validation failed") }
+            assert workflow.stdout.any { it.contains("fastq_dir") }
+        }
+    }
+
+    test("CFG-03 cleanup with a link publish_mode aborts before any process") {
+
+        when {
+            params {
+                skip_basecall     = true
+                fastq_dir         = "${projectDir}/tests/fixtures/fastq_dir"
+                sintax_references = "${projectDir}/tests/fixtures/references.fasta"
+                results_table     = "${outputDir}/sintax.tsv"
+                primer_f          = "GTACACACCGCCCGTCG"
+                primer_r          = "CGCCTSCSCTTANTDATATGC"
+                // Published links into a work dir that cleanup then
+                // deletes: every output unreadable, run reports SUCCESS.
+                publish_mode      = "symlink"
+                cleanup           = true
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.any { it.contains("cannot be combined with 'cleanup = true'") }
+        }
+    }
 }
