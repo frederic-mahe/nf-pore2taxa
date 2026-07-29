@@ -43,8 +43,10 @@ tests/
 │   ├── test_discover_barcodes.py
 │   └── validation.bats
 ├── config/               ← bats tests for config invariants + whole-run behaviour
-│   ├── deprecation.bats
 │   ├── cluster_profiles.bats ← slurm / site / container profile resolution
+│   ├── deprecation.bats
+│   ├── outdir.bats         ← the consolidated output directory
+│   ├── params_strict.bats  ← undeclared parameters are rejected
 │   ├── provenance.bats     ← versions.yml / params.json / execution reports
 │   ├── publish_modes.bats  ← publish_mode matrix + its cleanup interaction
 │   ├── resources.bats      ← resource ceiling / resourceLimits clamping
@@ -117,6 +119,7 @@ nf-test test tests/workflow/main.nf.test
 | `bin/test_build_occurrence_table.py`   | BT-01..BT-07, BT-10..BT-17, BT-20..BT-25, BT-30, BT-32..BT-34 |
 | `bin/test_build_krona.py`              | KR-01..KR-04, KR-30..KR-35                                |
 | `bin/test_collect_versions.py`         | PRV-10..PRV-13                                            |
+| `bin/test_known_params.py`             | PRM-02                                                    |
 | `bin/build_krona_cli.bats`             | KR-40, KR-41, KR-42                                       |
 | `config/version.bats`                  | CFG-01, CFG-05                                            |
 | `config/deprecation.bats`              | WF-08 (the `log.warn` half)                               |

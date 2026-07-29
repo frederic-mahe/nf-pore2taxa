@@ -1,4 +1,6 @@
-include { optimistic_name } from './local/functions'
+include { optimistic_name      } from './local/functions'
+include { effective_outdir     } from './local/functions'
+include { effective_table_name } from './local/functions'
 
 process BUILD_TABLE {
     tag "build_table"
@@ -6,7 +8,8 @@ process BUILD_TABLE {
     // Closure (lazy): evaluated per task, not at process-definition time,
     // so a null params.results_table is reported by the workflow's
     // startup parameter validation rather than a raw file() error here.
-    publishDir { file(params.results_table).parent }, mode: params.publish_mode, overwrite: true
+    publishDir { effective_outdir(params.outdir, params.results_table) },
+               mode: params.publish_mode, overwrite: true
 
     input:
     path sintax_files  // every per-barcode <barcode>.sintax, staged flat
@@ -18,11 +21,13 @@ process BUILD_TABLE {
     // and a task that then failed on "missing output file", after every
     // SINTAX task had already run. optimistic_name() mirrors
     // name_optimistic_output() in bin/build_occurrence_table.py.
-    path { file(params.results_table).name },                    emit: filtered
-    path { optimistic_name(file(params.results_table).name) },   emit: optimistic
+    path { effective_table_name(params.table_name, params.results_table) },
+         emit: filtered
+    path { optimistic_name(effective_table_name(params.table_name, params.results_table) as String) },
+         emit: optimistic
 
     script:
-    def output_file = file(params.results_table).name  // extract filename only
+    def output_file = effective_table_name(params.table_name, params.results_table)
     """
     python3 \\
         ${projectDir}/bin/build_occurrence_table.py \\

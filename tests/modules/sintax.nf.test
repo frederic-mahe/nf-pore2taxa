@@ -7,7 +7,9 @@
 //
 // The process stages its input fastq files (so the source fixture is not
 // modified) and publishes <barcode>.sintax / <barcode>.log under
-// params.fastq_dir/fastq_pass/<barcode>/.
+// <outdir>/per_barcode/ (v1.12.0; it published back into
+// fastq_dir/fastq_pass/<barcode>/ before, which is now the deprecated
+// --publish_beside_reads path, pinned by OUT-05).
 
 nextflow_process {
 
@@ -22,6 +24,7 @@ nextflow_process {
                 primer_f  = "GTACACACCGCCCGTCG"
                 primer_r  = "CGCCTSCSCTTANTDATATGC"
                 fastq_dir = "${outputDir}/fastq_dir"
+                outdir    = "${outputDir}/results"
             }
             process {
                 """
@@ -40,7 +43,7 @@ nextflow_process {
             assert process.out.assigned.size() == 2
 
             // SX-30: each barcode publishes one <barcode>.sintax + .log.
-            def pub = { bc, ext -> file("${outputDir}/fastq_dir/fastq_pass/${bc}/${bc}.${ext}") }
+            def pub = { bc, ext -> file("${outputDir}/results/per_barcode/${bc}.${ext}") }
             assert pub('barcode01', 'sintax').exists()
             assert pub('barcode01', 'log').exists()
             assert pub('barcode03', 'sintax').exists()
@@ -68,6 +71,7 @@ nextflow_process {
                 primer_f  = "GTACACACCGCCCGTCG"
                 primer_r  = "CGCCTSCSCTTANTDATATGC"
                 fastq_dir = "${outputDir}/fastq_dir"
+                outdir    = "${outputDir}/results"
             }
             process {
                 """
@@ -85,7 +89,7 @@ nextflow_process {
             assert process.success
             assert process.out.assigned.size() == 1
             // 3 + 2 reads from the two files merged into one .sintax.
-            def sintax = file("${outputDir}/fastq_dir/fastq_pass/barcode01/barcode01.sintax")
+            def sintax = file("${outputDir}/results/per_barcode/barcode01.sintax")
             assert sintax.exists()
             assert sintax.readLines().size() == 5
         }
@@ -98,6 +102,7 @@ nextflow_process {
                 primer_f  = "GTACACACCGCCCGTCG"
                 primer_r  = "CGCCTSCSCTTANTDATATGC"
                 fastq_dir = "${outputDir}/fastq_dir"
+                outdir    = "${outputDir}/results"
                 subsample = 3
             }
             process {
@@ -113,7 +118,7 @@ nextflow_process {
             assert process.success
             // barcode01 holds 5 primer-bearing reads; subsampling to 3
             // (before trimming) leaves exactly 3 in the .sintax.
-            def sintax = file("${outputDir}/fastq_dir/fastq_pass/barcode01/barcode01.sintax")
+            def sintax = file("${outputDir}/results/per_barcode/barcode01.sintax")
             assert sintax.exists()
             assert sintax.readLines().size() == 3
         }

@@ -1,11 +1,14 @@
 # Review + hardening plan: preparing nf-pore2taxa for external labs
 
-Status: **in progress** — `v1.7.1`, `v1.8.0`, `v1.9.0`, `v1.10.0`
-and `v1.11.0` **implemented, committed and tagged** 2026-07-29. Remaining:
-`v1.12.0` (`--outdir`), `v1.13.0` (nf-schema), plus the "Continuous" items. `D01`–`D04`, `D08`, `D10`–`D14`
-**resolved**
-2026-07-29; `D05` and `D07` **revised** by the `D08` resolution;
-`D06`/`D09` proposed and awaiting confirmation (§6). Review of `dev` @
+Status: **plan complete** — `v1.7.1`, `v1.8.0`, `v1.9.0`, `v1.10.0`, `v1.11.0`
+and `v1.12.0` **implemented, committed and tagged** 2026-07-29, plus the
+coverage gate. `v1.12.0` carries **both** the `--outdir` consolidation and
+strict parameter validation: they were built back to back and, in the event,
+committed together, so no separate `v1.13.0` exists — the CHANGELOG splits
+them into two parts under the one version. Remaining: the "Continuous" items
+(`stub:` blocks, a `flake8` job, `SX-01`..`SX-10`, a conda lockfile).
+`D01`–`D04`, `D06`, `D08`–`D14` **resolved**; `D05` and `D07` **revised** by
+the `D08` resolution (§6). Review of `dev` @
 `24a1396` (post-`v1.7.0`), against the goal: *thoroughly tested, easy to
 use, hard to misuse, well versioned*, for labs that are not us.
 
@@ -620,7 +623,7 @@ Two findings worth recording:
 - **`--sintax_references ''` is parsed by Nextflow as a flag**, discarding
   the empty value and setting the param to the string `'true'`. Harmless
   here (it then fails as a missing path) but it shaped a test, and it is
-  the kind of thing `nf-schema` (`v1.13.0`) would catch properly.
+  the kind of thing `nf-schema` (`v1.12.0`) would catch properly.
 
 Together these make a lab's output self-describing, which is the
 precondition for two labs comparing tables at all.
@@ -825,7 +828,37 @@ basecall. If they confirm early that they do, promote it ahead of
 `v1.8.0`/`v1.9.0` — "cannot run with our kit" outranks everything except
 the P0 defects.
 
-### v1.12.0 — one place for outputs (`D03`)
+### v1.12.0 — one place for outputs (`D03`) — **IMPLEMENTED 2026-07-29**
+
+Landed as `D03` resolved it: `--outdir` holds the tables, `per_barcode/`, the
+Krona charts and `pipeline_info/`; `results_table` and the new
+`publish_beside_reads` are the deprecated routes to the old behaviour, with
+removal named for `v2.0.0`.
+
+Worth recording:
+
+- **The deprecation shim is what makes this safe**, and it is one function
+  (`effective_outdir`) rather than logic smeared across five `publishDir`
+  directives. An existing project config keeps putting its tables exactly
+  where they were, because `results_table`'s parent *becomes* `outdir`.
+- **The reports needed their own copy of the fallback.** Their paths are
+  config-level values resolved without `main.nf`, so they cannot call the
+  helper. `OUT-03b` exists precisely because that is where the two
+  expressions would drift apart.
+- **`publishDir { null }` is not a way to disable a publishDir.** Nextflow
+  rejects it — and only at task-finalisation time, so the run fails *after*
+  the work is done. The conditional second location uses `enabled:` instead.
+  A related trap: a function call in a directive argument
+  (`enabled: coerce_bool(...)`) is read by the strict parser as a directive
+  name of its own, so that one coerces inline.
+- Two existing tests had to change, and both changes are honest rather than
+  cosmetic: the `SINTAX` module tests asserted the old publish-back location,
+  and `WF-11`'s missing-required-parameter case used `results_table`, which is
+  no longer required — it moved to `primer_f`. That one also needed
+  `primer_f = null` explicitly, because `tests/nextflow.config` supplies it to
+  every test, so omitting it does not unset it.
+
+#### Plan as written
 
 `--outdir` containing the tables, per-barcode `.sintax`/`.log`, Krona
 HTMLs, execution reports and `versions.yml` (P1-9), so `fastq_dir`
@@ -837,7 +870,27 @@ Sequenced after provenance deliberately: `versions.yml` and the reports
 should be born into the new layout rather than moved into it one release
 later.
 
-### v1.13.0 — a machine-readable parameter contract (`D06`)
+### v1.12.0 — strict parameter validation (`D06`) — **IMPLEMENTED 2026-07-29**
+
+`D06` was resolved *against* nf-schema, reversing this plan's original
+recommendation, so the milestone changed shape: the win it was wanted for —
+rejecting `--subsampl 100` instead of ignoring it — is about twenty lines of
+Groovy plus a Levenshtein suggestion, with no plugin to pre-seed on
+air-gapped compute nodes and no second source of truth to drift.
+
+Delivered: an undeclared parameter aborts at startup with the nearest match
+suggested, every undeclared name listed rather than just the first, and a
+length-scaled edit budget so nothing is suggested when nothing is close (three
+edits from `krona` is a different word, and a confident wrong guess is worse
+than none). `PRM-02` guards `known_params()` against the config in both
+directions — a parameter declared but unlisted would be rejected the moment
+anyone used it, and a stale entry keeps a matching typo acceptable forever.
+
+This closes the last member of the v1.7.1 silent-wrong-result family: the
+other five were defects the pipeline could in principle detect, while this one
+required knowing what it had *not* been told.
+
+#### Plan as written (superseded by `D06`)
 
 `nextflow_schema.json` + nf-schema, additively (keep the Groovy guards
 until the schema demonstrably covers them, as the sibling did). The win

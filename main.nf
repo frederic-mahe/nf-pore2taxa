@@ -16,6 +16,10 @@ include { valid_memory      } from './modules/local/functions'
 include { effective_threads } from './modules/local/functions'
 include { DOWNLOAD_MODEL     } from './modules/basecall'
 include { full_model_name   } from './modules/local/functions'
+include { effective_outdir  } from './modules/local/functions'
+include { effective_table_name } from './modules/local/functions'
+include { known_params      } from './modules/local/functions'
+include { nearest_param     } from './modules/local/functions'
 
 
 // Hand-written help (printed by `--help`). Kept in sync with the params
@@ -32,17 +36,26 @@ def helpMessage() {
 
     Parameters are normally supplied through a -config file (see the README);
     each one below can also be passed on the command line as --<name> <value>.
+    A name this pipeline does not declare is rejected at startup, with the
+    nearest match suggested — so a typo cannot silently leave a default in
+    place.
 
     Required parameters:
       --sintax_references  Path to the sintax-formatted reference FASTA.
                            Taxonomy is encoded in each header (README "sintax format").
-      --results_table      Output occurrence table (TSV) path.
       --primer_f           Forward primer sequence.
       --primer_r           Reverse primer sequence.
       --pod5_dir           Directory of pod5 files to basecall.
                            Required unless --skip_basecall is set.
       --fastq_dir          Directory holding a fastq_pass/ tree.
                            Required when --skip_basecall is set.
+
+    Output:
+      --outdir             Single directory for everything the run produces:
+                           both tables, per_barcode/, the Krona charts and
+                           pipeline_info/ (default: results).
+      --table_name         Filename of the filtered table inside --outdir
+                           (default: ${params.table_name}).
 
     Optional parameters:
       --skip_basecall      Reuse existing fastq instead of basecalling pod5
@@ -83,6 +96,14 @@ def helpMessage() {
                            The assignment step sizes its memory request from
                            this instead of a fixed fallback (default: unset).
       --help               Show this message and exit.
+
+    Deprecated (still honoured; removal at v2.0.0):
+      --results_table      The filtered table's full path. Its parent is used
+                           as --outdir and its basename as --table_name.
+      --publish_beside_reads
+                           Also publish each barcode's .sintax/.log back into
+                           fastq_dir/fastq_pass/<barcode>/, as before v1.12.0.
+      --sintax_silva       Alias for --sintax_references.
 
     Cluster parameters (with -profile slurm or a site profile):
       --slurm_queue        Partition to submit to.
@@ -156,7 +177,8 @@ def paramsJson(references) {
             pod5_dir         : params.pod5_dir,
             fastq_dir        : params.fastq_dir,
             sintax_references: references,
-            results_table    : params.results_table,
+            outdir           : effective_outdir(params.outdir, params.results_table),
+            table_name       : effective_table_name(params.table_name, params.results_table),
             primer_f         : params.primer_f,
             primer_r         : params.primer_r,
             discard_untrimmed: coerce_bool(params.discard_untrimmed),
@@ -207,7 +229,8 @@ def runSummary(sintax_threads) {
     }
     rows += [
         'sintax_references': references,
-        'results_table'    : params.results_table,
+        'outdir'           : effective_outdir(params.outdir, params.results_table),
+        'table_name'       : effective_table_name(params.table_name, params.results_table),
         'primer_f'         : params.primer_f,
         'primer_r'         : params.primer_r,
         'discard_untrimmed': "${params.discard_untrimmed}" +
@@ -249,15 +272,40 @@ workflow {
     }
     sintax_references = params.sintax_references ?: params.sintax_silva
 
+    // Resolve the deprecated `results_table` into outdir + table_name.
+    if (params.results_table != null)
+        log.warn "Parameter 'results_table' is deprecated; please use 'outdir' (the run's single output directory) and 'table_name'. Its parent and basename are being used for now; it will be removed in v2.0.0."
+    if (coerce_bool(params.publish_beside_reads))
+        log.warn "Parameter 'publish_beside_reads' is deprecated; the per-barcode .sintax/.log files are published under outdir/per_barcode/ and the extra copy beside the reads will be removed in v2.0.0."
+    outdir     = effective_outdir(params.outdir, params.results_table)
+    table_name = effective_table_name(params.table_name, params.results_table)
+
     // Validate parameters up front so a misconfigured run aborts with a
     // single, readable report instead of a deep Groovy/tool error mid-run.
     // Path *existence* is still enforced by `checkIfExists` below; this
     // catches missing/invalid values before any channel or process.
     def errors = []
+
+    // Reject parameters this pipeline does not declare. Nextflow accepts any
+    // `--foo bar` silently and puts it in `params`, so until now a typo left
+    // the real parameter at its default while the user believed they had set
+    // it — `--subsampl 100` ran with subsample = 0 and said nothing. That is
+    // the same silent-wrong-result class as the v1.7.1 defects, and the only
+    // one of them the pipeline could not previously see.
+    //
+    // Listed before everything else in the report: if a name is wrong, the
+    // complaints that follow are about values the user did not actually set.
+    params.keySet().sort().each { name ->
+        if (!("${name}" in known_params())) {
+            def suggestion = nearest_param("${name}", known_params())
+            errors << "  - unknown parameter '${name}'." +
+                      (suggestion ? " Did you mean '${suggestion}'?" : '') +
+                      " Run with --help for the full list."
+        }
+    }
+
     if (!sintax_references)
         errors << "  - 'sintax_references' is required (path to the sintax-formatted reference fasta)."
-    if (!params.results_table)
-        errors << "  - 'results_table' is required (output TSV path)."
     if (!params.primer_f)
         errors << "  - 'primer_f' is required (forward primer sequence)."
     if (!params.primer_r)
@@ -300,6 +348,15 @@ workflow {
     // 'move' is deliberately absent: BASECALL's downstream handoff reads
     // the freshly written fastq_pass back out of the task work directory,
     // and moving the files away empties it.
+    if (!table_name || table_name.contains('/'))
+        errors << "  - 'table_name' must be a filename, not a path (got: '${table_name}'). Use 'outdir' for the directory."
+    if (params.outdir != null && params.results_table != null &&
+        effective_outdir(null, params.results_table) != "${params.outdir}")
+        log.warn "Both 'outdir' (${params.outdir}) and the deprecated 'results_table' (${params.results_table}) are set, and they disagree about the directory. 'outdir' wins; the table will be named '${table_name}' inside it."
+    ['publish_beside_reads'].each { name ->
+        if (!valid_bool(params[name]))
+            errors << "  - '${name}' must be true or false (got: '${params[name]}')."
+    }
     def valid_modes = ['link', 'copy', 'copyNoFollow', 'symlink', 'rellink']
     if (!(params.publish_mode in valid_modes))
         errors << "  - 'publish_mode' must be one of ${valid_modes} (got: '${params.publish_mode}')."

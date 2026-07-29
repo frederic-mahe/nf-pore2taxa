@@ -1,4 +1,5 @@
-include { coerce_bool } from './local/functions'
+include { coerce_bool      } from './local/functions'
+include { effective_outdir } from './local/functions'
 
 process SINTAX {
     tag "${barcode}"
@@ -7,9 +8,30 @@ process SINTAX {
     // in-script version check in assign_with_sintax.sh stays as the safety
     // net for bare-PATH runs (the default `standard` profile).
     //
-    // Publish the per-barcode results back next to the reads, under a
-    // barcode subdirectory of fastq_pass (created for flat layouts).
-    publishDir { "${params.fastq_dir}/fastq_pass/${barcode}" }, mode: params.publish_mode, overwrite: true
+    // Per-barcode results go under outdir, so the raw-data tree stays
+    // read-only and a run has one directory to archive.
+    publishDir { "${effective_outdir(params.outdir, params.results_table)}/per_barcode" },
+               mode: params.publish_mode, overwrite: true
+
+    // DEPRECATED (removal at v2.0.0): additionally publish back beside the
+    // reads, as every release before v1.12.0 did. A second publishDir, so
+    // enabling it adds the old location rather than replacing the new one —
+    // a config that sets it keeps working without losing the consolidated
+    // layout. main.nf warns when it is on.
+    //
+    // Gated with `enabled:` rather than by resolving the path to null, which
+    // Nextflow rejects outright ("Target path for directive publishDir
+    // cannot be null") — and only at task-finalisation time, so the run
+    // fails after the work is done rather than at startup.
+    //
+    // `enabled:` takes the coercion inline rather than calling coerce_bool():
+    // the strict DSL2 parser reads a function call in a directive argument as
+    // a directive name of its own ("Unknown process directive:
+    // `coerce_bool`"). Same `"${v}" == 'true'` spelling the config uses for
+    // `cleanup`, and for the same reason — a CLI override arrives as a string.
+    publishDir { "${params.fastq_dir}/fastq_pass/${barcode}" },
+               mode: params.publish_mode, overwrite: true,
+               enabled: "${params.publish_beside_reads}" == 'true'
 
     input:
     tuple val(barcode), path(fastqs)

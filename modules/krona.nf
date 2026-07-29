@@ -1,3 +1,6 @@
+include { effective_outdir } from './local/functions'
+
+
 process KRONA {
     tag "krona"
 
@@ -6,7 +9,8 @@ process KRONA {
     // bare-PATH runs (the default `standard` profile).
     //
     // Publish the Krona HTML(s) beside the occurrence tables.
-    publishDir { file(params.results_table).parent }, mode: params.publish_mode, overwrite: true
+    publishDir { effective_outdir(params.outdir, params.results_table) },
+               mode: params.publish_mode, overwrite: true
 
     input:
     path tsv_files  // the occurrence TSVs (filtered + optimistic), staged flat

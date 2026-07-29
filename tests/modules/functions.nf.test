@@ -219,4 +219,110 @@ nextflow_function {
         when { function { """ input[0] = 0 ; input[1] = 0 """ } }
         then { assert function.success; assert function.result == 1 }
     }
+
+    // ------------------------------------------------------------- FN-07
+    //
+    // The run's single output directory, and the deprecation shim that keeps
+    // pre-v1.12.0 project configs producing exactly what they did before.
+
+    test("FN-07a effective_outdir prefers outdir") {
+        function "effective_outdir"
+        when { function { """ input[0] = "/data/out" ; input[1] = "/elsewhere/t.tsv" """ } }
+        then { assert function.success; assert function.result == "/data/out" }
+    }
+
+    test("FN-07b effective_outdir falls back to results_table's parent") {
+        // What makes an existing config keep working unchanged.
+        function "effective_outdir"
+        when { function { """ input[0] = null ; input[1] = "/data/res/t.tsv" """ } }
+        then { assert function.success; assert function.result == "/data/res" }
+    }
+
+    test("FN-07c effective_outdir: a bare filename means the launch dir") {
+        function "effective_outdir"
+        when { function { """ input[0] = null ; input[1] = "t.tsv" """ } }
+        then { assert function.success; assert function.result == "." }
+    }
+
+    test("FN-07d effective_outdir defaults to results/") {
+        // So `nextflow run main.nf` with neither is a valid invocation.
+        function "effective_outdir"
+        when { function { """ input[0] = null ; input[1] = null """ } }
+        then { assert function.success; assert function.result == "results" }
+    }
+
+    // ------------------------------------------------------------- FN-08
+
+    test("FN-08a effective_table_name prefers results_table's basename") {
+        // So a migrating user's table keeps the name they chose.
+        function "effective_table_name"
+        when { function { """ input[0] = "sintax.tsv" ; input[1] = "/a/b/mine.tsv" """ } }
+        then { assert function.success; assert function.result == "mine.tsv" }
+    }
+
+    test("FN-08b effective_table_name uses table_name otherwise") {
+        function "effective_table_name"
+        when { function { """ input[0] = "profile.tsv" ; input[1] = null """ } }
+        then { assert function.success; assert function.result == "profile.tsv" }
+    }
+
+    // ------------------------------------------------------------- FN-09
+    //
+    // The "did you mean ...?" suggestion behind PRM-01. The threshold scales
+    // with the name's length: one edit is a plausible slip in a short name,
+    // three in a long one — but three edits from `krona` is a different word,
+    // and guessing there would point the user somewhere wrong.
+
+    test("FN-09a nearest_param finds a one-character slip") {
+        function "nearest_param"
+        when { function { """ input[0] = "subsampl" ; input[1] = ['subsample', 'randseed'] """ } }
+        then { assert function.success; assert function.result == "subsample" }
+    }
+
+    test("FN-09b nearest_param handles a missing underscore") {
+        function "nearest_param"
+        when { function { """ input[0] = "primerf" ; input[1] = ['primer_f', 'primer_r'] """ } }
+        then { assert function.success; assert function.result == "primer_f" }
+    }
+
+    test("FN-09c nearest_param declines to guess when nothing is close") {
+        function "nearest_param"
+        when { function { """ input[0] = "wibble" ; input[1] = ['subsample', 'krona'] """ } }
+        then { assert function.success; assert function.result == null }
+    }
+
+    test("FN-09d nearest_param is case-insensitive") {
+        function "nearest_param"
+        when { function { """ input[0] = "Subsample" ; input[1] = ['subsample'] """ } }
+        then { assert function.success; assert function.result == "subsample" }
+    }
+
+    test("FN-09e levenshtein counts single edits") {
+        function "levenshtein"
+        when { function { """ input[0] = "krona" ; input[1] = "kron" """ } }
+        then { assert function.success; assert function.result == 1 }
+    }
+
+    test("FN-09f levenshtein is zero for identical strings") {
+        function "levenshtein"
+        when { function { """ input[0] = "outdir" ; input[1] = "outdir" """ } }
+        then { assert function.success; assert function.result == 0 }
+    }
+
+    // ------------------------------------------------------------- FN-10
+
+    test("FN-10 known_params lists the declared parameter surface") {
+        // The content is pinned against the config by PRM-02; this only
+        // checks the helper returns a usable list.
+        function "known_params"
+        when { function { """ """ } }
+        then {
+            assert function.success
+            assert function.result.size() > 20
+            assert function.result.contains('subsample')
+            assert function.result.contains('outdir')
+            // deprecated but still declared, so still accepted
+            assert function.result.contains('results_table')
+        }
+    }
 }

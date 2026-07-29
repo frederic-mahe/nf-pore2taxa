@@ -294,6 +294,10 @@ nf-test's function harness (`tests/modules/functions.nf.test`).
 | FN-03  | `optimistic_name(name)` inserts `_optimistic` before the final extension: `sintax.tsv` → `sintax_optimistic.tsv` (a); `table.txt` → `table_optimistic.txt` (b); `table` → `table_optimistic` (c); it splits on the **last** dot only, so `run.1.tsv` → `run.1_optimistic.tsv` (d); a leading dot is not an extension, so `.hidden` → `.hidden_optimistic` (e), matching `pathlib`. Must agree with `name_optimistic_output()` in `build_occurrence_table.py` for every shape, because `BUILD_TABLE` declares its outputs by name (WF-15) — a disagreement is a "missing output file" at the end of a run. |
 | FN-04  | `fastq_extensions()` returns the four supported suffixes without a leading dot (`fastq`, `fastq.gz`, `fastq.bz2`, `fastq.xz`), for interpolation into the `**.<ext>` globs that build discovery's cache key. Kept in lock-step with the Python side by DSC-07. |
 | FN-05  | `valid_memory(v)` is `true` for anything Nextflow can read as a positive memory size, in both forms `max_memory` arrives in: a CLI string (`'32.GB'`, `'125.3 GB'`) and a real `MemoryUnit` (`8.GB`) (a–c). It is `false` for a non-memory string, a malformed size (`'8.5.GB'`), zero — which parses but would clamp every request to nothing — and a negative size (d–g). Used by startup validation so a bad ceiling is caught before the first task submission, where it otherwise surfaces as a bare "Not a valid FileSize value". |
+| FN-09  | `nearest_param(name, candidates)` suggests the declared parameter closest to a mistyped one: a one-character slip (a), a missing underscore (b), case-insensitively (d). It returns `null` when nothing is within a length-scaled edit budget (c) — guessing three edits from `krona` would point somewhere wrong, which is worse than not guessing. `levenshtein` counts single edits (e) and is zero for identical strings (f). |
+| FN-10  | `known_params()` returns the declared parameter surface as a usable list, including the deprecated names (which are still accepted). Its *content* is pinned against the config by PRM-02. |
+| FN-07  | `effective_outdir(outdir, results_table)` resolves the run's single output directory: `outdir` when set (a); otherwise the deprecated `results_table`'s parent, which is what keeps a pre-v1.12.0 project config producing exactly what it did before (b); `.` for a bare filename, the launch directory, as before (c); and `results` when neither is given, so a bare `nextflow run main.nf` is still a valid invocation (d). |
+| FN-08  | `effective_table_name(table_name, results_table)` is `results_table`'s basename when that deprecated parameter was supplied, so a migrating user's table keeps the name they chose (a); otherwise `table_name` (b). |
 | FN-06  | `effective_threads(configured, ceiling)` is the thread count a process really gets: the lower of its configured request and the resource ceiling (a–d), never less than 1 (f). A request that cannot be read as a number (e.g. `cpus` set to a closure) is assumed to want the whole ceiling (e) — the conservative reading for a warning. The `randseed` warning keys off this rather than the configured value, so `--max_cpus 1` is not warned about. |
 
 ## 10. Provenance (`DUMP_VERSIONS`, `DUMP_PARAMS`, execution reports)
@@ -355,7 +359,49 @@ cluster half with `--skip_basecall`.
 | CLU-09 | Basecalling under a scheduler is refused at startup, with a message that says what to do instead (a) — rather than queueing a job for a node with no GPU and failing after the wait, with the cause far from the reason. Local basecalling is unaffected (b). A site that declares `require_slurm_account` refuses without one, naming both ways to supply it (c); the other sites do not inherit that requirement (d). |
 
 
-## 12. Out of scope (will not be tested)
+## 12. Output layout (`outdir`)
+
+Before v1.12.0 a run's outputs were spread across two trees: the tables went
+wherever `results_table` pointed, while each barcode's `.sintax`/`.log` were
+published back into `fastq_dir/fastq_pass/<barcode>/`. So the raw-data
+directory had to be writable, two projects sharing one `fastq_dir` overwrote
+each other's assignments, a flat layout acquired invented barcode
+subdirectories, and no single directory held "the results of this run".
+
+`outdir` replaces that. `results_table` and `publish_beside_reads` are the
+deprecated routes to the old behaviour — honoured with a warning, removal at
+v2.0.0, the same treatment `sintax_silva` got.
+
+| ID     | Specification                                                                                                                                          |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| OUT-01 | Everything a run produces lands under `outdir`: both tables, `per_barcode/<barcode>.sintax` and `.log`, the Krona charts, and `pipeline_info/` (a). The raw-data tree is left untouched, so `fastq_dir` need not be writable and two projects may share one (b). |
+| OUT-02 | `outdir` defaults to `results` when neither it nor `results_table` is given, so a bare invocation is valid rather than an error about a path nobody set (a). `table_name` names the filtered table inside `outdir`, and the optimistic sibling follows it (b). |
+| OUT-03 | The deprecated `results_table` still produces exactly what it did: its parent becomes `outdir` and its basename the table name, with a warning naming the replacement (a). The execution reports follow it too (b) — their paths are config-level, resolved without `main.nf`, so they carry their own copy of the fallback and this is where the two would drift apart. |
+| OUT-04 | When both `outdir` and `results_table` are set, `outdir` wins and the table keeps the name from `results_table`; the disagreement is warned about rather than resolved in silence. |
+| OUT-05 | `publish_beside_reads` (deprecated) restores the pre-v1.12.0 location **additively** — the consolidated copy is still written, so enabling it to keep an existing habit costs nothing (a). It is off by default and warns only when on (b); a non-boolean value is rejected like any other boolean (c). |
+| OUT-06 | `table_name` must be a filename, not a path: a path would silently escape `outdir`, which is the one thing the consolidation exists to prevent. |
+
+
+
+## 13. Parameter surface (strict validation)
+
+Nextflow accepts any `--foo bar` and puts it in `params`, so a typo left the
+real parameter at its default while the user believed they had set it:
+`--subsampl 100` ran with `subsample = 0` and said nothing. That is the same
+silent-wrong-result class as the v1.7.1 defects — and the only one of them
+the pipeline could not see itself.
+
+Checked by hand rather than with nf-schema (`D06`): the win was one missing
+check, and a plugin that must be pre-seeded on air-gapped compute nodes is a
+real cost now that HPC is a target.
+
+| ID     | Specification                                                                                                                                          |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| PRM-01 | An undeclared parameter aborts at startup (a), with the nearest declared name suggested when one is close enough to be worth naming (b) and no guess when nothing is (c). Every undeclared parameter is listed, not just the first (d) — the report is aggregated like the rest of validation. A valid invocation, including profile-injected and deprecated parameters, is unaffected (e, g), and `--help` alone is not an error (f). |
+| PRM-02 | `known_params()` matches the parameter surface the config declares, in **both** directions: a parameter in `nextflow.config` or `conf/slurm.config` but missing from the list would be rejected the moment anyone used it — the pipeline refusing its own parameter — and a stale name left in the list keeps a typo matching it acceptable forever, which is the defect PRM-01 exists to close. Same drift-guard shape as DSC-07 and BC-12. |
+
+
+## 14. Out of scope (will not be tested)
 
 - The numerical correctness of `dorado` basecalls.
 - The numerical correctness of `cutadapt` primer trimming or

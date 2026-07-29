@@ -223,6 +223,38 @@ when you add a spec, in the same commit.
 | `CLU-08` | Every conf/clusters/<name>.config is registered as a profile (dead config otherwise)... | `config/cluster_profiles.bats` | done |
 | `CLU-09` | Basecalling under a scheduler is refused at startup, with a message that says what to... | `config/cluster_profiles.bats` | done |
 
+## 9. Shared helper functions (`modules/local/functions.nf`)
+
+| Spec | Behaviour | Test(s) | Status |
+|------|-----------|---------|--------|
+| `FN-07` | effective_outdir(outdir, results_table) resolves the run's single output directory: o... | `modules/functions.nf.test` | done |
+| `FN-08` | effective_table_name(table_name, results_table) is results_table's basename when that... | `modules/functions.nf.test` | done |
+
+## 12. Output layout (`outdir`)
+
+| Spec | Behaviour | Test(s) | Status |
+|------|-----------|---------|--------|
+| `OUT-01` | Everything a run produces lands under outdir: both tables, per_barcode/<barcode>.sint... | `config/outdir.bats` | done |
+| `OUT-02` | outdir defaults to results when neither it nor results_table is given, so a bare invo... | `config/outdir.bats` | done |
+| `OUT-03` | The deprecated results_table still produces exactly what it did: its parent becomes o... | `config/outdir.bats` | done |
+| `OUT-04` | When both outdir and results_table are set, outdir wins and the table keeps the name ... | `config/outdir.bats` | done |
+| `OUT-05` | publish_beside_reads (deprecated) restores the pre-v1.12.0 location additively — the ... | `config/outdir.bats`, `modules/sintax.nf.test` | done |
+| `OUT-06` | table_name must be a filename, not a path: a path would silently escape outdir, which... | `config/outdir.bats` | done |
+
+## 9. Shared helper functions (`modules/local/functions.nf`)
+
+| Spec | Behaviour | Test(s) | Status |
+|------|-----------|---------|--------|
+| `FN-09` | nearest_param(name, candidates) suggests the declared parameter closest to a mistyped... | `modules/functions.nf.test` | done |
+| `FN-10` | known_params() returns the declared parameter surface as a usable list, including the... | `modules/functions.nf.test` | done |
+
+## 13. Parameter surface (strict validation)
+
+| Spec | Behaviour | Test(s) | Status |
+|------|-----------|---------|--------|
+| `PRM-01` | An undeclared parameter aborts at startup (a), with the nearest declared name suggest... | `bin/test_known_params.py`, `config/params_strict.bats`, `modules/functions.nf.test` | done |
+| `PRM-02` | known_params() matches the parameter surface the config declares, in both directions:... | `bin/test_known_params.py`, `modules/functions.nf.test` | done |
+
 ## Removed
 
 These IDs were retired with the behaviour they described; they

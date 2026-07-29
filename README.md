@@ -77,7 +77,10 @@ params {
     pod5_dir          = "/big/drive/runs/run_ID/pod5"
     fastq_dir         = "/big/drive/projects/project_ID/data/run_ID"
     sintax_references = "/safe/data/references.fasta.gz"
-    results_table     = "/big/drive/projects/project_ID/results/sintax.tsv"
+    // Single output directory: tables, per_barcode/, Krona and
+    // pipeline_info/ all land here, and the raw data stays read-only.
+    outdir            = "/big/drive/projects/project_ID/results"
+    table_name        = "sintax.tsv"
     primer_f = "GTACACACCGCCCGTCG"
     primer_r = "CGCCTSCSCTTANTDATATGC"
 
@@ -213,7 +216,18 @@ nextflow \
     -config /path/to/myproject.config
 ```
 
-Parameters can also be passed via the command-line, if need be. For a
+Parameters can also be passed via the command-line, if need be. A parameter
+name the pipeline does not recognise is rejected at startup, with the nearest
+match suggested:
+
+```
+$ nextflow run main.nf --subsampl 100 ...
+[ERROR] Parameter validation failed:
+  - unknown parameter 'subsampl'. Did you mean 'subsample'? Run with --help
+    for the full list.
+```
+
+so a typo cannot quietly leave the real parameter at its default. For a
 summary of every parameter and profile, run:
 
 ```bash
@@ -283,6 +297,36 @@ separately when `skip_basecall = false`.
 
 
 ## Pipeline output
+
+Everything a run produces goes under `--outdir`:
+
+```
+outdir/
+├── sintax.tsv                  the filtered occurrence table
+├── sintax_optimistic.tsv       the optimistic one
+├── krona.html                  (with --krona)
+├── krona_optimistic.html
+├── per_barcode/
+│   ├── barcode01.sintax        per-barcode assignments
+│   └── barcode01.log           its cutadapt log
+└── pipeline_info/
+    ├── software_versions.yml
+    ├── params.json
+    ├── execution_report.html
+    ├── execution_timeline.html
+    ├── execution_trace.txt
+    └── pipeline_dag.html
+```
+
+One directory to archive, and `fastq_dir` is never written to — so it can be
+read-only, and two projects may share one.
+
+> [!NOTE]
+> **Migrating from before v1.12.0**: `results_table` still works and still
+> puts your tables exactly where they were, with a deprecation warning — its
+> parent becomes `outdir` and its basename `table_name`. The per-barcode files
+> move to `outdir/per_barcode/`; pass `--publish_beside_reads` to keep writing
+> them into the read tree as well. Both are removed at v2.0.0.
 
 Two tab-separated tables with identified taxa as rows, and barcode IDs
 (i.e, samples) as columns. The first line is the header line (column

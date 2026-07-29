@@ -1,3 +1,6 @@
+include { effective_outdir } from './local/functions'
+
+
 // Provenance artefacts: what software ran, and with what parameters.
 //
 // Both publish into a `pipeline_info/` subdirectory beside the occurrence
@@ -7,7 +10,7 @@
 process DUMP_VERSIONS {
     tag "versions"
 
-    publishDir { "${file(params.results_table).parent}/pipeline_info" },
+    publishDir { "${effective_outdir(params.outdir, params.results_table)}/pipeline_info" },
                mode: params.publish_mode, overwrite: true
 
     input:
@@ -53,7 +56,7 @@ process DUMP_VERSIONS {
 process DUMP_PARAMS {
     tag "params"
 
-    publishDir { "${file(params.results_table).parent}/pipeline_info" },
+    publishDir { "${effective_outdir(params.outdir, params.results_table)}/pipeline_info" },
                mode: params.publish_mode, overwrite: true
 
     input:

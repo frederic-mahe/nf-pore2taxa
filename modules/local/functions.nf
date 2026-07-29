@@ -45,6 +45,112 @@ def effective_threads(configured, ceiling) {
     Math.max(1, Math.min(want, limit))
 }
 
+// Every parameter this pipeline declares.
+//
+// Nextflow accepts any `--foo bar` silently and puts it in `params`, so a
+// typo — `--subsampl 100` — leaves the real parameter at its default while
+// the user believes they set it. That is the same silent-wrong-result class
+// the v1.7.1 release was about, so startup validation compares the params it
+// was given against this list.
+//
+// MUST stay in lock-step with the `params { }` block in nextflow.config and
+// the `params.x` assignments in conf/slurm.config — PRM-02 asserts both
+// directions, so a parameter added to the config without a line here (or the
+// reverse) fails the suite rather than becoming quietly unrejectable.
+//
+// Kept here rather than derived from the config at runtime because `params`
+// cannot distinguish "declared with a default" from "arrived on the command
+// line": by the time the workflow sees it, both are just keys.
+def known_params() {
+    [
+        // inputs
+        'pod5_dir', 'fastq_dir', 'sintax_references',
+        // output
+        'outdir', 'table_name',
+        // amplicon
+        'primer_f', 'primer_r', 'discard_untrimmed', 'subsample', 'randseed',
+        'reference_size_gb',
+        // behaviour
+        'skip_basecall', 'krona', 'publish_mode', 'cleanup', 'help',
+        // basecalling
+        'basecall_model', 'basecall_kit', 'basecall_device',
+        'basecall_model_dir',
+        // resources
+        'max_cpus', 'max_memory', 'max_time',
+        // slurm (injected by conf/slurm.config; accepted always, so passing
+        // one without a cluster profile is inert rather than an error)
+        'slurm_queue', 'slurm_account', 'slurm_clusterOptions',
+        'slurm_queue_size', 'slurm_array_size', 'require_slurm_account',
+        // deprecated, still honoured (removal at v2.0.0)
+        'sintax_silva', 'results_table', 'publish_beside_reads',
+    ]
+}
+
+// Edit distance between two strings, for "did you mean ...?".
+//
+// A rejection that only says "unknown parameter" makes the user re-read the
+// help to spot a one-character difference; naming the intended parameter is
+// the difference between a two-second fix and a puzzled five minutes.
+def levenshtein(String a, String b) {
+    def previous = (0..b.length()).collect { it }
+    a.each { ch ->
+        def current = [previous[0] + 1]
+        b.eachWithIndex { other, j ->
+            current << [ previous[j] + (ch == other ? 0 : 1),  // substitute
+                         current[j] + 1,                       // insert
+                         previous[j + 1] + 1                   // delete
+                       ].min()
+        }
+        previous = current
+    }
+    previous[-1]
+}
+
+// The declared parameter closest to `name`, or null when nothing is close
+// enough to be worth suggesting.
+//
+// The threshold scales with the name's length: one edit is a plausible slip
+// in a short name, three in a long one, but three edits away from `krona` is
+// a different word entirely and guessing would mislead.
+def nearest_param(String name, List candidates) {
+    def limit = Math.max(1, Math.min(3, (name.length() / 3) as int))
+    def scored = candidates.collect { [it, levenshtein(name.toLowerCase(), it.toLowerCase())] }
+    def best = scored.min { it[1] }
+    (best && best[1] <= limit) ? best[0] : null
+}
+
+// The single output directory for a run.
+//
+// `outdir` is the canonical parameter from v1.12.0. `results_table` is the
+// deprecated one it replaces: it named the filtered table by full path, and
+// everything else was published relative to its parent — so a run's outputs
+// were spread across the results directory AND the raw-data tree. When only
+// the old parameter is given, its parent stands in, which is what keeps
+// existing project configs producing exactly what they did before.
+//
+// Falls back to 'results' so `nextflow run main.nf` with neither is still a
+// valid invocation rather than an error about a path nobody set.
+def effective_outdir(outdir, results_table) {
+    if (outdir)
+        return "${outdir}"
+    if (results_table) {
+        // A bare filename has no parent; the launch directory is then the
+        // implied location, as it was before.
+        def parent = new File("${results_table}").parent
+        return parent ?: '.'
+    }
+    'results'
+}
+
+// The filename of the filtered occurrence table.
+//
+// Taken from the deprecated `results_table`'s basename when that is what the
+// user supplied, so their table keeps the name they chose; otherwise
+// `table_name`.
+def effective_table_name(table_name, results_table) {
+    results_table ? new File("${results_table}").name : "${table_name}"
+}
+
 // Flowcell/chemistry prefix dorado's model names carry. Must stay in
 // lock-step with MODEL_PREFIX in bin/basecall_pod5_files.sh: the pipeline
 // downloads the model under this name and the script checks for it under

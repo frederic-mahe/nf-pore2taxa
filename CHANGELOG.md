@@ -5,6 +5,106 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v1.12.0 - 2026-07-29
+
+Two things, released together: one output directory per run, and strict
+parameter validation.
+
+## Part 1 — strict parameter validation
+
+### `Added`
+
+- **an undeclared parameter is rejected at startup**, with the nearest
+  declared name suggested:
+
+  ```
+  $ nextflow run main.nf --subsampl 100 ...
+  [ERROR] Parameter validation failed:
+    - unknown parameter 'subsampl'. Did you mean 'subsample'? Run with
+      --help for the full list.
+  ```
+
+  Nextflow accepts any `--foo bar` and puts it in `params`, so until now a
+  typo left the real parameter at its **default** while the user believed
+  they had set it: `--subsampl 100` ran with `subsample = 0` and said
+  nothing. That is the same silent-wrong-result class as the v1.7.1 defects
+  — and the only one of them the pipeline could not see itself.
+
+  Every undeclared name is listed, not just the first, matching the rest of
+  the aggregated report. Suggestions come from a length-scaled edit budget:
+  one edit is a plausible slip in a short name, three in a long one, and
+  nothing is suggested beyond that, because guessing three edits from
+  `krona` would point somewhere wrong. Covered by PRM-01, FN-09.
+- `known_params()` in `modules/local/functions.nf`, with a drift guard
+  (PRM-02) asserting it matches the config's parameter surface in **both**
+  directions. Both failure modes are silent otherwise: a parameter declared
+  in the config but missing from the list would be rejected the moment
+  anyone used it — the pipeline refusing its own parameter — and a stale
+  name left in the list keeps a typo matching it acceptable forever, which
+  is the very defect this release closes. Same shape as the DSC-07 and
+  BC-12 guards.
+
+Done by hand rather than with **nf-schema** (`D06`, reversing the earlier
+recommendation). Once HPC became a real target, a plugin that has to be
+pre-seeded in `$NXF_PLUGINS_DIR` on air-gapped compute nodes acquired a cost
+it did not have before — while the concrete win, this one check, came to
+about twenty lines. The rest of what nf-schema offers is either already
+present (validation, with better messages than it generates) or unwanted (a
+generated help page, when the hand-written one documents profiles and
+composition a schema cannot express). Given up: JSON-schema types/enums and
+nf-core tooling compatibility, neither in demand here.
+
+## Part 2 — one output directory per run
+
+### `Added`
+
+- **`--outdir`**: everything a run produces now lands in a single directory —
+  both occurrence tables, `per_barcode/<barcode>.sintax` and `.log`, the
+  Krona charts, and `pipeline_info/`. One directory to archive, and
+  `fastq_dir` is never written to, so it can be read-only and two projects
+  may share one.
+
+  Before this, outputs were spread across two trees: the tables went wherever
+  `results_table` pointed, while each barcode's results were published *back
+  into* `fastq_dir/fastq_pass/<barcode>/`. That meant the raw-data directory
+  had to be writable, two projects sharing a `fastq_dir` overwrote each
+  other's assignments, a flat read layout acquired invented barcode
+  subdirectories, and nothing was "the results of this run".
+- **`--table_name`** (default `sintax.tsv`): the filtered table's filename
+  inside `outdir`. It must be a filename, not a path — a path would silently
+  escape `outdir`, which is the one thing this consolidation exists to
+  prevent.
+- `effective_outdir()` and `effective_table_name()` in
+  `modules/local/functions.nf`, unit-tested (FN-07, FN-08), so the
+  deprecation shim lives in one place rather than in every `publishDir`.
+
+### `Deprecated`
+
+- **`results_table`** (removal at **v2.0.0**). It still works and still puts
+  your tables exactly where they were: its parent becomes `outdir` and its
+  basename `table_name`, with a warning naming the replacement. So an
+  existing project config keeps producing what it produced, and gains the
+  consolidated `per_barcode/` and `pipeline_info/` alongside. When both it
+  and `outdir` are set and they disagree, `outdir` wins and the clash is
+  warned about rather than resolved in silence. Same treatment
+  `sintax_silva` got.
+- **`publish_beside_reads`** (default `false`, removal at **v2.0.0**): also
+  publish each barcode's `.sintax`/`.log` back into
+  `fastq_dir/fastq_pass/<barcode>/`, as every release before this one did.
+  **Additive** — the consolidated copy is still written — so turning it on to
+  keep an existing habit costs nothing.
+
+### `Changed`
+
+- `results_table` is no longer *required*: `outdir` defaults to `results`, so
+  a bare `nextflow run main.nf` is a valid invocation. WF-11's
+  missing-required-parameter case moved to `primer_f`, which still is one.
+- the execution reports' paths carry their own copy of the outdir fallback,
+  because they are config-level values resolved without `main.nf`. OUT-03b
+  pins that the two agree — this is exactly where they would drift.
+
+New specs OUT-01..OUT-06, FN-07, FN-08, PRM-01, PRM-02, FN-09, FN-10.
+
 ## v1.11.0 - 2026-07-29
 
 Usable basecalling. The GPU half of the pipeline had **no test coverage at

@@ -228,8 +228,12 @@ nextflow_pipeline {
                 skip_basecall     = true
                 fastq_dir         = "${projectDir}/tests/fixtures/fastq_dir"
                 sintax_references = "${projectDir}/tests/fixtures/references.fasta"
-                // results_table deliberately omitted (null).
-                primer_f          = "GTACACACCGCCCGTCG"
+                results_table     = "${outputDir}/sintax.tsv"
+                // Explicitly null, not merely omitted: tests/nextflow.config
+                // supplies primer_f to every test, so leaving it out would
+                // not unset it. Was results_table until v1.12.0, when outdir
+                // superseded it and it stopped being required.
+                primer_f          = null
                 primer_r          = "CGCCTSCSCTTANTDATATGC"
             }
         }
@@ -239,7 +243,7 @@ nextflow_pipeline {
             // any process runs and before the deeper file()/tool errors.
             assert workflow.failed
             assert workflow.stdout.any { it.contains("Parameter validation failed") }
-            assert workflow.stdout.any { it.contains("results_table") }
+            assert workflow.stdout.any { it.contains("primer_f") }
         }
     }
 
