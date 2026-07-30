@@ -30,6 +30,14 @@ process DOWNLOAD_MODEL {
         --model "${model}" \\
         --models-directory .
     """
+
+    // Under -stub-run: create the directory dorado would have fetched,
+    // without the ~1 GB download or a network.
+    stub:
+    """
+    mkdir -p "${model}"
+    touch "${model}/stub.txt"
+    """
 }
 
 
@@ -69,6 +77,19 @@ process BASECALL {
         --models-dir "models"
     printf 'dorado\\t%s\\n' "\$(dorado --version 2>&1 | head -n 1 || true)" \\
         > versions_dorado.tsv
+    touch done_basecalling.txt
+    """
+
+    // Under -stub-run: fabricate the demultiplexed layout the real dorado
+    // would emit, so discovery downstream has something to find and the
+    // per-barcode fan-out is genuinely exercised. Two barcodes rather than
+    // one, because a fan-out of width 1 is not a fan-out.
+    stub:
+    """
+    mkdir -p fastq_pass/barcode01 fastq_pass/barcode02
+    printf '@stub_b01_read1\\nACGT\\n+\\nIIII\\n' | gzip > fastq_pass/barcode01/reads.fastq.gz
+    printf '@stub_b02_read1\\nACGT\\n+\\nIIII\\n' | gzip > fastq_pass/barcode02/reads.fastq.gz
+    printf 'dorado\\tstub\\n' > versions_dorado.tsv
     touch done_basecalling.txt
     """
 }

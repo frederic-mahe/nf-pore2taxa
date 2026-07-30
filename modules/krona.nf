@@ -24,4 +24,10 @@ process KRONA {
     build_krona.sh \\
         ${tsv_files}
     """
+
+    // Under -stub-run: KronaTools is absent, so stand in for both charts.
+    stub:
+    """
+    touch krona.html krona_optimistic.html
+    """
 }

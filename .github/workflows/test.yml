@@ -97,6 +97,27 @@ jobs:
       - name: Validate cluster, site and container profile wiring
         run: bats tests/config/cluster_profiles.bats
 
+  # Topology check: the whole pipeline under -stub-run with every external
+  # tool shadowed by a failing stub. Needs Nextflow and python3 only, so it is
+  # the fastest signal that a wiring change broke the graph — and it also
+  # proves `-profile demo` resolves and publishes.
+  stub-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Nextflow
+        uses: nf-core/setup-nextflow@v3
+
+      - name: Run the pipeline under -stub-run with no tools installed
+        run: bash tests/check-stub-run.sh
+
   # bats unit + CLI tests. The helper/validation tests need no external
   # tool; the CLI tests need cutadapt + vsearch and the config tests need
   # Nextflow (each skips gracefully if its tool is absent, but CI installs

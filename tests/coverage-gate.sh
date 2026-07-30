@@ -67,10 +67,13 @@ covered_ids() {
         | sort --unique
 }
 
-# IDs cited anywhere in a test file, rolled up to the base ID.
+# IDs cited anywhere in a test file, rolled up to the base ID. check-*.sh is
+# included because the stub-run and profile checks are shell scripts rather
+# than bats files, and they carry spec IDs too.
 cited_ids() {
     grep --recursive --no-filename --only-matching --extended-regexp \
         --include='*.bats' --include='*.nf.test' --include='test_*.py' \
+        --include='check-*.sh' \
         "${ID_RE}" "${TESTS_DIR}" 2> /dev/null \
         | sort --unique
 }

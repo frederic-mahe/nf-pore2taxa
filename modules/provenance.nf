@@ -50,6 +50,22 @@ process DUMP_VERSIONS {
         cat versions_*.tsv 2>/dev/null || true
     } | python3 ${projectDir}/bin/collect_versions.py > software_versions.yml
     """
+
+    // Under -stub-run: the tools are absent, so their versions are
+    // unknowable. Recorded as 'n/a', which is the same thing the real probe
+    // does for a tool it cannot reach — a stub that invented version numbers
+    // would be worse than one that admits it does not know.
+    stub:
+    """
+    {
+        printf 'nf-pore2taxa\\t%s\\n' "${workflow.manifest.version}"
+        printf 'nextflow\\t%s\\n'     "${workflow.nextflow.version}"
+        printf 'vsearch\\tn/a\\n'
+        printf 'cutadapt\\tn/a\\n'
+        printf 'krona\\tn/a\\n'
+        printf 'python\\tn/a\\n'
+    } | python3 ${projectDir}/bin/collect_versions.py > software_versions.yml
+    """
 }
 
 

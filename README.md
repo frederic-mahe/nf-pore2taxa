@@ -208,6 +208,22 @@ params {
 > re-running with `-resume` re-processes only the barcodes whose files
 > changed, and rebuilds the tables; the other barcodes are cache hits.
 
+### Try it first
+
+Before pointing the pipeline at your own data, run the bundled demo. It needs
+no flags and no data of your own:
+
+```bash
+nextflow run main.nf -profile demo
+```
+
+That runs the whole pipeline against the small synthetic dataset in
+[`assets/demo/`](assets/demo) and writes `demo_results/`, so you can tell a
+broken environment from awkward data before either is in play. Add an
+environment profile to check that too, e.g. `-profile demo,conda`. The reads
+are synthetic and not biologically meaningful — what it demonstrates is that
+the tools, the wiring and your environment work end to end.
+
 Now, you can run the pipeline using:
 
 ```bash

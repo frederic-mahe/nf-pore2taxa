@@ -58,4 +58,15 @@ process SINTAX {
         ${primer_filter} \\
         ${fastqs}
     """
+
+    // Under -stub-run: one plausible 4-field sintax row, so BUILD_TABLE (which
+    // is stdlib Python and runs for real) has something to count and the
+    // published table has the shape a real one has. An empty file would let a
+    // broken table-builder pass.
+    stub:
+    """
+    printf 'stub_read;length=4\\td:Synthetica(1.00)\\t+\\td:Synthetica\\n' \\
+        > "${barcode}.sintax"
+    touch "${barcode}.log"
+    """
 }

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### `Added`
 
+- **`-profile demo`**: runs the whole pipeline with **no flags** against a
+  committed synthetic dataset in `assets/demo/`, publishing to
+  `demo_results/`. The first thing to try after installing, and the fastest
+  way to separate "my environment is broken" from "my data is awkward".
+  Composes with an environment profile (`-profile demo,conda`) to check that
+  too. Needs only the pipeline's core dependencies — `krona` is left off so a
+  first run cannot fail for want of KronaTools; `--krona` adds the charts.
+  Three barcodes, one of which mixes both taxa, so the demo table has the
+  shape a real occurrence table has rather than a diagonal. Covered by
+  DEM-01..DEM-04.
+- **`stub:` blocks and `tests/check-stub-run.sh`**: the whole pipeline runs
+  under `nextflow -stub-run` with `cutadapt`, `vsearch`, `ktImportText` and
+  `dorado` all shadowed by stubs that `exit 1`, so a process falling through
+  to its real script kills the run. Two layers — a static gate that every
+  tool-invoking process declares a `stub:`, and the dynamic run itself —
+  plus assertions that no real tool was reached even if the run succeeded,
+  and that the declared outputs were really published. Needs only Nextflow
+  and python3, so it validates the channel topology (discovery, the
+  per-barcode fan-out, the gather, the optional KRONA branch, provenance) in
+  seconds with no tools, no GPU and no data. Covered by STB-01..STB-04.
+
+  `DISCOVER_BARCODES`, `BUILD_TABLE` and `DUMP_PARAMS` are exempt from the
+  stub requirement: all three are pure standard-library Python, and all
+  three are more useful running for real. Stubbing discovery in particular
+  would give the fan-out width zero, so the topology would not be tested at
+  all.
 - `flake8` on every tracked `*.py`, in CI and as step 1/6 of
   `tests/run_all.sh`. Stock settings, no config file — matching
   nf-metabarcoding, whose Python is also clean at the default 79 columns.

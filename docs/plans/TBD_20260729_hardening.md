@@ -5,8 +5,8 @@ and `v1.12.0` **implemented, committed and tagged** 2026-07-29, plus the
 coverage gate. `v1.12.0` carries **both** the `--outdir` consolidation and
 strict parameter validation: they were built back to back and, in the event,
 committed together, so no separate `v1.13.0` exists — the CHANGELOG splits
-them into two parts under the one version. Remaining: the "Continuous" items
-(`stub:` blocks, a `flake8` job, `SX-01`..`SX-10`, a conda lockfile).
+them into two parts under the one version. Remaining: `SX-01`..`SX-10` + `WF-01`/`WF-07`/`SX-36` (the 12 TODO specs), a
+conda lockfile, and porting `test_reproducible_pins.py`.
 `D01`–`D04`, `D06`, `D08`–`D14` **resolved**; `D05` and `D07` **revised** by
 the `D08` resolution (§6). Review of `dev` @
 `24a1396` (post-`v1.7.0`), against the goal: *thoroughly tested, easy to
@@ -932,19 +932,38 @@ in silence, and strict validation rejects it. Port
   *transitively* — a golden file cannot say which step broke, so they now
   have direct unit tests. That is 15 mapping errors in a suite whose
   coverage table was maintained by hand.
-- `stub:` in every process + `check-stub-run.sh` (P3-17). Doubles as the
-  new-lab smoke test: "does my install work?" in seconds, no tools.
+- ~~`stub:` in every process + `check-stub-run.sh`~~ (P3-17) — **done
+  2026-07-30**, together with the `demo` profile the plan had listed
+  separately: the stub run needs a zero-flag topology to drive, so they are
+  one piece of work. Both mutations verified — removing a `stub:` fails layer
+  1, and a stub that calls the real tool is caught by layer 2's shadowing.
+
+  Two design points worth keeping. **The exemption list is three processes,
+  not one**: `DISCOVER_BARCODES`, `BUILD_TABLE` and `DUMP_PARAMS` are pure
+  stdlib Python and all three are *more* useful running for real — stubbing
+  discovery would give the fan-out width zero, so the topology would not be
+  tested at all, and letting the table builder run means the stub-run asserts
+  a real header rather than a touched file. **The demo profile has to restate
+  the four report paths**: the `report`/`timeline`/`trace`/`dag` blocks are
+  evaluated above `profiles { }`, where `params.outdir` is still null, so they
+  resolve to the `results` fallback and would scatter the reports outside
+  `demo_results/`. A CLI `--outdir` is unaffected, which is why `OUT-01`
+  never caught it — this is specific to a profile-assigned value, and it is
+  why nf-metabarcoding's demo profile restates them too.
 - `tests/check-*.sh` for the `conda` profile, the `cluster` profile, the
   `cleanup` default, the publish-mode matrix, the resource defaults
   (P3-18).
 - Port `test_reproducible_pins.py` so the `environment.yml` ↔ CI pin
   agreement is enforced, not remembered.
+- Port `test_reproducible_pins.py` so the `environment.yml` ↔ CI pin
+  agreement is enforced rather than remembered. **Still outstanding.**
 - ~~CI matrix over a pinned Nextflow and `latest-stable`~~ — done in
   `v1.10.0`. ~~`flake8` on tracked `*.py`~~ — **done 2026-07-30**: 46
   findings, all `E501`, now reflowed; stock settings with no config file, so
   the two repositories hold one standard. Nothing else was flagged — no
   unused imports, no undefined names.
-- Container profile (or a committed conda lock) (P2-14).
+- Container profile — done in `v1.10.0` (resolution only; no image built
+  here). A committed conda lock (`D07` step 1) is still outstanding.
 - Close SX-01..04, SX-06..10 — mechanical bats cases, and they are
   already itemised in `tests/README.md`'s "Known gaps".
 

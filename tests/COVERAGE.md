@@ -255,6 +255,19 @@ when you add a spec, in the same commit.
 | `PRM-01` | An undeclared parameter aborts at startup (a), with the nearest declared name suggest... | `bin/test_known_params.py`, `config/params_strict.bats`, `modules/functions.nf.test` | done |
 | `PRM-02` | known_params() matches the parameter surface the config declares, in both directions:... | `bin/test_known_params.py`, `modules/functions.nf.test` | done |
 
+## 14. Tool-free topology and the demo dataset
+
+| Spec | Behaviour | Test(s) | Status |
+|------|-----------|---------|--------|
+| `STB-01` | Every process that invokes an external tool declares a stub:. Exempt: DISCOVER_BARCOD... | `check-stub-run.sh` | done |
+| `STB-02` | nextflow run main.nf -profile demo -stub-run completes with cutadapt, vsearch, ktImpo... | `check-stub-run.sh`, `config/demo_profile.bats` | done |
+| `STB-03` | No process reaches a real tool, checked independently of the exit status: a run that ... | `check-stub-run.sh` | done |
+| `STB-04` | The declared outputs are really published — both tables, the Krona charts, a per-barc... | `check-stub-run.sh` | done |
+| `DEM-01` | nextflow run main.nf -profile demo runs the whole pipeline with no flags, from a fres... | `config/demo_profile.bats` | done |
+| `DEM-02` | The demo dataset is self-contained and committed: a sintax-formatted reference.fasta ... | `config/demo_profile.bats` | done |
+| `DEM-03` | Everything the demo produces lands under demo_results/, including the execution repor... | `config/demo_profile.bats` | done |
+| `DEM-04` | The demo needs only the pipeline's core dependencies (cutadapt, vsearch): krona is le... | `config/demo_profile.bats` | done |
+
 ## Removed
 
 These IDs were retired with the behaviour they described; they

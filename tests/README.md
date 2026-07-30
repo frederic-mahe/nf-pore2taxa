@@ -18,6 +18,7 @@ tests/
 ├── SPECIFICATIONS.md     ← what we test and why
 ├── COVERAGE.md           ← every spec ID -> its test(s) -> status
 ├── coverage-gate.sh      ← enforces that the mapping cannot drift
+├── check-stub-run.sh     ← whole pipeline under -stub-run, no tools at all
 ├── README.md             ← this file
 ├── run_all.sh            ← convenience runner for CI
 ├── nextflow.config       ← test-only Nextflow overrides
@@ -44,6 +45,7 @@ tests/
 │   └── validation.bats
 ├── config/               ← bats tests for config invariants + whole-run behaviour
 │   ├── cluster_profiles.bats ← slurm / site / container profile resolution
+│   ├── demo_profile.bats   ← -profile demo runs with no flags
 │   ├── deprecation.bats
 │   ├── outdir.bats         ← the consolidated output directory
 │   ├── params_strict.bats  ← undeclared parameters are rejected
@@ -127,6 +129,8 @@ nf-test test tests/workflow/main.nf.test
 | `config/resources.bats`                | CFG-04                                                    |
 | `config/provenance.bats`               | PRV-05..PRV-08                                            |
 | `config/cluster_profiles.bats`         | CLU-01..CLU-09                                            |
+| `config/demo_profile.bats`             | DEM-01..DEM-04                                            |
+| `check-stub-run.sh`                    | STB-01..STB-04                                            |
 | `config/summary.bats`                  | CFG-06                                                    |
 | `config/resume.bats`                   | SX-35, DSC-06                                             |
 | `modules/functions.nf.test`            | FN-01..FN-06                                              |
@@ -140,6 +144,11 @@ nf-test test tests/workflow/main.nf.test
 
 The current suite is a starting point. Specs not yet covered:
 
+- ~~a tool-free topology check~~ — closed by `check-stub-run.sh`
+  (STB-01..04): the whole pipeline under `-stub-run` with cutadapt, vsearch,
+  ktImportText and dorado all shadowed by stubs that `exit 1`. Needs only
+  Nextflow and python3, so it is the fastest signal that a wiring change
+  broke the graph, and the fastest "is my install sane?" for a new lab.
 - ~~`BASECALL` module tests~~ — closed in v1.11.0 by `tests/stubs/dorado`,
   which records its argv and fabricates the outputs (BC-01..BC-12). The
   real dorado needs a GPU and a ~1 GB model download, so the stub is the

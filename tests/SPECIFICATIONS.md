@@ -401,7 +401,30 @@ real cost now that HPC is a target.
 | PRM-02 | `known_params()` matches the parameter surface the config declares, in **both** directions: a parameter in `nextflow.config` or `conf/slurm.config` but missing from the list would be rejected the moment anyone used it — the pipeline refusing its own parameter — and a stale name left in the list keeps a typo matching it acceptable forever, which is the defect PRM-01 exists to close. Same drift-guard shape as DSC-07 and BC-12. |
 
 
-## 14. Out of scope (will not be tested)
+## 14. Tool-free topology and the demo dataset
+
+Two things that only make sense together: a bundled dataset that makes the
+pipeline runnable with no flags, and a `-stub-run` over it that needs no
+bioinformatics tool at all. Between them they answer the two questions a new
+lab asks first — "does my install work?" and "what should the output look
+like?" — in seconds, and give CI its fastest signal that a wiring change broke
+the graph.
+
+Modelled on nf-metabarcoding's `check-stub-run.sh` and `demo` profile.
+
+| ID     | Specification                                                                                                                                          |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| STB-01 | Every process that invokes an external tool declares a `stub:`. Exempt: `DISCOVER_BARCODES`, `BUILD_TABLE` and `DUMP_PARAMS` — all pure standard-library Python, and all more useful running for real. Stubbing discovery in particular would give the per-barcode fan-out width zero, so the topology would not be tested at all. |
+| STB-02 | `nextflow run main.nf -profile demo -stub-run` completes with `cutadapt`, `vsearch`, `ktImportText` and `dorado` all shadowed by stubs that exit 1 — so a process that fell through to its real script kills the run. `python3` is left intact for the exempt processes. |
+| STB-03 | No process reaches a real tool, checked independently of the exit status: a run that somehow succeeded *and* invoked a real tool is still a failure. |
+| STB-04 | The declared outputs are really published — both tables, the Krona charts, a per-barcode `.sintax`, `software_versions.yml` and `params.json` — and the occurrence table has a real header, because `BUILD_TABLE` ran for real over what the `SINTAX` stubs emitted. A graph that executes and delivers nothing would otherwise pass. |
+| DEM-01 | `nextflow run main.nf -profile demo` runs the whole pipeline with **no flags**, from a fresh clone, against the committed dataset in `assets/demo/`, and publishes into `demo_results/`. |
+| DEM-02 | The demo dataset is self-contained and committed: a sintax-formatted `reference.fasta` and three barcodes, one of which mixes both taxa so the table has the shape a real occurrence table has rather than a diagonal. |
+| DEM-03 | Everything the demo produces lands under `demo_results/`, **including the execution reports**. Their paths must be restated inside the profile: the `report`/`timeline`/`trace`/`dag` blocks are evaluated above `profiles { }`, where `params.outdir` is still null, so they would otherwise resolve to the `results` fallback and scatter the reports outside the demo's own directory. A CLI `--outdir` is unaffected (OUT-01), which is what makes this specific to a profile-assigned value. |
+| DEM-04 | The demo needs only the pipeline's core dependencies (`cutadapt`, `vsearch`): `krona` is left off so a first run cannot fail for want of KronaTools. The stub-run passes `--krona true` explicitly, so the KRONA branch is still covered. |
+
+
+## 15. Out of scope (will not be tested)
 
 - The numerical correctness of `dorado` basecalls.
 - The numerical correctness of `cutadapt` primer trimming or
