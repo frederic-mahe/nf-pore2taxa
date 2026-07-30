@@ -939,8 +939,11 @@ in silence, and strict validation rejects it. Port
   (P3-18).
 - Port `test_reproducible_pins.py` so the `environment.yml` ↔ CI pin
   agreement is enforced, not remembered.
-- CI matrix over a pinned Nextflow and `latest-stable`; add `flake8` on
-  tracked `*.py`.
+- ~~CI matrix over a pinned Nextflow and `latest-stable`~~ — done in
+  `v1.10.0`. ~~`flake8` on tracked `*.py`~~ — **done 2026-07-30**: 46
+  findings, all `E501`, now reflowed; stock settings with no config file, so
+  the two repositories hold one standard. Nothing else was flagged — no
+  unused imports, no undefined names.
 - Container profile (or a committed conda lock) (P2-14).
 - Close SX-01..04, SX-06..10 — mechanical bats cases, and they are
   already itemised in `tests/README.md`'s "Known gaps".

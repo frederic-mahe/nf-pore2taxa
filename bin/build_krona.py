@@ -33,7 +33,10 @@ FIRST_BARCODE_COL = 2
 
 
 def parse_header(line: str) -> list[str]:
-    """Barcode column names from the header line (drops ``taxonomy``/``total``)."""
+    """Barcode column names from the header line.
+
+    Drops the leading ``taxonomy`` and ``total`` columns.
+    """
     return line.rstrip("\n").split("\t")[FIRST_BARCODE_COL:]
 
 
@@ -49,7 +52,7 @@ def taxonomy_to_levels(taxonomy: str) -> list[str]:
 def rows_for_barcode(
     data_rows: list[list[str]], col_index: int
 ) -> list[tuple[int, list[str]]]:
-    """``(count, levels)`` for every taxonomy with a non-zero count in a column."""
+    """``(count, levels)`` for each non-zero taxonomy in one column."""
     result: list[tuple[int, list[str]]] = []
     for row in data_rows:
         count = int(row[col_index])
@@ -60,7 +63,10 @@ def rows_for_barcode(
 
 
 def render_krona_text(rows: list[tuple[int, list[str]]]) -> str:
-    """Render ``(count, levels)`` pairs as ktImportText lines (``"" if empty``)."""
+    """Render ``(count, levels)`` pairs as ktImportText lines.
+
+    An empty row set renders to the empty string.
+    """
     lines = ["\t".join([str(count), *levels]) for count, levels in rows]
     return "\n".join(lines) + "\n" if lines else ""
 
@@ -99,7 +105,8 @@ def write_sample_files(tsv_path: Path, out_dir: Path) -> list[Path]:
 
     if skipped:
         print(
-            f"Skipping empty barcode(s) (no assigned reads): {', '.join(skipped)}",
+            "Skipping empty barcode(s) (no assigned reads): "
+            f"{', '.join(skipped)}",
             file=sys.stderr,
         )
     return written
@@ -110,7 +117,7 @@ def write_sample_files(tsv_path: Path, out_dir: Path) -> list[Path]:
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Build per-sample Krona text files from an occurrence table."
+        description="Build per-sample Krona text files from a table."
     )
     parser.add_argument("-i", "--input", dest="input", default=None,
                         help="Occurrence table (TSV) to convert.")
@@ -148,7 +155,8 @@ def main(argv: list[str] | None = None) -> int:
 
     files = write_sample_files(input_path, Path(args.output_dir))
     if not files:
-        print("No non-empty barcodes; no Krona input files written.", file=sys.stderr)
+        print("No non-empty barcodes; no Krona input files written.",
+              file=sys.stderr)
         return 1
     return 0
 

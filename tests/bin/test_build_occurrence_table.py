@@ -29,7 +29,9 @@ FIXTURE = REPO_ROOT / "tests" / "fixtures" / "sintax_dir" / "fastq_pass"
 
 def _load_module():
     """Import the CLI script by path so ``bin/`` need not be a package."""
-    spec = importlib.util.spec_from_file_location("build_occurrence_table", SCRIPT)
+    spec = importlib.util.spec_from_file_location(
+        "build_occurrence_table", SCRIPT
+    )
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -57,7 +59,9 @@ class PureHelpers(unittest.TestCase):
     """BT-30, BT-32, BT-33, BT-34 — pure, side-effect-free helpers."""
 
     def test_name_optimistic_output_flat(self) -> None:  # BT-30
-        self.assertEqual(bot.name_optimistic_output("foo.tsv"), "foo_optimistic.tsv")
+        self.assertEqual(
+            bot.name_optimistic_output("foo.tsv"), "foo_optimistic.tsv"
+        )
 
     def test_name_optimistic_output_nested(self) -> None:  # BT-30
         self.assertEqual(
@@ -66,15 +70,20 @@ class PureHelpers(unittest.TestCase):
 
     def test_extract_barcode(self) -> None:  # BT-32 / BT-16
         self.assertEqual(
-            bot.extract_barcode("x/fastq_pass/barcode07/reads.sintax"), "barcode07"
+            bot.extract_barcode("x/fastq_pass/barcode07/r.sintax"),
+            "barcode07",
         )
-        self.assertEqual(bot.extract_barcode("a/unclassified/r.sintax"), "unclassified")
+        self.assertEqual(
+            bot.extract_barcode("a/unclassified/r.sintax"), "unclassified"
+        )
         self.assertEqual(bot.extract_barcode("a/mixed/r.sintax"), "mixed")
         self.assertIsNone(bot.extract_barcode("a/b/reads.sintax"))
 
     def test_strip_probabilities(self) -> None:  # BT-33 / BT-17 / BT-23
         raw = "d:Fungi(0.99),p:Asco(0.80),s:Foo_bar(1.00)"
-        self.assertEqual(bot.strip_probabilities(raw), "d:Fungi,p:Asco,s:Foo_bar")
+        self.assertEqual(
+            bot.strip_probabilities(raw), "d:Fungi,p:Asco,s:Foo_bar"
+        )
         # idempotent / no annotations to strip
         self.assertEqual(bot.strip_probabilities("d:Fungi"), "d:Fungi")
 
@@ -90,13 +99,19 @@ class FileDiscovery(unittest.TestCase):
     def test_find_sintax_files_sorted(self) -> None:
         files = bot.find_sintax_files(FIXTURE, r"\.sintax$")
         names = [p.parent.name for p in files]
-        self.assertEqual(names, ["barcode01", "barcode02", "barcode03", "barcode99"])
+        self.assertEqual(
+            names, ["barcode01", "barcode02", "barcode03", "barcode99"]
+        )
 
     def test_partition_by_size(self) -> None:  # BT-13, BT-31
         files = bot.find_sintax_files(FIXTURE, r"\.sintax$")
         non_empty, empty = bot.partition_by_size(files)
-        self.assertEqual([p.parent.name for p in non_empty], ["barcode01", "barcode02"])
-        self.assertEqual([p.parent.name for p in empty], ["barcode03", "barcode99"])
+        self.assertEqual(
+            [p.parent.name for p in non_empty], ["barcode01", "barcode02"]
+        )
+        self.assertEqual(
+            [p.parent.name for p in empty], ["barcode03", "barcode99"]
+        )
 
 
 class BuildTable(unittest.TestCase):
@@ -108,7 +123,9 @@ class BuildTable(unittest.TestCase):
         self.empty_barcodes = bot.resolve_empty_barcodes(self.non_empty, empty)
 
     def _filtered(self) -> str:
-        return bot.build_table(self.non_empty, self.empty_barcodes, bot.select_filtered)
+        return bot.build_table(
+            self.non_empty, self.empty_barcodes, bot.select_filtered
+        )
 
     def _optimistic(self) -> str:
         return bot.build_table(
@@ -151,7 +168,7 @@ class BuildTable(unittest.TestCase):
 
 
 class BlankFilteredRegression(unittest.TestCase):
-    """BT-24 — an all-blank filtered column must not crash and maps to 'unknown'."""
+    """BT-24 — an all-blank filtered column maps to 'unknown', no crash."""
 
     def test_blank_filtered_maps_to_unknown(self) -> None:
         import tempfile
@@ -166,9 +183,13 @@ class BlankFilteredRegression(unittest.TestCase):
             files = bot.find_sintax_files(bc.parent, r"\.sintax$")
             non_empty, empty = bot.partition_by_size(files)
             table = bot.build_table(non_empty, [], bot.select_filtered)
-        rows = {ln.split("\t")[0]: ln.split("\t") for ln in table.splitlines()[1:]}
+        rows = {
+            ln.split("\t")[0]: ln.split("\t")
+            for ln in table.splitlines()[1:]
+        }
         self.assertIn("unknown", rows)
-        self.assertEqual(rows["unknown"][1:], ["2", "2"])  # total=2, barcode01=2
+        # total=2, barcode01=2
+        self.assertEqual(rows["unknown"][1:], ["2", "2"])
 
 
 class MultiChunkEmptyRegression(unittest.TestCase):
@@ -203,13 +224,17 @@ class MultiChunkEmptyRegression(unittest.TestCase):
             files = bot.find_sintax_files(root, r"\.sintax$")
             non_empty, empty = bot.partition_by_size(files)
             empty_barcodes = bot.resolve_empty_barcodes(non_empty, empty)
-            table = bot.build_table(non_empty, empty_barcodes, bot.select_filtered)
+            table = bot.build_table(
+                non_empty, empty_barcodes, bot.select_filtered
+            )
 
         header = table.splitlines()[0].split("\t")
         # barcode33 appears exactly once; barcode35 is the lone empty column.
         self.assertEqual(empty_barcodes, ["barcode35"])
         self.assertEqual(header.count("barcode33"), 1)
-        self.assertEqual(header, ["taxonomy", "total", "barcode33", "barcode35"])
+        self.assertEqual(
+            header, ["taxonomy", "total", "barcode33", "barcode35"]
+        )
         # barcode35's reads are zero, not a clone of barcode33's.
         row = table.splitlines()[1].split("\t")  # d:Bacteria, total=2
         self.assertEqual(row, ["d:Bacteria", "2", "2", "0"])
@@ -292,7 +317,9 @@ class CliValidation(unittest.TestCase):
         import tempfile
 
         with tempfile.NamedTemporaryFile() as f:
-            code, msg = self._run(["--input-dir", f.name, "--output", "/tmp/x.tsv"])
+            code, msg = self._run(
+                ["--input-dir", f.name, "--output", "/tmp/x.tsv"]
+            )
         self.assertNotEqual(code, 0)
         self.assertIn("not a directory", msg)
 
@@ -306,11 +333,13 @@ class CliValidation(unittest.TestCase):
         self.assertNotEqual(code, 0)
         self.assertIn("No sintax files found", msg)
 
-    def test_optimistic_sibling_and_parent_creation(self) -> None:  # BT-05, BT-07
+    # BT-05, BT-07
+    def test_optimistic_sibling_and_parent_creation(self) -> None:
         import tempfile
 
         with tempfile.TemporaryDirectory() as tmp:
-            out = Path(tmp) / "nested" / "sintax.tsv"  # parent missing on purpose
+            # parent missing on purpose
+            out = Path(tmp) / "nested" / "sintax.tsv"
             code, _ = self._run(
                 ["--input-dir", str(FIXTURE), "--output", str(out)]
             )

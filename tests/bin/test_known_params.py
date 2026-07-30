@@ -45,8 +45,13 @@ def config_params() -> set[str]:
     ``{...}`` match would stop too early.
     """
     lines = MAIN_CONFIG.read_text(encoding="utf-8").splitlines()
-    start = next(i for i, ln in enumerate(lines) if re.match(r"^params\s*\{", ln))
-    end = next(i for i in range(start + 1, len(lines)) if re.match(r"^\}", lines[i]))
+    start = next(
+        i for i, ln in enumerate(lines) if re.match(r"^params\s*\{", ln)
+    )
+    end = next(
+        i for i in range(start + 1, len(lines))
+        if re.match(r"^\}", lines[i])
+    )
     names = set()
     for line in lines[start + 1:end]:
         m = re.match(r"^\s*([a-z_0-9]+)\s*=", line)

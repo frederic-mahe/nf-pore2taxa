@@ -5,6 +5,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### `Added`
+
+- `flake8` on every tracked `*.py`, in CI and as step 1/6 of
+  `tests/run_all.sh`. Stock settings, no config file — matching
+  nf-metabarcoding, whose Python is also clean at the default 79 columns.
+  Raising the limit would have been easier; one standard across the two
+  repositories the same people maintain is worth more than the wrapped lines
+  cost.
+
+### `Changed`
+
+- reflowed the 46 over-long lines flake8 found (all `E501`; no unused
+  imports, undefined names or other findings). Comment and docstring rewraps
+  plus wrapped call arguments — no behaviour change, and the byte-exact
+  occurrence-table tests confirm it.
+
 ## v1.12.0 - 2026-07-29
 
 Two things, released together: one output directory per run, and strict

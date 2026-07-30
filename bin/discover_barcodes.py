@@ -51,7 +51,8 @@ def barcode_for(relative_path: str) -> str | None:
 def discover(input_dir: Path) -> list[Path]:
     """Every fastq file under *input_dir*, sorted for deterministic order."""
     return sorted(
-        p for p in input_dir.rglob("*") if p.is_file() and is_fastq_name(p.name)
+        p for p in input_dir.rglob("*")
+        if p.is_file() and is_fastq_name(p.name)
     )
 
 
@@ -90,7 +91,7 @@ def _build_parser() -> argparse.ArgumentParser:
         description="Group fastq files under a fastq_pass tree by barcode."
     )
     parser.add_argument("-i", "--input-dir", dest="input_dir", default=None,
-                        help="The fastq_pass directory to search (recursively).")
+                        help="fastq_pass directory to search (recursive).")
     parser.add_argument("-o", "--output", dest="output", default=None,
                         help="Output TSV file [default: stdout].")
     return parser
@@ -100,7 +101,8 @@ def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
 
     if args.input_dir is None:
-        print("--input-dir is required. Use --help for usage.", file=sys.stderr)
+        print("--input-dir is required. Use --help for usage.",
+              file=sys.stderr)
         return 1
     input_dir = Path(args.input_dir)
     if not input_dir.is_dir():
@@ -109,14 +111,16 @@ def main(argv: list[str] | None = None) -> int:
 
     files = discover(input_dir)
     if not files:
-        print(f"No fastq files found under: '{args.input_dir}'", file=sys.stderr)
+        print(f"No fastq files found under: '{args.input_dir}'",
+              file=sys.stderr)
         return 1
 
     rows, untagged = group_by_barcode(input_dir, files)
     if untagged:
         listing = "\n  ".join(str(p) for p in untagged)
         print(
-            "Error: no barcode token (barcodeNN / unclassified / mixed) could be "
+            "Error: no barcode token (barcodeNN / unclassified / mixed) "
+            "could be "
             f"derived for:\n  {listing}",
             file=sys.stderr,
         )

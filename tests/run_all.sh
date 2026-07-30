@@ -5,6 +5,7 @@
 # this just sequences them for CI.
 #
 # Layers:
+#   0. python lint       (flake8, stock settings)
 #   1. python unit tests (bin/build_occurrence_table.py)
 #   2. bats unit tests   (bash helpers, validation.sh, table-builder CLI,
 #                         config invariants, publish modes, -resume)
@@ -26,7 +27,18 @@ fixtures_manifest() {
 }
 fixtures_before="$(fixtures_manifest)"
 
-echo "===== 1/5  python unit tests ====="
+echo "===== 1/6  python lint (flake8) ====="
+if command -v flake8 > /dev/null 2>&1 ; then
+    mapfile -t py_files < <(git ls-files '*.py')
+    if (( ${#py_files[@]} > 0 )) ; then
+        flake8 "${py_files[@]}" && echo "OK: flake8 clean" || fail=1
+    fi
+else
+    echo "SKIP: flake8 not in PATH"
+fi
+echo
+
+echo "===== 2/6  python unit tests ====="
 if command -v python3 > /dev/null 2>&1 ; then
     python3 -m unittest discover -s tests/bin -p 'test_*.py' || fail=1
 else
@@ -34,7 +46,7 @@ else
 fi
 echo
 
-echo "===== 2/5  bats unit tests ====="
+echo "===== 3/6  bats unit tests ====="
 if command -v bats > /dev/null 2>&1 ; then
     bats tests/bin/ tests/config/ || fail=1
 else
@@ -42,7 +54,7 @@ else
 fi
 echo
 
-echo "===== 3/5  nf-test suite (modules + workflow) ====="
+echo "===== 4/6  nf-test suite (modules + workflow) ====="
 if command -v nf-test > /dev/null 2>&1 ; then
     nf-test test tests/ || fail=1
 else
@@ -63,7 +75,7 @@ echo
 # fixture and has not committed yet", and failing on the latter is a false
 # alarm. (The CI steps do use git, which is correct there: the checkout is
 # pristine and the run happened in an earlier step.)
-echo "===== 4/5  hermeticity: tests/fixtures/ unchanged ====="
+echo "===== 5/6  hermeticity: tests/fixtures/ unchanged ====="
 fixtures_after="$(fixtures_manifest)"
 if [[ "${fixtures_before}" == "${fixtures_after}" ]] ; then
     echo "OK: tests/fixtures/ untouched"
@@ -79,7 +91,7 @@ else
 fi
 echo
 
-echo "===== 5/5  coverage gate ====="
+echo "===== 6/6  coverage gate ====="
 bash "$(dirname "$0")/coverage-gate.sh" || fail=1
 echo
 

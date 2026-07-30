@@ -133,7 +133,8 @@ class CLI(unittest.TestCase):
         """KR-03."""
         with tempfile.TemporaryDirectory() as tmp:
             rc, err = self._run(
-                ["--input", str(FIXTURE_DIR / "__nope__.tsv"), "--output-dir", tmp]
+                ["--input", str(FIXTURE_DIR / "__nope__.tsv"),
+                 "--output-dir", tmp]
             )
             self.assertEqual(rc, 1)
             self.assertIn("Path does not exist", err)
@@ -142,7 +143,9 @@ class CLI(unittest.TestCase):
         """KR-04."""
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp) / "made" / "here"
-            rc, _ = self._run(["--input", str(FILTERED), "--output-dir", str(target)])
+            rc, _ = self._run(
+                ["--input", str(FILTERED), "--output-dir", str(target)]
+            )
             self.assertEqual(rc, 0)
             self.assertTrue(target.is_dir())
             self.assertTrue((target / "barcode01.txt").exists())

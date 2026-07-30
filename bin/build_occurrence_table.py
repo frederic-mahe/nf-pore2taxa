@@ -57,7 +57,10 @@ def name_optimistic_output(output: str) -> str:
 
 
 def extract_barcode(text: str) -> str | None:
-    """Pull the barcode token (``barcodeNN``/``unclassified``/``mixed``) from a path."""
+    """Pull the barcode token from a path.
+
+    One of ``barcodeNN``, ``unclassified`` or ``mixed``.
+    """
     match = BARCODE_PATTERN.search(text)
     return match.group(0) if match else None
 
@@ -90,7 +93,7 @@ def select_optimistic(fields: list[str]) -> str | None:
 
 
 def find_sintax_files(input_dir: Path, pattern: str) -> list[Path]:
-    """Return every file under *input_dir* whose name matches *pattern* (a regex).
+    """Every file under *input_dir* whose name matches *pattern* (regex).
 
     Results are sorted by path so the column order is deterministic.
     """
@@ -101,7 +104,7 @@ def find_sintax_files(input_dir: Path, pattern: str) -> list[Path]:
 
 
 def partition_by_size(files: list[Path]) -> tuple[list[Path], list[Path]]:
-    """Split *files* into (non-empty, empty) preserving order within each group."""
+    """Split *files* into (non-empty, empty), order kept in each group."""
     non_empty = [p for p in files if p.stat().st_size > 0]
     empty = [p for p in files if p.stat().st_size == 0]
     return non_empty, empty
@@ -165,7 +168,9 @@ def render_table(
 
     lines = ["\t".join(["taxonomy", "total", *columns])]
     for taxonomy in taxa:
-        cells = [str(counts.get((barcode, taxonomy), 0)) for barcode in columns]
+        cells = [
+            str(counts.get((barcode, taxonomy), 0)) for barcode in columns
+        ]
         lines.append("\t".join([taxonomy, str(totals[taxonomy]), *cells]))
     return "\n".join(lines) + "\n"
 
@@ -191,13 +196,14 @@ def _build_parser() -> argparse.ArgumentParser:
                         help="Input directory to search (recursively).")
     parser.add_argument("-o", "--output", dest="output", default=None,
                         help="Output TSV file (filtered table).")
-    parser.add_argument("-p", "--pattern", dest="pattern", default=r"\.sintax$",
+    parser.add_argument("-p", "--pattern", dest="pattern",
+                        default=r"\.sintax$",
                         help="Filename regex to match [default: %(default)s].")
     return parser
 
 
 def validate_args(args: argparse.Namespace) -> Path:
-    """Validate parsed arguments, create the output parent, return the input dir.
+    """Validate arguments, create the output parent, return the input dir.
 
     Raises ``ValueError`` with a user-facing message on any problem.
     """
@@ -207,7 +213,9 @@ def validate_args(args: argparse.Namespace) -> Path:
     if not input_dir.exists():
         raise ValueError(f"Path does not exist: '{args.input_dir}'")
     if not input_dir.is_dir():
-        raise ValueError(f"Path exists but is not a directory: '{args.input_dir}'")
+        raise ValueError(
+            f"Path exists but is not a directory: '{args.input_dir}'"
+        )
 
     if args.output is None:
         raise ValueError("--output is required. Use --help for usage.")
@@ -234,10 +242,12 @@ def main(argv: list[str] | None = None) -> int:
     empty_barcodes = resolve_empty_barcodes(non_empty, empty)
 
     Path(args.output).write_text(
-        build_table(non_empty, empty_barcodes, select_filtered), encoding="utf-8"
+        build_table(non_empty, empty_barcodes, select_filtered),
+        encoding="utf-8",
     )
     Path(name_optimistic_output(args.output)).write_text(
-        build_table(non_empty, empty_barcodes, select_optimistic), encoding="utf-8"
+        build_table(non_empty, empty_barcodes, select_optimistic),
+        encoding="utf-8",
     )
     return 0
 

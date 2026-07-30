@@ -40,12 +40,16 @@ class PureHelpers(unittest.TestCase):
     def test_barcode_for_folder_and_filename(self):
         """DSC-01 — the token is found in a directory OR in the filename."""
         # token in a directory component
-        self.assertEqual(db.barcode_for("barcode01/reads.fastq.gz"), "barcode01")
+        self.assertEqual(
+            db.barcode_for("barcode01/reads.fastq.gz"), "barcode01"
+        )
         # token embedded in the filename (flat layout)
         self.assertEqual(
             db.barcode_for("FAX123_pass_barcode07_0.fastq.gz"), "barcode07"
         )
-        self.assertEqual(db.barcode_for("unclassified/x.fastq"), "unclassified")
+        self.assertEqual(
+            db.barcode_for("unclassified/x.fastq"), "unclassified"
+        )
         self.assertEqual(db.barcode_for("run_mixed_0.fastq"), "mixed")
         self.assertIsNone(db.barcode_for("random_sample_0.fastq.gz"))
 
@@ -59,7 +63,9 @@ class GroupByBarcode(unittest.TestCase):
             _touch(root / "barcode02" / "reads.fastq.gz")
             rows, untagged = db.group_by_barcode(root, db.discover(root))
             self.assertEqual(untagged, [])
-            self.assertEqual(sorted(bc for bc, _ in rows), ["barcode01", "barcode02"])
+            self.assertEqual(
+                sorted(bc for bc, _ in rows), ["barcode01", "barcode02"]
+            )
 
     def test_flat_embedded_and_multifile(self):
         """DSC-02 — a multi-file barcode yields one row per file."""
@@ -94,7 +100,9 @@ class GroupByBarcode(unittest.TestCase):
             _touch(root / "mystery_sample.fastq.gz")
             rows, untagged = db.group_by_barcode(root, db.discover(root))
             self.assertEqual([bc for bc, _ in rows], ["barcode01"])
-            self.assertEqual([p.name for p in untagged], ["mystery_sample.fastq.gz"])
+            self.assertEqual(
+                [p.name for p in untagged], ["mystery_sample.fastq.gz"]
+            )
 
 
 class MainCLI(unittest.TestCase):

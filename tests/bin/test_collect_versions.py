@@ -28,7 +28,9 @@ _spec.loader.exec_module(cv)
 # Real output captured from the installed tools — the point of the
 # permissive regex is that all of these reduce to a clean version.
 REAL_OUTPUTS = {
-    "vsearch": ("vsearch v2.31.0_linux_x86_64, 125.3GB RAM, 24 cores", "2.31.0"),
+    "vsearch": (
+        "vsearch v2.31.0_linux_x86_64, 125.3GB RAM, 24 cores", "2.31.0"
+    ),
     "cutadapt": ("5.2", "5.2"),
     "python": ("Python 3.12.3", "3.12.3"),
     "krona": ("KronaTools 2.8.1", "2.8.1"),
