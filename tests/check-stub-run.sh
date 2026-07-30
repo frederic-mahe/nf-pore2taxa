@@ -113,12 +113,18 @@ done
 
 log="${sandbox}/stub-run.log"
 
+# Run FROM the sandbox, not the repository. The demo profile pins its four
+# report paths as relative strings (it has to — see DEM-03), so they follow the
+# launch directory rather than --outdir: driving this from the repo root left
+# demo_results/pipeline_info/ behind in the working tree even with --outdir
+# pointed elsewhere. Launching from the sandbox keeps the whole run together
+# and leaves the checkout clean.
+#
 # --krona true so the optional KRONA branch is part of the graph under test;
 # the demo profile leaves it off so a real demo run needs only the pipeline's
 # core dependencies.
-if PATH="${sandbox}:${PATH}" nextflow run main.nf \
+if cd "${sandbox}" && PATH="${sandbox}:${PATH}" nextflow run "${REPO_ROOT}/main.nf" \
         -profile demo -stub-run \
-        --outdir "${sandbox}/demo_results" \
         --krona true \
         -work-dir "${sandbox}/work" > "${log}" 2>&1 ; then
     echo "  OK      the pipeline completed with no tool installed"

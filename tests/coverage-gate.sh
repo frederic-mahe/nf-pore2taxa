@@ -4,11 +4,13 @@
 #
 # Audits the SPECIFICATIONS.md <-> COVERAGE.md <-> tests/ triangle:
 #
-#   1. every ID declared in tests/SPECIFICATIONS.md has a row in
+#   1. every ID declared in SPECIFICATIONS.md has a row in
 #      tests/COVERAGE.md
 #   2. every ID cited from a test file is declared in SPECIFICATIONS.md
 #   3. every ID in COVERAGE.md is declared in SPECIFICATIONS.md
 #   4. every COVERAGE.md row marked `done` is really cited by a test
+#   5. every row's status is one of the five the spec defines, and a `red` or
+#      `blocked` row is not silently left behind
 #
 # Why bother: the spec/coverage mapping is maintained by hand, and it had
 # already drifted before this gate existed — BT-24 was asserted by two test
@@ -28,7 +30,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly REPO_ROOT
-readonly SPEC_FILE="${REPO_ROOT}/tests/SPECIFICATIONS.md"
+readonly SPEC_FILE="${REPO_ROOT}/SPECIFICATIONS.md"
 readonly COVERAGE_FILE="${REPO_ROOT}/tests/COVERAGE.md"
 readonly TESTS_DIR="${REPO_ROOT}/tests"
 
@@ -85,6 +87,32 @@ claimed_done_ids() {
         | sort --unique
 }
 
+# Rows whose status is not one of the five SPECIFICATIONS.md defines. A typo
+# ('DONE', 'wip') would otherwise read as covered to a human and as nothing at
+# all to check (4).
+rows_with_bad_status() {
+    # Above the "Removed" section only: retired IDs are listed in a
+    # two-column table whose single status is `removed`, which is
+    # deliberately outside the five-way vocabulary.
+    sed -n '/^## Removed/q;p' "${COVERAGE_FILE}" \
+        | grep --extended-regexp "^\| \`${ID_RE}\`" \
+        | grep --invert-match --extended-regexp \
+              "\| (done|red|TODO|n/a|blocked) \|\s*\$" \
+        || true
+}
+
+# IDs parked mid-TDD-cycle or waiting on a decision. Not a failure — `red` is
+# a legitimate step-3 state and `blocked` a legitimate answer to an undefined
+# behaviour — but both are worth surfacing rather than leaving to be noticed.
+ids_with_status() {
+    # `|| true`: grep exits 1 when nothing matches, which under `set -e` would
+    # abort the script at the assignment rather than report "none".
+    grep --extended-regexp "^\| \`${ID_RE}\`.*\| ${1} \|" "${COVERAGE_FILE}" \
+        | grep --only-matching --extended-regexp "${ID_RE}" \
+        | sort --unique \
+        || true
+}
+
 report() {
     # $1 = message, remaining stdin = offending IDs
     local -r message="${1}"
@@ -134,6 +162,25 @@ if [[ -n "${unbacked}" ]] ; then
         <<< "${unbacked}"
     status=1
 fi
+
+# (5) an unrecognised status
+bad_status="$(rows_with_bad_status)"
+if [[ -n "${bad_status}" ]] ; then
+    report "COVERAGE.md rows whose status is not done/red/TODO/n/a/blocked:" \
+        <<< "${bad_status}"
+    status=1
+fi
+
+# Surfaced, not failed: a `red` row is the TDD cycle mid-flight, and a
+# `blocked` one is waiting on DECISIONS.md.
+for parked in red blocked ; do
+    parked_ids="$(ids_with_status "${parked}")"
+    if [[ -n "${parked_ids}" ]] ; then
+        printf 'coverage-gate: note — %s spec(s) marked %s:\n' \
+            "$(printf '%s\n' "${parked_ids}" | grep -c .)" "${parked}"
+        printf '%s\n' "${parked_ids}" | sed 's/^/  /'
+    fi
+done
 
 if (( status == 0 )) ; then
     printf 'coverage-gate: OK (%s specs; %s done, %s TODO, %s n/a, %s retired)\n' \

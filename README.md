@@ -397,8 +397,10 @@ profile provides; Krona's text mode requires no NCBI taxonomy database.
 The repository ships with a test suite covering the pipeline's
 custom code (driver shell scripts, the Python table builder, Nextflow
 modules and workflow). External tools (`dorado`, `cutadapt`, `vsearch`)
-are not re-tested. See [`tests/SPECIFICATIONS.md`](tests/SPECIFICATIONS.md)
-for the catalogue of behaviours under test, and
+are not re-tested. See [`SPECIFICATIONS.md`](SPECIFICATIONS.md)
+for the catalogue of behaviours under test — it is authoritative, and carries
+the test-first cycle contributors follow — plus
+[`DECISIONS.md`](DECISIONS.md) for questions that block a spec, and
 [`tests/README.md`](tests/README.md) for the layout.
 
 ```bash

@@ -1,17 +1,27 @@
 # Spec coverage
 
-One row per `[Sxx]`-style ID declared in
-[`SPECIFICATIONS.md`](SPECIFICATIONS.md), mapped to the test(s) that cite
-it. **Status:**
+One row per spec ID declared in
+[`../SPECIFICATIONS.md`](../SPECIFICATIONS.md), mapped to the test(s) that
+cite it. **Status:**
 
-- `done` — at least one test names this ID and passes
-- `TODO` — no test yet
-- `n/a`  — an observation or ambiguity, not an assertable behaviour
+| Status | Meaning |
+| ------ | ------- |
+| `done` | a test cites this ID and passes |
+| `red` | the test exists and fails — the TDD step-3 state, before the code |
+| `TODO` | no test yet |
+| `n/a` | not an assertable behaviour (the `OBS` entries) |
+| `blocked` | needs a decision first; see [`../DECISIONS.md`](../DECISIONS.md) |
+
+Working test-first, a new spec passes through `red` on its way to `done`: add
+the row, write the failing test, then implement. The gate reports `red` and
+`blocked` rows without failing on them — they are legitimate mid-cycle states,
+but ones worth seeing rather than forgetting.
 
 `bash tests/coverage-gate.sh` enforces the triangle: every declared ID
 appears here, every ID cited from `tests/` is declared, nothing here is
-undeclared, and every row marked `done` really is cited by a test. So this
-file cannot quietly drift from either side — which matters, because the
+undeclared, every row marked `done` really is cited by a test, and every
+status is one of the five above. So this file cannot quietly drift from either
+side — which matters, because the
 suite grew from 71 to ~150 tests across six releases with this mapping
 maintained by hand.
 

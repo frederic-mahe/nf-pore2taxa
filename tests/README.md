@@ -3,7 +3,7 @@
 This directory contains the test scaffolding and a first pass of
 tests for `nf-pore2taxa`.
 
-See [`SPECIFICATIONS.md`](SPECIFICATIONS.md) for the full list of testable
+See [`../SPECIFICATIONS.md`](../SPECIFICATIONS.md) for the full list of testable
 behaviours — each test asserts a subset of those, identified by `WF-..`,
 `SX-..`, `BT-..`, `BC-..`, `CFG-..`, `CLU-..`, `DSC-..`, `FN-..`, `KR-..`,
 `PRV-..` or `VL-..` IDs in comments and test names.
@@ -15,7 +15,6 @@ per-file table further down is a convenience, not the source of truth.
 
 ```
 tests/
-├── SPECIFICATIONS.md     ← what we test and why
 ├── COVERAGE.md           ← every spec ID -> its test(s) -> status
 ├── coverage-gate.sh      ← enforces that the mapping cannot drift
 ├── check-stub-run.sh     ← whole pipeline under -stub-run, no tools at all
@@ -109,7 +108,7 @@ nf-test test tests/workflow/main.nf.test
 
 ## What each layer covers
 
-| Layer                                  | Specs covered (see `SPECIFICATIONS.md`)                  |
+| Layer                                  | Specs covered (see `../SPECIFICATIONS.md`)                  |
 | -------------------------------------- | --------------------------------------------------------- |
 | `bin/validation.bats`                  | VL-01, VL-02, VL-03, VL-04                                |
 | `bin/basecall_cli.bats`                | BC-01..BC-07, BC-09..BC-12                                |

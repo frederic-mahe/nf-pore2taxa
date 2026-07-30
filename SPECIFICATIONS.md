@@ -5,6 +5,113 @@ worth pinning down with automated tests. It is a living document: when
 a behaviour changes intentionally, update the spec; when a behaviour
 changes accidentally, the corresponding test should catch it.
 
+It is **authoritative**: a behaviour that is not written here is not
+promised, and a behaviour written here without a test is visible as such
+(see [`tests/COVERAGE.md`](tests/COVERAGE.md)). Companion documents:
+
+| File | Role |
+| ---- | ---- |
+| [`DECISIONS.md`](DECISIONS.md) | open questions that block one or more spec IDs |
+| [`tests/COVERAGE.md`](tests/COVERAGE.md) | spec ID → test file → status |
+| [`tests/coverage-gate.sh`](tests/coverage-gate.sh) | enforces that the three stay in step |
+| [`tests/README.md`](tests/README.md) | how to run each layer of the suite |
+
+
+## Working test-first
+
+The cycle, per [`CLAUDE.md`](CLAUDE.md):
+
+1. **Find or add the spec ID here.** If the intended behaviour is
+   unclear, open a `Dxx` entry in [`DECISIONS.md`](DECISIONS.md) and
+   stop: a test cannot be written against an undefined behaviour, and
+   guessing bakes the guess into the suite.
+2. **Add the row to [`tests/COVERAGE.md`](tests/COVERAGE.md)** with
+   status `red`.
+3. **Write the test, and watch it fail.** A test that has never failed
+   has not been shown to test anything — that is the whole value of
+   this ordering, and it is not recoverable afterwards except by
+   deliberately breaking the code again.
+4. **Implement until it passes**, then flip the row to `done`.
+5. **Run the suite**: `bash tests/run_all.sh` (or the individual layers
+   listed in [`tests/README.md`](tests/README.md)). The coverage gate
+   must pass.
+6. **Commit the test and the code together.**
+
+### Where a test goes
+
+| Layer | Location | Runner |
+| ----- | -------- | ------ |
+| `bin/*.sh` behaviour | `tests/bin/<script>.bats` | bats |
+| `bin/*.py` behaviour | `tests/bin/test_<script>.py` | `python3 -m unittest` |
+| a Nextflow process | `tests/modules/<process>.nf.test` | nf-test |
+| shared `.nf` functions | `tests/modules/functions.nf.test` | nf-test |
+| the whole workflow | `tests/workflow/<name>.nf.test` | nf-test |
+| config resolution, profiles, whole-run behaviour | `tests/config/<topic>.bats` | bats |
+| topology with no tools installed | `tests/check-stub-run.sh` | plain bash |
+
+Two notes on choosing, both learned the hard way:
+
+- **nf-test cannot express everything.** It gives each test a fresh
+  `outputDir` and has no resume hook, so anything needing two
+  successive runs against changing inputs (`SX-35`, `DSC-06`) belongs
+  in `tests/config/*.bats`, driving `nextflow run` directly. The
+  `-resume` defect those pin went unnoticed precisely because the suite
+  had no way to say "run it twice".
+- **Config-level behaviour needs `nextflow config -flat`**, not a run.
+  Profiles, resource ceilings and report paths resolve before any
+  process starts, and that is where several defects lived.
+
+### Spec IDs
+
+IDs are `FAM-NN`, where `FAM` names the area. This is a deliberate
+divergence from the flat `[Sxx]` scheme `CLAUDE.md` describes: with 168
+specs the family prefix is what makes a failure legible at a glance, and
+renumbering would mean editing every existing test — which `CLAUDE.md`
+forbids without authorisation.
+
+| Family | Area |
+| ------ | ---- |
+| `WF` | top-level workflow (`main.nf`) |
+| `BC` | basecalling (`BASECALL`, `basecall_pod5_files.sh`) |
+| `SX` | assignment (`SINTAX`, `assign_with_sintax.sh`) |
+| `DSC` | barcode discovery (`discover_barcodes.py`) |
+| `BT` | occurrence table (`build_occurrence_table.py`) |
+| `KR` | Krona charts |
+| `VL` | shared shell validation helpers |
+| `FN` | shared `.nf` functions |
+| `CFG` | config invariants, resources, startup summary |
+| `CLU` | cluster and container profiles |
+| `PRV` | provenance artefacts |
+| `OUT` | output layout |
+| `PRM` | parameter surface |
+| `STB` | tool-free stub run |
+| `DEM` | demo profile |
+| `OBS` | observations — ambiguities, not assertable behaviours |
+
+A sub-case gets a letter: `WF-12a`, `CFG-06h`. Only the base ID is
+declared here; the letters live in the tests.
+
+Cite the ID in the test — in its name, its docstring, or a
+`COVERAGE: FAM-NN` comment. The gate greps for the bare ID, so all three
+work; a `COVERAGE:` marker is clearest for a test whose name would not
+otherwise carry it.
+
+### Status vocabulary
+
+Used in [`tests/COVERAGE.md`](tests/COVERAGE.md):
+
+| Status | Meaning |
+| ------ | ------- |
+| `done` | a test cites this ID and passes |
+| `red` | the test exists and fails — the TDD step-3 state |
+| `TODO` | no test yet |
+| `n/a` | not an assertable behaviour (the `OBS` entries) |
+| `blocked` | needs a decision first; see [`DECISIONS.md`](DECISIONS.md) |
+
+A struck-through ID (`~~SX-20~~`) is a retired behaviour: kept so the
+number is never reused, and exempt from coverage.
+
+
 ## Ground rules
 
 - **Out of scope.** `dorado`, `cutadapt`, and `vsearch` are third-party
