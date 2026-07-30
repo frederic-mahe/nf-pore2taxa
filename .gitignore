@@ -11,3 +11,6 @@ __pycache__/
 .nf-test/
 .nf-test.log
 tests/.nf-test/
+
+# demo profile output (`nextflow run main.nf -profile demo`)
+demo_results/

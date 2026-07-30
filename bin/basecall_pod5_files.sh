@@ -208,7 +208,8 @@ clean_up() {
 
     # Remove everything else, except the model directory: deleting that is
     # what used to force a fresh ~1 GB download on every run.
-    local -r models_basename="$(basename "${MODELS_DIR}")"
+    local models_basename
+    models_basename="$(basename "${MODELS_DIR}")"
     find \
         "${OUTPUT_DIR}" \
         -maxdepth 1 \
