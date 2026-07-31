@@ -3,7 +3,7 @@
 // These pin the boolean-parameter contract both consumers rely on: a
 // value may arrive as a real Boolean (from a -config file) or as the
 // string 'true'/'false' (from a CLI `--flag` override). See FN-01/FN-02
-// in tests/SPECIFICATIONS.md.
+// in SPECIFICATIONS.md.
 
 nextflow_function {
 

@@ -54,7 +54,9 @@ EOF
 
 check_readable() {
     # kind: "dir" or "file"
-    local -r kind="${1}" path="${2}" label="${3}"
+    local -r kind="${1}"
+    local -r path="${2}"
+    local -r label="${3}"
     local flag="-f"
     [[ "${kind}" == "dir" ]] && flag="-d"
     if ! test "${flag}" "${path}" ; then
@@ -69,7 +71,8 @@ check_readable() {
 
 
 require_arg() {
-    local -r name="${1}" value="${2}"
+    local -r name="${1}"
+    local -r value="${2}"
     if [[ -z "${value}" ]] ; then
         echo "Error: ${name} is required." 1>&2
         return 1
@@ -194,7 +197,8 @@ trim_primers() {
     local -r log="${2}"
     local -ir min_length=32
     local -r error_rate="0.2"
-    local -r anti_primer_r="$(reverse_complement "${REVERSE_PRIMER}")"
+    local anti_primer_r
+    anti_primer_r="$(reverse_complement "${REVERSE_PRIMER}")"
     local -ir min_f=$(( ${#FORWARD_PRIMER} * 2 / 3 ))
     local -ir min_r=$(( ${#REVERSE_PRIMER} * 2 / 3 ))
 

@@ -1,7 +1,8 @@
 #!/bin/bash
 
 require_arg() {
-    local -r name="${1}" value="${2}"
+    local -r name="${1}"
+    local -r value="${2}"
     if [[ -z "${value}" ]] ; then
         echo "Error: ${name} is required." 1>&2
         return 1

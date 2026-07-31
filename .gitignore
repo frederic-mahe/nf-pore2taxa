@@ -14,3 +14,7 @@ tests/.nf-test/
 
 # demo profile output (`nextflow run main.nf -profile demo`)
 demo_results/
+
+# local AI-assistant instructions: developer-specific, not part of the
+# pipeline's contract. Kept out of the repository on purpose.
+CLAUDE.md

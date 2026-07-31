@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Unit + integration tests for ``bin/build_occurrence_table.py``.
 
-These mirror the BT-.. specifications in ``tests/SPECIFICATIONS.md`` and
+These mirror the BT-.. specifications in ``SPECIFICATIONS.md`` and
 the behaviour previously pinned by ``build_occurrence_table.bats`` against
 the R implementation. They are pure-stdlib (``unittest``) so they run with
 nothing more than the Python interpreter the pipeline already requires.

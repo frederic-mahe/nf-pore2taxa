@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Unit + CLI tests for ``bin/build_krona.py``.
 
-These mirror the KR-.. specifications in ``tests/SPECIFICATIONS.md``. They
+These mirror the KR-.. specifications in ``SPECIFICATIONS.md``. They
 are pure-stdlib (``unittest``) and need no Krona install — they exercise the
 TSV-to-Krona-text conversion, which is the part of the feature that is ours.
 The ``ktImportText`` invocation is covered separately by the driver/module
