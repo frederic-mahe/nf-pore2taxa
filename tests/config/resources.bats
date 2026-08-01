@@ -52,6 +52,30 @@ run_pipeline() {
         "$@"
 }
 
+# The `cpus` entry of process.resourceLimits, read from a `nextflow config
+# -flat` blob on stdin whichever way this Nextflow renders it. From 26.04 on
+# every nested map key gets a dotted row of its own:
+#
+#   process.resourceLimits.cpus = 24
+#
+# while 25.10.x and earlier print the map whole, on one line:
+#
+#   process.resourceLimits = [cpus:24, memory:'125.3 GB']
+#
+# Matching one form only reports a missing ceiling on the other — a failure
+# with nothing wrong behind it, on a version the manifest supports.
+# cluster_profiles.bats carries the same extraction for the site profiles
+# (CLU-03), keyed on a profile name there rather than on stdin.
+resource_limits_cpus() {
+    sed -nE -e 's/^process\.resourceLimits\.cpus = ([0-9]+)$/\1/p' \
+            -e 's/^process\.resourceLimits = \[.*cpus:([0-9]+).*$/\1/p'
+}
+
+# Whether the ceiling carries a memory entry at all, in either rendering.
+resource_limits_has_memory() {
+    grep -qE "^process\.resourceLimits\.memory = |^process\.resourceLimits = \[.*memory:"
+}
+
 # ------------------------------------------------------------------- CFG-04
 
 @test "CFG-04a the default ceiling is the machine's own capacity" {
@@ -76,10 +100,10 @@ run_pipeline() {
 
     local cpus limit
     cpus="$(sed -nE 's/^params\.max_cpus = ([0-9]+)$/\1/p' <<< "${output}")"
-    limit="$(sed -nE 's/^process\.resourceLimits\.cpus = ([0-9]+)$/\1/p' <<< "${output}")"
+    limit="$(resource_limits_cpus <<< "${output}")"
     [ -n "${limit}" ]
     [ "${limit}" -eq "${cpus}" ]
-    [[ "${output}" == *"process.resourceLimits.memory = "* ]]
+    resource_limits_has_memory <<< "${output}"
 }
 
 @test "CFG-04c the cluster profile sets the ceiling explicitly, not by detection" {
@@ -90,7 +114,7 @@ run_pipeline() {
     run nextflow config -flat -profile cluster
     [ "${status}" -eq 0 ]
     [[ "${output}" == *"params.max_cpus = 16"* ]]
-    [[ "${output}" == *"process.resourceLimits.cpus = 16"* ]]
+    [ "$(resource_limits_cpus <<< "${output}")" = "16" ]
     [[ "${output}" == *"process.executor = 'slurm'"* ]]
 
     # Only meaningful if the site's number differs from this host's.
