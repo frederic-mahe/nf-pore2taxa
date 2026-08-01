@@ -39,6 +39,26 @@ flat() {
     nextflow config -flat -profile "$1" 2> /dev/null
 }
 
+# The `cpus` entry of process.resourceLimits, whichever way this Nextflow
+# renders it. `nextflow config -flat` gives every nested map key a dotted
+# row of its own from 26.04 on:
+#
+#   process.resourceLimits.cpus = 512
+#
+# while 25.10.x and earlier print the map whole, on one line:
+#
+#   process.resourceLimits = [cpus:512, memory:'2 TB', time:'30d']
+#
+# The CI matrix spans both versions on purpose (see the header), so a
+# pattern that knows only one of them reports a missing ceiling on the
+# other — a failure with nothing wrong behind it. Matching both keeps the
+# assertion about the site's value rather than about the renderer.
+resource_limits_cpus() {
+    flat "$1" \
+        | sed -nE -e 's/^process\.resourceLimits\.cpus = ([0-9]+)$/\1/p' \
+                  -e 's/^process\.resourceLimits = \[.*cpus:([0-9]+).*$/\1/p'
+}
+
 # ------------------------------------------------------------------- CLU-01
 
 @test "CLU-01 every shipped profile resolves" {
@@ -100,7 +120,7 @@ flat() {
         # Every shipped site is far larger than any workstation.
         [ "${cpus}" -ge 64 ] || { echo "${site}: max_cpus=${cpus} looks wrong"; return 1; }
         # And resourceLimits is rebuilt from it, not left at the default.
-        flat "${site}" | grep -qE "^process\.resourceLimits\.cpus = ${cpus}\$" || {
+        [ "$(resource_limits_cpus "${site}")" = "${cpus}" ] || {
             echo "${site}: resourceLimits.cpus != max_cpus (${cpus})"; return 1
         }
     done
