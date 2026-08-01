@@ -37,6 +37,10 @@ setup() {
     mkdir -p "${DATA}"
     cp -r "${FIXTURES}/fastq_dir/fastq_pass" "${DATA}/"
 
+    # Written by the run itself: nextflow.config enables the trace scope
+    # beside the tables, under results_table's parent as set below.
+    TRACE="${BATS_TEST_TMPDIR}/results/pipeline_info/execution_trace.txt"
+
     # Keep the requests small enough to schedule on a CI runner.
     cat > "${BATS_TEST_TMPDIR}/test.config" << EOF
 params {
@@ -62,6 +66,40 @@ pipeline() {
     }
 }
 
+# Every task in the last run's trace that was NOT a cache hit, as
+# "<status> <name>". Empty output means the whole run was cached.
+#
+# Read from the trace rather than from Nextflow's own cache summary in the
+# log, because that line is worded differently across the versions this
+# suite supports (>= 24.04): 26.04.x prints
+# "[SUCCESS] completed=0 failed=0 cached=7", 25.10.x
+# "[hash] SINTAX (barcode03) | 3 of 3, cached: 3". The trace's `status`
+# column reads CACHED on both, and it *names* the task that re-executed
+# instead of only counting it — which is the thing worth knowing when this
+# fails on a machine you cannot reach. trace.overwrite is true, so the
+# file describes the resumed run and not the one before it.
+#
+# Columns are located by header name, not by position, so extending the
+# `fields` list in nextflow.config cannot silently move the goalposts.
+not_cached() {
+    awk -F'\t' '
+        NR == 1 {
+            for (i = 1; i <= NF; i++) {
+                if ($i == "status") s = i
+                if ($i == "name")   n = i
+            }
+            next
+        }
+        $s != "CACHED" { print $s, $n }
+    ' "${TRACE}"
+}
+
+# How many tasks the trace lists at all, so that "nothing re-executed"
+# cannot be satisfied by a trace that recorded nothing.
+traced_tasks() {
+    awk 'END { print NR - 1 }' "${TRACE}"
+}
+
 # Sum one barcode's column in the published table.
 column_total() {
     local -r barcode="${1}"
@@ -77,10 +115,16 @@ column_total() {
 @test "SX-35 an unchanged -resume is a full cache hit" {
     pipeline
     pipeline -resume
-    # Nothing re-executed. Asserted as completed=0 rather than a hardcoded
-    # cached=N, so adding a process later does not silently turn this into
-    # a test of the wrong number.
-    [[ "${output}" == *"completed=0"* ]]
+    # The trace has to describe a real run for the check below to mean
+    # anything.
+    [ "$(traced_tasks)" -gt 0 ]
+    # Nothing re-executed. Asserted as "no task has a status other than
+    # CACHED" rather than a hardcoded cached=N, so adding a process later
+    # does not silently turn this into a test of the wrong number.
+    run not_cached
+    [ -z "${output}" ] || {
+        echo "an unchanged -resume re-executed:" ; echo "${output}" ; return 1
+    }
 }
 
 # ------------------------------------------------------------------- DSC-06

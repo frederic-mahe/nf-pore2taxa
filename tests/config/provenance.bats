@@ -36,6 +36,36 @@ setup() {
     INFO="${RESULTS}/pipeline_info"
 }
 
+# Every task in the last run's trace that was NOT a cache hit, as
+# "<status> <name>". Empty output means the whole run was cached.
+#
+# Read from the trace rather than from Nextflow's own cache summary in the
+# log, whose wording differs across the versions this suite supports
+# (>= 24.04): 26.04.x prints "[SUCCESS] completed=0 failed=0 cached=7",
+# 25.10.x "[hash] SINTAX (barcode03) | 3 of 3, cached: 3". The `status`
+# column reads CACHED on both, and it names the task that re-executed
+# instead of only counting it. trace.overwrite is true (PRV-05c), so the
+# file describes the resumed run. Columns are located by header name, not
+# by position, so extending trace.fields cannot move the goalposts.
+not_cached() {
+    awk -F'\t' '
+        NR == 1 {
+            for (i = 1; i <= NF; i++) {
+                if ($i == "status") s = i
+                if ($i == "name")   n = i
+            }
+            next
+        }
+        $s != "CACHED" { print $s, $n }
+    ' "${INFO}/execution_trace.txt"
+}
+
+# How many tasks the trace lists at all, so that "nothing re-executed"
+# cannot be satisfied by a trace that recorded nothing.
+traced_tasks() {
+    awk 'END { print NR - 1 }' "${INFO}/execution_trace.txt"
+}
+
 pipeline() {
     cd "${BATS_TEST_TMPDIR}" || return 1
     run nextflow run "${REPO_ROOT}/main.nf" \
@@ -198,8 +228,16 @@ print('ok')
 
 @test "PRV-08b the provenance files do not defeat -resume" {
     # params.json omits the session id and command line precisely so this
-    # holds: an unchanged re-run must re-execute nothing.
+    # holds: an unchanged re-run must re-execute nothing. DUMP_PARAMS and
+    # DUMP_VERSIONS are the two tasks this would show up in, and the trace
+    # names them, so a regression here says which record broke the cache.
     pipeline
     pipeline -resume
-    [[ "${output}" == *"completed=0"* ]]
+    # The trace has to describe a real run for the check below to mean
+    # anything.
+    [ "$(traced_tasks)" -gt 0 ]
+    run not_cached
+    [ -z "${output}" ] || {
+        echo "an unchanged -resume re-executed:" ; echo "${output}" ; return 1
+    }
 }
