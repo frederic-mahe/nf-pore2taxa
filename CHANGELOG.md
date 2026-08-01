@@ -189,6 +189,23 @@ all** and three settings hardcoded in a shell script; both are now fixed.
 
 ### `Fixed`
 
+- **the pipeline could not run at all on any Nextflow before 26.04**, though
+  the manifest declares `>=24.04.0`. On 25.10.2 — the version most of our
+  sites run — startup validation rejected the entire declared parameter
+  surface and every boolean parameter, so every run died before doing any
+  work, `-profile demo -stub-run` included. `"${x}" in [list]` is the
+  culprit in both places: `in` on a List compares with `equals()`, which no
+  GString satisfies against a String, and only Nextflow 26.04 onwards folds
+  a single-placeholder `"${x}"` to a `java.lang.String` for you. The two
+  call sites (`main.nf`'s unknown-parameter loop and `valid_bool()`) now
+  convert explicitly. `coerce_bool()` and the `==~` format checks were never
+  affected — Groovy's `==` and `==~` coerce GString/String.
+
+  CI could not see it: every job that *ran* the pipeline used the latest
+  stable only, and the one job pinned to 25.10.2 resolved config without
+  running anything. The stub run — no tools, no scheduler, whole graph —
+  now spans both versions, which is the cheapest check that would have
+  caught this.
 - **the script could delete and move directories in the caller's current
   directory.** `clean_up` and `compress_fastq` walked `.` rather than
   `--output-dir`: it moved every `fastq_pass` it found there to the top

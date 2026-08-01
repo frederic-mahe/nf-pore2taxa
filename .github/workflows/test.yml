@@ -101,7 +101,21 @@ jobs:
   # tool shadowed by a failing stub. Needs Nextflow and python3 only, so it is
   # the fastest signal that a wiring change broke the graph — and it also
   # proves `-profile demo` resolves and publishes.
+  #
+  # Matrixed over the same two Nextflow versions as cluster-profiles, and for
+  # a reason that cost us a release: every other job that RUNS the pipeline
+  # uses the latest stable only, so nothing exercised the language itself on
+  # an older Nextflow. `"${x}" in [list]` — a GString against a list of
+  # Strings, which List.contains() can never match — is folded to a plain
+  # String for you from 26.04 on and left a GStringImpl before that, so
+  # startup validation rejected every parameter the pipeline declares on
+  # 25.10.x while CI stayed green. This is the cheapest job that would have
+  # caught it: no tools, no scheduler, and it walks the whole graph.
   stub-run:
+    strategy:
+      fail-fast: false
+      matrix:
+        nxf_ver: ['25.10.2', 'latest-stable']
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -114,6 +128,8 @@ jobs:
 
       - name: Set up Nextflow
         uses: nf-core/setup-nextflow@v3
+        with:
+          version: ${{ matrix.nxf_ver }}
 
       - name: Run the pipeline under -stub-run with no tools installed
         run: bash tests/check-stub-run.sh

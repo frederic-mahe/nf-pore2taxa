@@ -295,8 +295,15 @@ workflow {
     //
     // Listed before everything else in the report: if a name is wrong, the
     // complaints that follow are about values the user did not actually set.
+    // `.toString()`, for the same reason as in valid_bool(): `in` on a List
+    // compares with equals(), which no GString satisfies against a String,
+    // and only Nextflow >= 26.04 folds `"${name}"` to a java.lang.String
+    // for us. Without it every declared parameter is reported unknown on
+    // 25.10.x — with a "Did you mean 'fastq_dir'?" naming the parameter
+    // itself, since nearest_param() coerces on method dispatch and so was
+    // the only half of this that kept working.
     params.keySet().sort().each { name ->
-        if (!("${name}" in known_params())) {
+        if (!("${name}".toString() in known_params())) {
             def suggestion = nearest_param("${name}", known_params())
             errors << "  - unknown parameter '${name}'." +
                       (suggestion ? " Did you mean '${suggestion}'?" : '') +

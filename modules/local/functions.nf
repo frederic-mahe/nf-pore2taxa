@@ -19,8 +19,17 @@ def coerce_bool(v) {
 // True when v is a valid boolean parameter: a real Boolean, or the CLI
 // string form 'true'/'false'. Used by startup validation to reject
 // anything else before coerce_bool() flattens it.
+//
+// `.toString()` is not redundant: `in` on a List is List.contains(), which
+// compares with equals(), and a GString never equals a String however
+// identical they print. Groovy folds a single-placeholder `"${v}"` to a
+// java.lang.String from Nextflow 26.04 on and leaves it a GStringImpl
+// before that, so without the explicit conversion this returns false for
+// every value on 25.10.x and older — rejecting every boolean parameter the
+// pipeline has, at startup, on the versions the manifest supports.
+// coerce_bool() above is unaffected: Groovy's `==` coerces GString/String.
 def valid_bool(v) {
-    "${v}" in ['true', 'false']
+    "${v}".toString() in ['true', 'false']
 }
 
 // How many threads a process will actually get: its configured request,
