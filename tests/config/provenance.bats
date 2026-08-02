@@ -40,10 +40,11 @@ setup() {
 # "<status> <name>". Empty output means the whole run was cached.
 #
 # Read from the trace rather than from Nextflow's own cache summary in the
-# log, whose wording differs across the versions this suite supports
-# (>= 24.04): 26.04.x prints "[SUCCESS] completed=0 failed=0 cached=7",
-# 25.10.x "[hash] SINTAX (barcode03) | 3 of 3, cached: 3". The `status`
-# column reads CACHED on both, and it names the task that re-executed
+# log, whose wording varies by release: 25.10.2, 26.04.4 and the
+# latest-stable the CI action installs all say it differently, and matching
+# `completed=0` had this test red in CI on a run that was in fact a full
+# cache hit. The `status` column reads CACHED on all of them, and it names
+# the task that re-executed
 # instead of only counting it. trace.overwrite is true (PRV-05c), so the
 # file describes the resumed run. Columns are located by header name, not
 # by position, so extending trace.fields cannot move the goalposts.

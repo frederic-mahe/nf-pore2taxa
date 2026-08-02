@@ -70,14 +70,16 @@ pipeline() {
 # "<status> <name>". Empty output means the whole run was cached.
 #
 # Read from the trace rather than from Nextflow's own cache summary in the
-# log, because that line is worded differently across the versions this
-# suite supports (>= 24.04): 26.04.x prints
-# "[SUCCESS] completed=0 failed=0 cached=7", 25.10.x
-# "[hash] SINTAX (barcode03) | 3 of 3, cached: 3". The trace's `status`
-# column reads CACHED on both, and it *names* the task that re-executed
-# instead of only counting it — which is the thing worth knowing when this
-# fails on a machine you cannot reach. trace.overwrite is true, so the
-# file describes the resumed run and not the one before it.
+# log: that line's wording is not something to depend on. 25.10.2 prints
+# "[ab/cdef12] SINTAX (barcode03) | 3 of 3, cached: 3", 26.04.4 prints
+# "[SUCCESS] completed=0 failed=0 cached=7", and whatever the CI action
+# installs as latest-stable prints neither — matching `completed=0` is what
+# had this test and PRV-08b red in GitHub CI on resumes that were, as the
+# trace showed once it was consulted, full cache hits. The `status` column
+# reads CACHED on all three, and it *names* the task that re-executed
+# instead of only counting it — the thing worth knowing when this fails on
+# a machine you cannot reach. trace.overwrite is true, so the file
+# describes the resumed run and not the one before it.
 #
 # Columns are located by header name, not by position, so extending the
 # `fields` list in nextflow.config cannot silently move the goalposts.
