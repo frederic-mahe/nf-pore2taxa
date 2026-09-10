@@ -91,7 +91,7 @@ when you add a spec, in the same commit.
 | `SX-16` | A negative or non-integer --subsample yields a clear stderr error (--subsample must b... | `bin/assign_with_sintax_cli.bats` | done |
 | `SX-17` | Every external tool the script invokes must be usable, not merely present: check_comm... | `bin/assign_with_sintax_tools.bats` | done |
 | `SX-18` | A tool failure inside trim_primers is reported on stderr: the offending FASTQ file is... | `bin/assign_with_sintax_tools.bats` | done |
-| `SX-19` | The barcode's FASTQ files may be supplied through --fastq-list FILE (one path per lin... | `bin/assign_with_sintax_tools.bats`, `config/sintax_fastq_list.bats` | red |
+| `SX-19` | The barcode's FASTQ files may be supplied through --fastq-list FILE (one path per lin... | `bin/assign_with_sintax_tools.bats`, `config/sintax_fastq_list.bats` | done |
 | `SX-22` | reverse_complement: complements ACGT/U/IUPAC ambiguity codes correctly and reverses t... | `bin/assign_with_sintax_helpers.bats` | done |
 | `SX-23` | reverse_complement: handles lower-case input and preserves case. | `bin/assign_with_sintax_helpers.bats` | done |
 | `SX-24` | reverse_complement: empty string input aborts with a clear error. | `bin/assign_with_sintax_helpers.bats` | done |

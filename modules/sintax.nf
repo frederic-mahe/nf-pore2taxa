@@ -45,7 +45,19 @@ process SINTAX {
     // discard_untrimmed = false keeps every read. coerce_bool normalises a
     // config boolean and a CLI `--discard_untrimmed false` (string) alike.
     def primer_filter = coerce_bool(params.discard_untrimmed) ? '--discard-untrimmed' : '--keep-untrimmed'
+    // The staged names go into a list file rather than onto the command
+    // line. Interpolating them as arguments made the argv of an execve,
+    // which is capped: ~32,000 names of 56 characters exhaust ARG_MAX
+    // (2 MiB under a default 8 MB stack) and the task dies with exit 126
+    // and `Argument list too long` — reachable for one scattered barcode
+    // of a large run. A heredoc is read from this script file, which has
+    // no such ceiling. Quoted delimiter, so nothing in a file name is
+    // expanded (SX-19).
     """
+    cat > fastq_list.txt << 'FASTQ_LIST'
+${fastqs.join('\n')}
+FASTQ_LIST
+
     bash \\
     assign_with_sintax.sh \\
         --barcode "${barcode}" \\
@@ -56,7 +68,7 @@ process SINTAX {
         --randseed "${params.randseed}" \\
         --subsample "${params.subsample}" \\
         ${primer_filter} \\
-        ${fastqs}
+        --fastq-list fastq_list.txt
     """
 
     // Under -stub-run: one plausible 4-field sintax row, so BUILD_TABLE (which

@@ -46,6 +46,12 @@ Options:
                                  read (default: 0). Uses the --randseed seed.
       --discard-untrimmed      Drop reads with no primer found (default)
       --keep-untrimmed         Keep all reads, trim primers where found
+      --fastq-list        FILE  Read FASTQ paths from FILE, one per line, in
+                                 addition to any given positionally. Blank
+                                 lines are ignored. This is how the SINTAX
+                                 module passes a barcode's files: a scattered
+                                 barcode can hold more names than a command
+                                 line can carry (ARG_MAX).
   -h, --help                   Show this help message and exit
 EOF
     exit 0
@@ -368,6 +374,7 @@ randseed=0               # 0 lets vsearch pick a pseudo-random seed
 subsample=0             # 0 disables subsampling (keep every read)
 discard_untrimmed=true  # strict amplicon filtering on by default
 fastq_files=()
+fastq_list=""
 
 while [[ $# -gt 0 ]] ; do
     case "${1}" in
@@ -378,6 +385,7 @@ while [[ $# -gt 0 ]] ; do
         -t | --threads)         threads="${2}";        shift 2 ;;
         --randseed)             randseed="${2}";       shift 2 ;;
         --subsample)            subsample="${2}";      shift 2 ;;
+        --fastq-list)           fastq_list="${2}";     shift 2 ;;
         --discard-untrimmed)    discard_untrimmed=true;  shift ;;
         --keep-untrimmed)       discard_untrimmed=false; shift ;;
         -h | --help)            usage                          ;;
@@ -392,6 +400,29 @@ while [[ $# -gt 0 ]] ; do
     fastq_files+=("${1}"); shift
 done
 
+# --- files named in --fastq-list, appended to any positional ones
+#
+# Nextflow interpolates a barcode's staged names into the task script, and
+# on a command line those names become the argv of an execve: about 32,000
+# names of 56 characters exhaust ARG_MAX (2 MiB under a default 8 MB
+# stack), and the task dies with `Argument list too long`. A list file is
+# read from disk, so the module hands the set over this way instead.
+
+if [[ -n "${fastq_list}" ]] ; then
+    if [[ ! -r "${fastq_list}" ]] ; then
+        echo "Error: --fastq-list file not found or not readable: ${fastq_list}" 1>&2
+        exit 1
+    fi
+    # `|| [[ -n "${line}" ]]` so a final line with no trailing newline is
+    # not dropped; a blank line is skipped rather than becoming an empty
+    # path that validate_inputs would report as a missing file.
+    while IFS= read -r line || [[ -n "${line}" ]] ; do
+        [[ -z "${line}" ]] && continue
+        fastq_files+=("${line}")
+    done < "${fastq_list}"
+fi
+
+
 # --- promote to read-only globals
 
 declare -r  BARCODE="${barcode}"
@@ -403,7 +434,7 @@ declare -r  RANDSEED="${randseed}"
 declare -r  SUBSAMPLE="${subsample}"
 declare -r  DISCARD_UNTRIMMED="${discard_untrimmed}"
 declare -ra FASTQ_FILES=("${fastq_files[@]+"${fastq_files[@]}"}")
-unset barcode references forward_primer reverse_primer threads randseed subsample discard_untrimmed fastq_files
+unset barcode references forward_primer reverse_primer threads randseed subsample discard_untrimmed fastq_files fastq_list line
 
 validate_inputs
 check_commands

@@ -5,6 +5,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### `Fixed`
+
+- **A tool that is installed but cannot run is now caught at startup.**
+  `check_commands` tested each tool with `command -v`, which only asks
+  whether the file exists. A pipx-installed cutadapt whose virtualenv had
+  lost its interpreter passed that test and then failed on every read, and
+  because `trim_primers` sends cutadapt's stderr to `<barcode>.log` the task
+  died with a bare `exit status 1` and an *empty* `.command.err` — which
+  Nextflow renders with no `Command error:` section at all, leaving nothing
+  to diagnose. Each tool is now executed once (`--version`) before any work
+  starts, and one that cannot run aborts with its own output on stderr
+  (SX-17). A failure during trimming now also names the offending FASTQ file
+  and echoes cutadapt's output to stderr, in addition to the log (SX-18).
+
+### `Added`
+
+- **`--fastq-list FILE`** in `assign_with_sintax.sh`: FASTQ paths read from a
+  file, one per line, combinable with positional arguments. The `SINTAX`
+  module now passes each barcode's files this way, through a heredoc in the
+  task script, instead of interpolating every staged name onto the command
+  line. Those names became the argv of an `execve`, which is capped: about
+  32,000 names of 56 characters exhaust `ARG_MAX` (2 MiB under a default 8 MB
+  stack) and the task dies with exit 126 and `Argument list too long`. A
+  scattered barcode of a large run can reach that; a list file has no such
+  ceiling (SX-19).
+
 ## v1.13.0 - 2026-08-04
 
 ### `Added`

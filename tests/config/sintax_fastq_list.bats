@@ -53,7 +53,9 @@ run_pipeline() {
         "$@"
 }
 
-# The SINTAX task's rendered script, found by the driver it invokes.
+# Every SINTAX task's rendered script, found by the driver it invokes.
+# flat_dir holds barcode01 (two files) and barcode02 (one), so there is a
+# task per barcode and both are checked.
 sintax_command_sh() {
     grep --files-with-matches --recursive --include='.command.sh' \
         'assign_with_sintax.sh' "${BATS_TEST_TMPDIR}/work"
@@ -63,17 +65,19 @@ sintax_command_sh() {
     run_pipeline
     [ "${status}" -eq 0 ]
 
-    local script
-    script="$(sintax_command_sh)"
-    [ -n "${script}" ]
+    local -a scripts
+    mapfile -t scripts < <(sintax_command_sh)
+    [ "${#scripts[@]}" -eq 2 ]
 
-    run grep -c -- '--fastq-list' "${script}"
-    [ "${status}" -eq 0 ]
+    for script in "${scripts[@]}" ; do
+        run grep -c -- '--fastq-list fastq_list.txt' "${script}"
+        [ "${status}" -eq 0 ]
 
-    # No line carries two fastq names: the old form put every name on the
-    # single invocation line, the list file puts one per line.
-    run grep -c -E '\.fastq(\.gz)?[^\n]*\.fastq(\.gz)?' "${script}"
-    [ "${output}" = "0" ]
+        # No line carries two fastq names: the old form put every name on
+        # the single invocation line, the list file puts one per line.
+        run grep -c -E '\.fastq(\.gz)?.*\.fastq(\.gz)?' "${script}"
+        [ "${output}" = "0" ]
+    done
 
     # And the reads still reached vsearch: barcode01's two files are
     # pooled into one assignment (SX-40 asserts the counts).
