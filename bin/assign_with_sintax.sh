@@ -166,6 +166,23 @@ check_commands() {
         exit 1
     fi
 
+    # Presence is not usability. A pip/pipx console script whose interpreter
+    # or site-packages has gone away still satisfies `command -v`: the stub
+    # in ~/.local/bin is there, and only running it reveals that it cannot
+    # import its own module. Left undetected, that surfaces inside
+    # trim_primers, whose cutadapt stderr goes to the per-barcode log — so
+    # Nextflow got a bare exit 1 with an empty `.command.err`, and it omits
+    # its `Command error:` section entirely when stderr is empty. Running
+    # each tool once here costs milliseconds and keeps the cause on stderr.
+    local probe
+    for cmd in "${tools[@]}" ; do
+        if ! probe="$("${cmd}" --version 2>&1)" ; then
+            echo "Error: ${cmd} is present but not usable ('${cmd} --version' failed):" 1>&2
+            printf '%s\n' "${probe}" | sed 's/^/  /' 1>&2
+            exit 1
+        fi
+    done
+
     # vsearch --version writes "vsearch vX.Y.Z_..." to stderr
     local vsearch_version
     vsearch_version=$("${VSEARCH}" --version 2>&1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 | tr -d 'v')
@@ -189,6 +206,25 @@ reverse_complement() {
     local -r complements="tgcaayrmkvhdbswTGCAAYRMKVHDBSW"
 
     tr "${nucleotides}" "${complements}" <<< "${1}" | rev
+}
+
+
+report_trim_failure() {
+    # Echo this file's cutadapt output to stderr, naming the file that
+    # failed. cutadapt's stderr is redirected into the per-barcode log so
+    # the log stays a complete trimming report — but that left the task's
+    # stderr EMPTY, and a Nextflow error report omits its `Command error:`
+    # section altogether when stderr is empty. A whole run then failed with
+    # nothing but "terminated with an error exit status (1)" to go on.
+    # `offset` is the log's size before this file was trimmed, so the report
+    # quotes this file's lines and not the whole run's.
+    local -r fastq="${1}"
+    local -r log="${2}"
+    local -ir offset="${3}"
+
+    echo "Error: primer trimming failed on: ${fastq}" 1>&2
+    echo "cutadapt reported (also appended to ${log}):" 1>&2
+    tail -c "+$(( offset + 1 ))" "${log}" | sed 's/^/  /' 1>&2
 }
 
 
@@ -216,7 +252,13 @@ trim_primers() {
     # whitespace
     # Note: cutadapt replaces I (inosine) with N
 
-    "${CUTADAPT}" \
+    # Where this file's cutadapt output starts in the (appended-to) log.
+    local -i mark=0
+    if [[ -e "${log}" ]] ; then
+        mark="$(wc -c < "${log}")"
+    fi
+
+    if ! { "${CUTADAPT}" \
         --minimum-length "${min_length}" \
         --error-rate "${error_rate}" \
         --revcomp \
@@ -233,7 +275,10 @@ trim_primers() {
             --overlap "${min_r}" \
             "${discard[@]}" \
             --fasta \
-            -  2>> "${log}"
+            -  2>> "${log}" ; } ; then
+        report_trim_failure "${fastq}" "${log}" "${mark}"
+        return 1
+    fi
 }
 
 
