@@ -20,9 +20,14 @@ setup_file() {
     export FIXDIR="${REPO_ROOT}/tests/fixtures/fastq_dir/fastq_pass"
     export REFS="${REPO_ROOT}/tests/fixtures/references.fasta"
 
+    # Run each tool, do not merely look for it: a pipx/--user launcher whose
+    # virtualenv has lost its interpreter satisfies `command -v` and then
+    # fails on every invocation, so a presence-only guard let these tests
+    # fail on a broken install instead of skipping. Same reasoning as the
+    # SX-17 check in the script itself.
     for tool in cutadapt vsearch ; do
-        command -v "${tool}" > /dev/null 2>&1 \
-            || skip "${tool} not in PATH"
+        "${tool}" --version > /dev/null 2>&1 \
+            || skip "${tool} not usable"
     done
 }
 
