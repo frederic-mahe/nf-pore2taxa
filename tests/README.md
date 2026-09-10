@@ -46,6 +46,7 @@ tests/
 ├── config/               ← bats tests for config invariants + whole-run behaviour
 │   ├── cluster_profiles.bats ← slurm / site / container profile resolution
 │   ├── demo_profile.bats   ← -profile demo runs with no flags
+│   ├── declared_params.bats ← the pipeline declares every param it reads
 │   ├── deprecation.bats
 │   ├── outdir.bats         ← the consolidated output directory
 │   ├── params_strict.bats  ← undeclared parameters are rejected
@@ -129,6 +130,7 @@ nf-test test tests/workflow/main.nf.test
 | `config/deprecation.bats`              | WF-08 (the `log.warn` half)                               |
 | `config/publish_modes.bats`            | CFG-02, CFG-03                                            |
 | `config/resources.bats`                | CFG-04                                                    |
+| `config/declared_params.bats`          | PRM-03                                                    |
 | `config/provenance.bats`               | PRV-05..PRV-08                                            |
 | `config/cluster_profiles.bats`         | CLU-01..CLU-09                                            |
 | `config/demo_profile.bats`             | DEM-01..DEM-04                                            |

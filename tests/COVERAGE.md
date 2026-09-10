@@ -267,6 +267,7 @@ when you add a spec, in the same commit.
 |------|-----------|---------|--------|
 | `PRM-01` | An undeclared parameter aborts at startup (a), with the nearest declared name suggest... | `bin/test_known_params.py`, `config/params_strict.bats`, `modules/functions.nf.test` | done |
 | `PRM-02` | known_params() matches the parameter surface the config declares, in both directions:... | `bin/test_known_params.py`, `modules/functions.nf.test` | done |
+| `PRM-03` | Every parameter main.nf reads is declared with a default in nextflow.config, so a def... | `config/declared_params.bats` | done |
 
 ## 14. Tool-free topology and the demo dataset
 

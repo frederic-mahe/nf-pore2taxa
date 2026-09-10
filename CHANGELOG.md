@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (SX-17). A failure during trimming now also names the offending FASTQ file
   and echoes cutadapt's output to stderr, in addition to the log (SX-18).
 
+- **`WARN: Access to undefined parameter \`require_slurm_account\``** on every
+  non-cluster run. `main.nf`'s startup validation reads the parameter
+  unconditionally, but its default lived in `conf/slurm.config`, which nothing
+  but the cluster profiles loads — so a plain local run printed that warning
+  directly above its summary, where it reads like a misconfiguration. Nextflow
+  warns on the *read*, so the `?:` fallback could never suppress it; the
+  default is now declared in `nextflow.config` alongside `max_time`, which
+  carries one for the same reason. New general guard: PRM-03 fails if any
+  parameter the pipeline reads lacks a default.
+
 ### `Added`
 
 - **`--fastq-list FILE`** in `assign_with_sintax.sh`: FASTQ paths read from a
