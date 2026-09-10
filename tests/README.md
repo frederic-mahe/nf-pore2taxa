@@ -34,6 +34,7 @@ tests/
 │   ├── assign_with_sintax_cli.bats
 │   ├── basecall_cli.bats
 │   ├── assign_with_sintax_helpers.bats
+│   ├── assign_with_sintax_tools.bats ← broken tools, failure reporting, --fastq-list
 │   ├── build_krona_cli.bats
 │   ├── build_occurrence_table.bats
 │   ├── reference_format.bats
@@ -52,6 +53,7 @@ tests/
 │   ├── publish_modes.bats  ← publish_mode matrix + its cleanup interaction
 │   ├── resources.bats      ← resource ceiling / resourceLimits clamping
 │   ├── resume.bats         ← two successive runs against a mutating input dir
+│   ├── sintax_fastq_list.bats ← the fastq set reaches SINTAX as a list file
 │   ├── summary.bats        ← startup run summary + randseed warning
 │   └── version.bats
 ├── modules/              ← nf-test files for processes + shared functions
@@ -115,6 +117,7 @@ nf-test test tests/workflow/main.nf.test
 | `bin/reference_format.bats`            | SX-12                                                     |
 | `bin/assign_with_sintax_cli.bats`      | SX-05, SX-11, SX-12, SX-13, SX-14, SX-15, SX-16, SX-40    |
 | `bin/assign_with_sintax_helpers.bats`  | SX-22, SX-23, SX-24, SX-25                                |
+| `bin/assign_with_sintax_tools.bats`    | SX-17, SX-18, SX-19                                       |
 | `bin/test_discover_barcodes.py`        | DSC-01..DSC-05, DSC-07                                    |
 | `bin/build_occurrence_table.bats`      | BT-01..BT-04, BT-06, BT-07, BT-10..BT-13, BT-21..BT-24    |
 | `bin/test_build_occurrence_table.py`   | BT-01..BT-07, BT-10..BT-17, BT-20..BT-25, BT-30, BT-32..BT-34 |
@@ -132,6 +135,7 @@ nf-test test tests/workflow/main.nf.test
 | `check-stub-run.sh`                    | STB-01..STB-04                                            |
 | `config/summary.bats`                  | CFG-06                                                    |
 | `config/resume.bats`                   | SX-35, DSC-06                                             |
+| `config/sintax_fastq_list.bats`        | SX-19                                                     |
 | `modules/functions.nf.test`            | FN-01..FN-06                                              |
 | `modules/dump_versions.nf.test`        | PRV-01, PRV-02, PRV-03                                    |
 | `modules/dump_params.nf.test`          | PRV-04                                                    |
