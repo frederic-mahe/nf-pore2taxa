@@ -50,6 +50,14 @@ pipeline() {
 # ------------------------------------------------------------------- OUT-01
 
 @test "OUT-01 everything a run produces lands under outdir" {
+    # The only case in this file that renders charts, so it is the only one
+    # needing KronaTools — and needing it to work, not merely to be on PATH
+    # (tests/bin/build_krona_cli.bats carries the full reasoning). With no
+    # arguments the script prints usage and exits 0, so non-zero here means
+    # present-but-broken.
+    command -v ktImportText > /dev/null 2>&1 || skip "ktImportText not in PATH"
+    ktImportText > /dev/null 2>&1 || skip "ktImportText not usable"
+
     pipeline --outdir "${BATS_TEST_TMPDIR}/out" --krona true
     [ "${status}" -eq 0 ]
     local -r out="${BATS_TEST_TMPDIR}/out"
