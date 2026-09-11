@@ -11,21 +11,15 @@
 
 bats_require_minimum_version 1.5.0
 
+load "${BATS_TEST_DIRNAME}/../lib/guards.bash"
+
 setup_file() {
     REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
     export REPO_ROOT
     export SCRIPT="${REPO_ROOT}/bin/build_krona.sh"
     export FIXDIR="${REPO_ROOT}/tests/fixtures/krona"
 
-    command -v ktImportText > /dev/null 2>&1 || skip "ktImportText not in PATH"
-    # And run it, do not merely look for it: ktImportText is a Perl wrapper
-    # that `use`s KronaTools.pm from a path relative to itself, so an
-    # install whose lib/KronaTools.pm is unreadable — a 0600 file left by a
-    # botched extraction — keeps the wrapper on PATH and dies at BEGIN.
-    # With no arguments the script prints usage and exits 0 (ImportText.pl
-    # line 55), so a non-zero status here means present-but-broken. Same
-    # reasoning as the SX-17 check in assign_with_sintax.sh.
-    ktImportText > /dev/null 2>&1 || skip "ktImportText not usable"
+    require_tools ktImportText
 }
 
 # --------------------------------------------------------------------- KR-40

@@ -26,11 +26,11 @@
 
 bats_require_minimum_version 1.5.0
 
+load "${BATS_TEST_DIRNAME}/../lib/guards.bash"
+
 setup() {
     REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
-    for tool in nextflow cutadapt vsearch ; do
-        command -v "${tool}" > /dev/null 2>&1 || skip "${tool} not in PATH"
-    done
+    require_tools nextflow cutadapt vsearch
 
     FIXTURES="${REPO_ROOT}/tests/fixtures"
     DATA="${BATS_TEST_TMPDIR}/data"

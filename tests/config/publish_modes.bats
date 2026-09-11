@@ -25,6 +25,8 @@
 
 bats_require_minimum_version 1.5.0
 
+load "${BATS_TEST_DIRNAME}/../lib/guards.bash"
+
 setup() {
     REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
     if ! command -v nextflow > /dev/null 2>&1 ; then
@@ -79,9 +81,7 @@ run_pipeline() {
     # work and results live on different filesystems, so they must stay
     # available *and* usable. This is the positive half of P0-1 — the same
     # configuration that used to yield dangling links.
-    for tool in cutadapt vsearch ; do
-        command -v "${tool}" > /dev/null 2>&1 || skip "${tool} not in PATH"
-    done
+    require_tools cutadapt vsearch
 
     run_pipeline --publish_mode symlink --cleanup false
     [ "${status}" -eq 0 ]
@@ -120,9 +120,7 @@ run_pipeline() {
 @test "CFG-03c cleanup = true with publish_mode = copy keeps the outputs" {
     # copy materialises real files, so reclaiming work/ is safe — the
     # supported way to have both automatic cleanup and usable results.
-    for tool in cutadapt vsearch ; do
-        command -v "${tool}" > /dev/null 2>&1 || skip "${tool} not in PATH"
-    done
+    require_tools cutadapt vsearch
 
     run_pipeline --publish_mode copy --cleanup true
     [ "${status}" -eq 0 ]

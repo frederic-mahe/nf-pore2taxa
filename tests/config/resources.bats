@@ -26,6 +26,8 @@
 
 bats_require_minimum_version 1.5.0
 
+load "${BATS_TEST_DIRNAME}/../lib/guards.bash"
+
 setup() {
     REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
     if ! command -v nextflow > /dev/null 2>&1 ; then
@@ -170,9 +172,7 @@ resource_limits_has_memory() {
     # 20 cpus / 16 GB. A 2-cpu / 3 GB ceiling stands in for a small
     # workstation: the run must succeed with the request reduced, rather
     # than refused.
-    for tool in cutadapt vsearch ; do
-        command -v "${tool}" > /dev/null 2>&1 || skip "${tool} not in PATH"
-    done
+    require_tools cutadapt vsearch
 
     run_pipeline --max_cpus 2 --max_memory '3.GB'
     [ "${status}" -eq 0 ]

@@ -22,11 +22,11 @@
 
 bats_require_minimum_version 1.5.0
 
+load "${BATS_TEST_DIRNAME}/../lib/guards.bash"
+
 setup() {
     REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
-    for tool in nextflow cutadapt vsearch ; do
-        command -v "${tool}" > /dev/null 2>&1 || skip "${tool} not in PATH"
-    done
+    require_tools nextflow cutadapt vsearch
 
     FIXTURES="${REPO_ROOT}/tests/fixtures"
     DATA="${BATS_TEST_TMPDIR}/data"
@@ -50,13 +50,9 @@ pipeline() {
 # ------------------------------------------------------------------- OUT-01
 
 @test "OUT-01 everything a run produces lands under outdir" {
-    # The only case in this file that renders charts, so it is the only one
-    # needing KronaTools — and needing it to work, not merely to be on PATH
-    # (tests/bin/build_krona_cli.bats carries the full reasoning). With no
-    # arguments the script prints usage and exits 0, so non-zero here means
-    # present-but-broken.
-    command -v ktImportText > /dev/null 2>&1 || skip "ktImportText not in PATH"
-    ktImportText > /dev/null 2>&1 || skip "ktImportText not usable"
+    # The only case in this file that renders charts, so the only one
+    # needing KronaTools.
+    require_tools ktImportText
 
     pipeline --outdir "${BATS_TEST_TMPDIR}/out" --krona true
     [ "${status}" -eq 0 ]

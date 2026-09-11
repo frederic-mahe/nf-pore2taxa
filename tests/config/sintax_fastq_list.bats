@@ -21,6 +21,8 @@
 
 bats_require_minimum_version 1.5.0
 
+load "${BATS_TEST_DIRNAME}/../lib/guards.bash"
+
 setup() {
     REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
     if ! command -v nextflow > /dev/null 2>&1 ; then
@@ -28,9 +30,7 @@ setup() {
     fi
     # Presence is not usability (SX-17): a broken launcher would abort the
     # run at startup, which would fail this test for the wrong reason.
-    for tool in cutadapt vsearch ; do
-        "${tool}" --version > /dev/null 2>&1 || skip "${tool} not usable"
-    done
+    require_tools cutadapt vsearch
     FIXTURES="${REPO_ROOT}/tests/fixtures"
 }
 

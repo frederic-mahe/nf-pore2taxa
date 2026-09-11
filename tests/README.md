@@ -28,6 +28,8 @@ tests/
 │   ├── flat_dir/         ← flat layout (barcode in filename) + fastq_fail to ignore
 │   ├── sintax_dir/       ← pre-computed inputs for the table-builder tests
 │   └── krona/            ← occurrence tables (filtered + optimistic) for Krona tests
+├── lib/                  ← shared bats helpers (sourced, not test files)
+│   └── guards.bash       ← require_tools: skip unless a tool is present AND runs
 ├── stubs/                ← stand-ins for tools that cannot run in CI
 │   └── dorado            ← records its argv, fabricates the outputs
 ├── bin/                  ← bats tests for bin/ scripts + python unittest
@@ -80,6 +82,14 @@ tests/
 | SINTAX module        | `nextflow`, `nf-test`, `cutadapt`, `vsearch >= 2.31.0` |
 | Krona (KR-40..42)    | `ktImportText` (KronaTools); skips if absent         |
 | Workflow             | all of the above (WF-13/WF-15 need `ktImportText`)   |
+
+Every "skips if absent" above is enforced by `require_tools` from
+[`lib/guards.bash`](lib/guards.bash), which skips when a tool is absent **or**
+present but unable to run — a pipx `cutadapt` whose virtualenv lost its
+interpreter, a KronaTools whose `lib/KronaTools.pm` is unreadable. Both have
+been seen; a presence-only check turned them into failures that named the
+wrong cause. `nextflow` and `ktImportText` need probes of their own
+(`-version` with one dash, and a bare call) — `guards.bash` has the details.
 
 ## Running
 
