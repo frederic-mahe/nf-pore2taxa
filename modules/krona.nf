@@ -1,4 +1,7 @@
-include { effective_outdir } from './local/functions'
+include { effective_outdir     } from './local/functions'
+include { effective_table_name } from './local/functions'
+include { krona_name           } from './local/functions'
+include { optimistic_name      } from './local/functions'
 
 
 process KRONA {
@@ -26,8 +29,13 @@ process KRONA {
     """
 
     // Under -stub-run: KronaTools is absent, so stand in for both charts.
+    // The names must be the ones a real run publishes, so krona_name()
+    // derives them from the table name exactly as build_krona.sh does from
+    // the table itself (KR-42/FN-11) — a stub that touched different
+    // filenames would check a topology nobody ships.
     stub:
+    def table = effective_table_name(params.table_name, params.results_table) as String
     """
-    touch krona.html krona_optimistic.html
+    touch ${krona_name(table)} ${krona_name(optimistic_name(table) as String)}
     """
 }

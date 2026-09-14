@@ -231,3 +231,17 @@ def optimistic_name(String name) {
     dot > 0 ? "${name[0..<dot]}_optimistic${name[dot..-1]}"
             : "${name}_optimistic"
 }
+
+// The Krona chart named after the occurrence table it was built from:
+// `sintax.tsv` -> `sintax.krona.html`. The charts used to be a fixed
+// `krona.html` / `krona_optimistic.html`, which collided the moment two
+// runs' charts were gathered into one directory, and which collapsed onto
+// one file when the table itself was named `*_optimistic.tsv`.
+//
+// Same last-dot rule as optimistic_name() above (a leading dot is not an
+// extension), and it must agree with html_name_for() in bin/build_krona.sh:
+// that names the files a real run publishes, this names the KRONA stub's.
+def krona_name(String name) {
+    int dot = name.lastIndexOf('.')
+    "${dot > 0 ? name[0..<dot] : name}.krona.html"
+}

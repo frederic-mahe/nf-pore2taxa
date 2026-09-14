@@ -41,6 +41,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scattered barcode of a large run can reach that; a list file has no such
   ceiling (SX-19).
 
+### `Changed`
+
+- **The Krona charts are named after the occurrence table they come from.**
+  `krona.html` and `krona_optimistic.html` were fixed names, identical for
+  every run, so charts from runs launched in parallel collided the moment
+  they were gathered into one directory — a shared results folder, a
+  browser's download folder, an email. Each chart now takes its table's own
+  stem: `sintax.tsv` → `sintax.krona.html`, and `--table_name run42.tsv` →
+  `run42.krona.html` + `run42_optimistic.krona.html`. No new parameter —
+  `table_name` already named the tables, and the charts now follow it
+  (WF-13, KR-40, KR-42, and `krona_name()` under FN-11, which names the same
+  files in the `-stub-run` stub). **Breaking** for anything that referred to
+  the charts by their old names; `--krona` is opt-in and nothing downstream
+  consumes them, so the change is confined to a user's own scripts.
+
+- **A table named `*_optimistic` no longer collapses both charts onto one
+  file.** The output name was chosen by testing the basename for the
+  substring `_optimistic`, so `--table_name mytable_optimistic.tsv` sent
+  both the filtered and the optimistic chart to `krona_optimistic.html`: one
+  overwrote the other, and `KRONA` emitted a single HTML where it declares
+  two. Taking the stem whole fixes it (KR-42b). This was `P1-10` in
+  `docs/plans/TBD_20260729_hardening.md`, reproduced there and open since
+  the July 2026 review.
+
 ## v1.13.0 - 2026-08-04
 
 ### `Added`

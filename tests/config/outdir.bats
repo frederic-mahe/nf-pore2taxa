@@ -63,7 +63,7 @@ pipeline() {
     [ -s "${out}/sintax_optimistic.tsv" ]
     [ -s "${out}/per_barcode/barcode01.sintax" ]
     [ -e "${out}/per_barcode/barcode01.log" ]
-    [ -s "${out}/krona.html" ]
+    [ -s "${out}/sintax.krona.html" ]
     [ -s "${out}/pipeline_info/software_versions.yml" ]
     [ -s "${out}/pipeline_info/execution_report.html" ]
 }
@@ -92,6 +92,21 @@ pipeline() {
     [ "${status}" -eq 0 ]
     [ -s "${BATS_TEST_TMPDIR}/out/profile.tsv" ]
     [ -s "${BATS_TEST_TMPDIR}/out/profile_optimistic.tsv" ]
+}
+
+@test "WF-13d table_name names the Krona charts too" {
+    # The point of naming the charts after the table: two runs launched in
+    # parallel produce charts that can be told apart, and stay apart when
+    # they are gathered into one directory or a browser's download folder.
+    # A fixed krona.html could not.
+    require_tools ktImportText
+
+    pipeline --outdir "${BATS_TEST_TMPDIR}/out" \
+             --table_name "profile.tsv" --krona true
+    [ "${status}" -eq 0 ]
+    [ -s "${BATS_TEST_TMPDIR}/out/profile.krona.html" ]
+    [ -s "${BATS_TEST_TMPDIR}/out/profile_optimistic.krona.html" ]
+    [ ! -e "${BATS_TEST_TMPDIR}/out/krona.html" ]
 }
 
 # ------------------------------------------------------------------- OUT-03

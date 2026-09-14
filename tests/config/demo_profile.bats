@@ -159,6 +159,6 @@ need_tools() {
     run nextflow run "${REPO_ROOT}/main.nf" -profile demo --krona true \
         -work-dir "${BATS_TEST_TMPDIR}/work"
     [ "${status}" -eq 0 ] || { echo "${output}" ; return 1 ; }
-    [ -s "${BATS_TEST_TMPDIR}/demo_results/krona.html" ]
-    [ -s "${BATS_TEST_TMPDIR}/demo_results/krona_optimistic.html" ]
+    [ -s "${BATS_TEST_TMPDIR}/demo_results/sintax.krona.html" ]
+    [ -s "${BATS_TEST_TMPDIR}/demo_results/sintax_optimistic.krona.html" ]
 }

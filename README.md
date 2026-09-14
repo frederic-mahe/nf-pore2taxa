@@ -320,8 +320,8 @@ Everything a run produces goes under `--outdir`:
 outdir/
 ├── sintax.tsv                  the filtered occurrence table
 ├── sintax_optimistic.tsv       the optimistic one
-├── krona.html                  (with --krona)
-├── krona_optimistic.html
+├── sintax.krona.html           (with --krona)
+├── sintax_optimistic.krona.html
 ├── per_barcode/
 │   ├── barcode01.sintax        per-barcode assignments
 │   └── barcode01.log           its cutadapt log
@@ -382,14 +382,18 @@ refreshed in place, so a `-resume` describes the resumed run; copy
 `pipeline_info/` first if you need to keep an earlier one.
 
 When `--krona` is set, the pipeline also writes two interactive
-[Krona](https://github.com/marbl/Krona) charts beside the results table:
-`krona.html` (from the filtered table) and `krona_optimistic.html` (from
-the optimistic table). Each is a single self-contained HTML holding one
-dataset per barcode (a per-sample dropdown), so a whole run's taxonomic
-profiles can be explored in a browser. The hierarchy is taken directly
-from the tables' taxonomy column; barcodes with no assigned reads are
-omitted. This step needs KronaTools (`ktImportText`), which the `conda`
-profile provides; Krona's text mode requires no NCBI taxonomy database.
+[Krona](https://github.com/marbl/Krona) charts beside the tables, each
+named after the table it was built from: `sintax.tsv` yields
+`sintax.krona.html`, and `sintax_optimistic.tsv` yields
+`sintax_optimistic.krona.html`. Set `--table_name` and the charts follow,
+so runs launched in parallel produce charts that can still be told apart
+once they are gathered into one directory or a browser's download folder.
+Each is a single self-contained HTML holding one dataset per barcode (a
+per-sample dropdown), so a whole run's taxonomic profiles can be explored
+in a browser. The hierarchy is taken directly from the tables' taxonomy
+column; barcodes with no assigned reads are omitted. This step needs
+KronaTools (`ktImportText`), which the `conda` profile provides; Krona's
+text mode requires no NCBI taxonomy database.
 
 
 ## Testing

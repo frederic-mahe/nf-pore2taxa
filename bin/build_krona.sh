@@ -33,8 +33,10 @@ Build an interactive Krona HTML from one or more occurrence tables (as
 written by build_occurrence_table.py). Each table yields one HTML with a
 per-sample dataset (one dataset per non-empty barcode column).
 
-Output name: krona.html for a normal table, and krona_optimistic.html for a
-table whose filename contains "_optimistic".
+Output name: the table's own stem plus ".krona.html", so sintax.tsv yields
+sintax.krona.html and sintax_optimistic.tsv yields
+sintax_optimistic.krona.html. The charts therefore carry the name of the run
+that produced them, instead of colliding as a fixed krona.html would.
 
 Options:
   -h, --help    Show this help message and exit
@@ -56,13 +58,29 @@ check_commands() {
 
 
 html_name_for() {
-    # Derive the output HTML name from the input TSV filename.
+    # Derive the output HTML name from the input TSV filename: its stem,
+    # plus ".krona.html".
+    #
+    # This used to test the basename for the substring "_optimistic" and
+    # answer with a fixed krona.html / krona_optimistic.html. Two problems,
+    # both fixed by taking the stem whole: every run produced the same two
+    # filenames, which collide as soon as two runs' charts are gathered into
+    # one directory; and a table that was ITSELF named *_optimistic.tsv sent
+    # both charts to krona_optimistic.html, one overwriting the other, so
+    # the process emitted a single HTML where it declares two.
+    #
+    # Must agree with krona_name() in modules/local/functions.nf, which
+    # names the same files in the KRONA stub.
     local -r tsv="${1}"
-    if [[ "$(basename "${tsv}")" == *_optimistic* ]] ; then
-        echo "krona_optimistic.html"
-    else
-        echo "krona.html"
-    fi
+    local base
+    base="$(basename "${tsv}")"
+    # Strip the LAST extension only. A leading dot is not an extension
+    # (matching pathlib, and optimistic_name() on the table side), and that
+    # is the one case where "${base%.*}" comes back empty.
+    local stem
+    stem="${base%.*}"
+    [[ -n "${stem}" ]] || stem="${base}"
+    echo "${stem}.krona.html"
 }
 
 

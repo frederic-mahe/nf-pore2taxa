@@ -150,7 +150,7 @@ fi
 for artefact in \
         sintax.tsv \
         sintax_optimistic.tsv \
-        krona.html \
+        sintax.krona.html \
         per_barcode/barcode01.sintax \
         pipeline_info/software_versions.yml \
         pipeline_info/params.json ; do

@@ -106,6 +106,40 @@ nextflow_function {
         then { assert function.success; assert function.result == ".hidden_optimistic" }
     }
 
+    // ------------------------------------------------------------- FN-11
+    //
+    // krona_name() must agree with html_name_for() in bin/build_krona.sh:
+    // the driver names the charts a real run publishes, this names the ones
+    // the KRONA stub touches, and a -stub-run that produced different
+    // filenames from a real run would test a topology nobody ships.
+
+    test("FN-11a krona_name replaces a .tsv extension") {
+        function "krona_name"
+        when { function { """ input[0] = "sintax.tsv" """ } }
+        then { assert function.success; assert function.result == "sintax.krona.html" }
+    }
+    test("FN-11b krona_name replaces a non-.tsv extension") {
+        function "krona_name"
+        when { function { """ input[0] = "table.txt" """ } }
+        then { assert function.success; assert function.result == "table.krona.html" }
+    }
+    test("FN-11c krona_name appends when there is no extension") {
+        function "krona_name"
+        when { function { """ input[0] = "table" """ } }
+        then { assert function.success; assert function.result == "table.krona.html" }
+    }
+    test("FN-11d krona_name splits on the LAST dot only") {
+        function "krona_name"
+        when { function { """ input[0] = "run.1.tsv" """ } }
+        then { assert function.success; assert function.result == "run.1.krona.html" }
+    }
+    test("FN-11e krona_name: a leading dot is not an extension") {
+        // Same rule as optimistic_name (FN-03e), and pathlib's.
+        function "krona_name"
+        when { function { """ input[0] = ".hidden" """ } }
+        then { assert function.success; assert function.result == ".hidden.krona.html" }
+    }
+
     // ------------------------------------------------------------- FN-04
 
     test("FN-04 fastq_extensions lists the four supported suffixes") {

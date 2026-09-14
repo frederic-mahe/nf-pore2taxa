@@ -71,8 +71,9 @@ def helpMessage() {
                            (default: ${params.subsample}). 0 keeps every read;
                            a positive integer subsamples (seeded by --randseed)
                            so only that many reads are processed and assigned.
-      --krona              Render interactive Krona HTML charts (krona.html and
-                           krona_optimistic.html) beside the results table
+      --krona              Render an interactive Krona HTML chart per occurrence
+                           table, beside the tables in --outdir and named after
+                           them: sintax.tsv -> sintax.krona.html
                            (default: ${params.krona}). Requires KronaTools
                            (ktImportText); provided by the conda profile.
       --publish_mode       publishDir mode for outputs: link, copy, copyNoFollow,

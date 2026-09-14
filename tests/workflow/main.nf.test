@@ -343,7 +343,7 @@ nextflow_pipeline {
         }
     }
 
-    test("WF-13a krona=true renders both Krona HTMLs beside the tables") {
+    test("WF-13a krona=true renders both Krona HTMLs, named after the tables") {
 
         setup {
             new File("${outputDir}/fastq_dir").mkdirs()
@@ -366,10 +366,13 @@ nextflow_pipeline {
 
         then {
             assert workflow.success
-            // Krona charts published beside the occurrence tables.
-            assert file("${outputDir}/krona.html").exists()
-            assert file("${outputDir}/krona_optimistic.html").exists()
-            assert file("${outputDir}/krona.html").size() > 0
+            // Krona charts published beside the occurrence tables, each
+            // carrying the name of the table it was built from (KR-42).
+            assert file("${outputDir}/sintax.krona.html").exists()
+            assert file("${outputDir}/sintax_optimistic.krona.html").exists()
+            assert file("${outputDir}/sintax.krona.html").size() > 0
+            // ...and never the fixed name two parallel runs would share.
+            assert !file("${outputDir}/krona.html").exists()
         }
     }
 
@@ -396,7 +399,7 @@ nextflow_pipeline {
 
         then {
             assert workflow.success
-            assert !file("${outputDir}/krona.html").exists()
+            assert !file("${outputDir}/sintax.krona.html").exists()
         }
     }
 
@@ -516,9 +519,10 @@ nextflow_pipeline {
             assert filtered.readLines()[0].startsWith("taxonomy\ttotal")
 
             // Krona reads whatever BUILD_TABLE emitted, so the rewired
-            // two-output contract must still feed it both tables.
-            assert file("${outputDir}/krona.html").exists()
-            assert file("${outputDir}/krona_optimistic.html").exists()
+            // two-output contract must still feed it both tables — and the
+            // chart names follow the table's stem whatever its extension.
+            assert file("${outputDir}/table.krona.html").exists()
+            assert file("${outputDir}/table_optimistic.krona.html").exists()
         }
     }
 
