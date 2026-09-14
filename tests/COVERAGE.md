@@ -46,7 +46,7 @@ when you add a spec, in the same commit.
 | `WF-10` | The pipeline aborts if the path supplied via the deprecated params.sintax_silva alias... | `workflow/main.nf.test` | done |
 | `WF-11` | Startup parameter validation aborts before any process runs, with a single aggregated... | `workflow/main.nf.test` | done |
 | `WF-12` | End-to-end, params.subsample = n caps each barcode at n reads: with subsample = 3 a 5... | `workflow/main.nf.test` | done |
-| `WF-13` | params.krona = true renders krona.html and krona_optimistic.html beside results_table... | `workflow/main.nf.test` | done |
+| `WF-13` | params.krona = true renders one chart per occurrence table, each named after the tabl... | `workflow/main.nf.test` | red |
 | `WF-14` | Boolean params set on the command line arrive as strings ('true'/'false'), so discard... | `workflow/main.nf.test` | done |
 | `WF-15` | results_table is honoured whatever its extension: results/table.txt publishes table.t... | `workflow/main.nf.test` | done |
 | `WF-16` | skip_basecall is validated and branched on the string form, like every other boolean... | `workflow/main.nf.test` | done |
@@ -190,9 +190,9 @@ when you add a spec, in the same commit.
 | `KR-33` | render_krona_text lines are count<TAB>level…, higher rank first; an empty row set ren... | `bin/test_build_krona.py` | done |
 | `KR-34` | One <barcode>.txt per non-empty barcode, in column order; an all-zero barcode is skip... | `bin/test_build_krona.py` | done |
 | `KR-35` | No (0.xx) probability substrings appear in any emitted level (they are already stripp... | `bin/test_build_krona.py` | done |
-| `KR-40` | build_krona.sh on an occurrence table produces a non-empty krona.html that carries a... | `bin/build_krona_cli.bats` | done |
+| `KR-40` | build_krona.sh on an occurrence table produces a non-empty <table stem>.krona.html th... | `bin/build_krona_cli.bats` | red |
 | `KR-41` | The HTML holds one dataset per non-empty barcode (labelled by barcode name); an all-z... | `bin/build_krona_cli.bats` | done |
-| `KR-42` | Given both tables, the driver names outputs by input: krona.html for the filtered tab... | `bin/build_krona_cli.bats` | done |
+| `KR-42` | Given both tables, the driver names each chart after its own input table's stem: occu... | `bin/build_krona_cli.bats` | red |
 
 ## 9. Shared helper functions (`modules/local/functions.nf`)
 
@@ -201,6 +201,7 @@ when you add a spec, in the same commit.
 | `FN-01` | coerce_bool(v) returns a real Boolean: the string 'true' and Boolean true → true; 'fa... | `modules/functions.nf.test` | done |
 | `FN-02` | valid_bool(v) is true only when v is a Boolean or the string 'true'/'false'; any othe... | `modules/functions.nf.test` | done |
 | `FN-03` | optimistic_name(name) inserts _optimistic before the final extension: sintax.tsv → si... | `modules/functions.nf.test`, `workflow/main.nf.test` | done |
+| `FN-11` | krona_name(name) is the Krona chart named after an occurrence table: the final extens... | `modules/functions.nf.test` | red |
 | `FN-04` | fastq_extensions() returns the four supported suffixes without a leading dot (fastq,... | `modules/functions.nf.test` | done |
 | `FN-05` | valid_memory(v) is true for anything Nextflow can read as a positive memory size, in... | `modules/functions.nf.test` | done |
 | `FN-06` | effective_threads(configured, ceiling) is the thread count a process really gets: the... | `modules/functions.nf.test` | done |
