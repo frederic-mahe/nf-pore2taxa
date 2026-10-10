@@ -13,6 +13,7 @@
 #     barcode01/reads.fastq.gz    -- reads matching ref1 (primers attached)
 #     barcode02/reads.fastq.gz    -- reads matching ref2 (primers attached)
 #     barcode03/reads.fastq.gz    -- reads without primers (will be dropped)
+#   ambiguous/reads.fastq.gz      -- half-ref1/half-ref2 reads (SX-45)
 
 set -euo pipefail
 
@@ -125,8 +126,24 @@ KR_B="d:Synthetica,k:Betakingdom,p:Betaphylum,c:Betaclass,o:Betaorder,f:Betafami
     printf '%s\t4\t0\t4\t0\n' "${KR_B}"
 } > krona/occurrence_optimistic.tsv
 
+# --- ambiguous fixture (sintax reproducibility under threads, SX-45) ---------
+# 20 identical reads, each the first half of ref1 joined to the second half
+# of ref2, primers attached. Every sintax bootstrap is then a near coin toss
+# between the two references, so the random generator alone decides each
+# assignment — which is what makes a thread-dependent RNG visible. With a
+# clear-cut read (barcode01) every bootstrap agrees and any RNG gives the
+# same answer, so a reproducibility test on it could never fail. Kept apart
+# from fastq_dir/ so the workflow tests' barcode set is unchanged.
+mkdir -p ambiguous
+CHIMERA="${REF1:0:80}${REF2:80}"
+{
+    for i in $(seq -w 1 20) ; do
+        write_read "amb${i}" "${PRIMER_F}${CHIMERA}${RC_PRIMER_R}"
+    done
+} | gzip > ambiguous/reads.fastq.gz
+
 echo "Wrote:"
-find references.fasta fastq_dir flat_dir krona -type f | sort
+find references.fasta fastq_dir flat_dir krona ambiguous -type f | sort
 
 # --- pod5 placeholder ---------------------------------------------------------
 #

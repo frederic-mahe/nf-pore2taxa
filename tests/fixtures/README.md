@@ -19,6 +19,13 @@ basecallers produce.
 | `barcode02` | 5 reads = `primer_f` + `ref2` + `rc(primer_r)`     | All 5 reads assigned to taxon `Beta_two`.             |
 | `barcode03` | 5 reads with no primers                            | All reads dropped by cutadapt → empty `.sintax` file. |
 
+## `ambiguous/reads.fastq.gz`
+20 reads = `primer_f` + (first 80 nt of `ref1` + rest of `ref2`) +
+`rc(primer_r)`. sintax splits its bootstraps roughly evenly between the
+two taxa, so each read's assignment is decided by the random generator.
+Used by SX-45: with a fixed seed, the sorted `.sintax` must not depend on
+`--threads` (it does under vsearch 2.31.0, not under 2.32.0).
+
 ## `sintax_dir/fastq_pass/barcodeXX/reads.sintax`
 Pre-computed sintax output, captured from a real run against the
 fixtures above. Used by the table-builder unit tests
