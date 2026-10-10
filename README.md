@@ -107,7 +107,7 @@ params {
 
     // Seed for vsearch's random generator in the sintax step. 0 (default)
     // picks a pseudo-random seed each run; a positive integer gives
-    // reproducible single-threaded assignments.
+    // reproducible assignments, whatever the number of threads.
     randseed          = 0
 
     // Cap each barcode at this many reads before trimming (0 = keep all,
@@ -184,12 +184,11 @@ params {
 > refuses that combination at startup instead of producing it.
 
 > [!NOTE]
-> **Reproducibility**: `randseed` only makes a run exactly replayable when
-> the assignment step runs single-threaded — `vsearch --sintax` is
-> order-dependent across threads. Setting a seed therefore prints a warning
-> unless the threads are capped (`--max_cpus 1`). The startup log records
-> every effective parameter, so a run's own log says what produced its
-> tables.
+> **Reproducibility**: a fixed `randseed` makes a run exactly replayable,
+> whatever the number of threads: since vsearch 2.32.0, `vsearch --sintax`
+> gives the same assignments on one thread or many (only the row order of
+> a `.sintax` file may differ). The startup log records every effective
+> parameter, so a run's own log says what produced its tables.
 
 > [!NOTE]
 > **Resources**: the per-step requests are written for a well-provisioned
@@ -306,7 +305,7 @@ nextflow run main.nf -profile abims,apptainer -config myproject.config
 
 `apptainer`, `singularity`, `docker` and `podman` are all available.
 
-Otherwise, ensure `cutadapt` and `vsearch` (>= 2.31.0) are on your `PATH`.
+Otherwise, ensure `cutadapt` and `vsearch` (>= 2.32.0) are on your `PATH`.
 Basecalling (`dorado`, `pigz`) is **not** provided by the `conda` profile —
 `dorado` is an Oxford Nanopore GPU binary — so it must be installed
 separately when `skip_basecall = false`.
@@ -417,7 +416,7 @@ nf-test test tests/             # pipeline tests only
 
 Test dependencies: `python3` (standard library only), `bats >= 1.5`,
 `nf-test`, and the runtime dependencies of the pipeline itself
-(`cutadapt`, `vsearch >= 2.31.0`).
+(`cutadapt`, `vsearch >= 2.32.0`).
 
 
 ## Road-map

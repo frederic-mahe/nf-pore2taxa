@@ -4,7 +4,7 @@ set -euo pipefail
 
 ## ----------------------------------------------------------- global constants
 
-declare -r MIN_VSEARCH_VERSION="2.31.0"
+declare -r MIN_VSEARCH_VERSION="2.32.0"
 
 
 ## ----------------------------------------------------------- global variables
@@ -301,10 +301,11 @@ append_read_length() {
 taxonomic_assignment_with_sintax() {
     local -r sintax_cutoff=0.9
 
-    # Note: when multithreading, sintax results are not exactly
-    # replicable, even when using a fixed seed for the random generator
-    # with --randseed. A non-zero RANDSEED still helps single-threaded
-    # runs; RANDSEED=0 (default) lets vsearch pick a pseudo-random seed.
+    # Note: since vsearch 2.32.0, each query draws from its own substream
+    # of the random generator, so a non-zero RANDSEED makes the results
+    # exactly replicable whatever the number of threads (only the row
+    # order varies). RANDSEED=0 (default) lets vsearch pick a
+    # pseudo-random seed.
 
     "${VSEARCH}" \
         --sintax - \
@@ -339,25 +340,21 @@ pool_reads() {
 }
 
 
-subsample_or_passthrough() {
-    # Emit at most SUBSAMPLE reads from the pooled fastq. vsearch aborts if
-    # asked for more reads than exist, so count first and only subsample
-    # when there are strictly more than SUBSAMPLE — i.e. take
-    # min(available, SUBSAMPLE). An empty pool (0 reads) passes straight
-    # through, so a primer-less barcode still yields an empty .sintax.
+subsample_reads() {
+    # Emit at most SUBSAMPLE reads from the pooled fastq. --allow_fewer
+    # (vsearch >= 2.32.0) reads --sample_size as an upper bound: a pool
+    # of SUBSAMPLE reads or fewer is emitted whole and in order, instead
+    # of being a fatal error. An empty pool (0 reads) yields an empty
+    # stream, so a primer-less barcode still yields an empty .sintax.
     local -r fastq="${1}"
-    local -i n_reads=$(( $(wc -l < "${fastq}") / 4 ))
-    if (( n_reads > SUBSAMPLE )) ; then
-        "${VSEARCH}" \
-            --fastx_subsample "${fastq}" \
-            --sample_size "${SUBSAMPLE}" \
-            --randseed "${RANDSEED}" \
-            --notrunclabels \
-            --quiet \
-            --fastqout -
-    else
-        cat "${fastq}"
-    fi
+    "${VSEARCH}" \
+        --fastx_subsample "${fastq}" \
+        --sample_size "${SUBSAMPLE}" \
+        --allow_fewer \
+        --randseed "${RANDSEED}" \
+        --notrunclabels \
+        --quiet \
+        --fastqout -
 }
 
 
@@ -454,7 +451,7 @@ if (( SUBSAMPLE > 0 )) ; then
     declare -r POOLED="pooled.fastq"
     declare -r SUBSAMPLED="subsampled.fastq"
     pool_reads > "${POOLED}"
-    subsample_or_passthrough "${POOLED}" > "${SUBSAMPLED}"
+    subsample_reads "${POOLED}" > "${SUBSAMPLED}"
     trim_primers "${SUBSAMPLED}" "${LOG}" | \
         append_read_length | \
         taxonomic_assignment_with_sintax > "${SINTAX_OUT}"

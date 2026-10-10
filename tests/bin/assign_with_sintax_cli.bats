@@ -223,6 +223,17 @@ b03() { echo "${FIXDIR}/barcode03/reads.fastq.gz" ; }
     [ "$(wc -l < bc.sintax)" -eq 5 ]
 }
 
+@test "SX-15c-equal --subsample equal to the pool size keeps all reads" {
+    # The boundary of --allow_fewer: n == available is neither a cap nor a
+    # shortfall, and must not be read as either.
+    cd "${BATS_TEST_TMPDIR}"
+    run bash "${SCRIPT}" --barcode bc -d "${REFS}" \
+        -f GTACACACCGCCCGTCG -r CGCCTSCSCTTANTDATATGC -t 1 \
+        --subsample 5 "${FIXDIR}/barcode01/reads.fastq.gz"
+    [ "${status}" -eq 0 ]
+    [ "$(wc -l < bc.sintax)" -eq 5 ]
+}
+
 @test "SX-15d --subsample with a fixed --randseed is reproducible" {
     cd "${BATS_TEST_TMPDIR}"
     run bash "${SCRIPT}" --barcode a -d "${REFS}" \
@@ -278,4 +289,28 @@ b03() { echo "${FIXDIR}/barcode03/reads.fastq.gz" ; }
         -f GTACACACCGCCCGTCG -r CGCCTSCSCTTANTDATATGC -t 1 --subsample abc "${f}"
     [ "${status}" -ne 0 ]
     [[ "${output}" == *"--subsample must be a non-negative integer"* ]]
+}
+
+# --------------------------------------------------------------------- SX-45
+
+@test "SX-45 a fixed --randseed gives the same assignments on 1 and 4 threads" {
+    # The ambiguous fixture's reads are half ref1, half ref2: sintax's
+    # bootstraps split between the two, so the random generator decides
+    # every assignment. Any dependence of the RNG stream on threading
+    # shows up here (it does under vsearch 2.31.0). On the clear-cut
+    # barcode01 reads every bootstrap agrees and this could never fail.
+    cd "${BATS_TEST_TMPDIR}"
+    local -r reads="${REPO_ROOT}/tests/fixtures/ambiguous/reads.fastq.gz"
+    run bash "${SCRIPT}" --barcode t1 -d "${REFS}" \
+        -f GTACACACCGCCCGTCG -r CGCCTSCSCTTANTDATATGC \
+        -t 1 --randseed 7 "${reads}"
+    [ "${status}" -eq 0 ]
+    run bash "${SCRIPT}" --barcode t4 -d "${REFS}" \
+        -f GTACACACCGCCCGTCG -r CGCCTSCSCTTANTDATATGC \
+        -t 4 --randseed 7 "${reads}"
+    [ "${status}" -eq 0 ]
+    [ "$(wc -l < t1.sintax)" -eq 20 ]
+    # Row order follows thread scheduling and is not part of the
+    # guarantee (OBS-03), so the rows are compared as a set.
+    diff <(sort t1.sintax) <(sort t4.sintax)
 }

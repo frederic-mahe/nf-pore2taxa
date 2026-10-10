@@ -161,7 +161,7 @@ jobs:
           environment-name: p2t
           create-args: >-
             -c bioconda -c conda-forge
-            vsearch=2.31.0
+            vsearch=2.32.0
             cutadapt=5.2
             krona=2.8.1
 
@@ -216,7 +216,7 @@ jobs:
           environment-name: p2t
           create-args: >-
             -c bioconda -c conda-forge
-            vsearch=2.31.0
+            vsearch=2.32.0
             cutadapt=5.2
             krona=2.8.1
 

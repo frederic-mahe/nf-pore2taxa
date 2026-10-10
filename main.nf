@@ -66,7 +66,7 @@ def helpMessage() {
       --randseed           Seed for vsearch's random generator in the sintax
                            step (default: ${params.randseed}). 0 picks a
                            pseudo-random seed; set a positive integer for
-                           reproducible single-threaded runs.
+                           reproducible runs, at any thread count.
       --subsample          Cap each barcode at this many reads before trimming
                            (default: ${params.subsample}). 0 keeps every read;
                            a positive integer subsamples (seeded by --randseed)
@@ -427,20 +427,6 @@ workflow {
     // and got 8 gives no clue why, nor that raising the request would not
     // help.
     log.info runSummary(sintax_threads)
-
-    // vsearch sintax is order-dependent across threads, so a fixed seed
-    // does NOT make a multithreaded run replayable. Say so at the point
-    // where the user has just asked for reproducibility, instead of only
-    // in the README — a seed that quietly fails to deliver what it
-    // promises is worse than no seed at all.
-    //
-    // (vsearch 2.32.0 is expected to make sintax reproducible under
-    // multithreading. When the pin is bumped, drop this warning and raise
-    // MIN_VSEARCH_VERSION in bin/assign_with_sintax.sh — see the
-    // "Upstream-blocked" section of docs/plans/TBD_20260729_hardening.md.)
-    if ("${params.randseed}" != '0' && sintax_threads > 1) {
-        log.warn "randseed = ${params.randseed} is set, but SINTAX runs on ${sintax_threads} threads and vsearch sintax is not exactly reproducible above one thread, even with a fixed seed. For a replayable run, cap the threads (--max_cpus 1); otherwise expect small run-to-run differences in the assignments."
-    }
 
     // .first() turns the reference into a value channel so it is reused
     // across every barcode SINTAX task (a queue channel would be consumed

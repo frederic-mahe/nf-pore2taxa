@@ -1,7 +1,8 @@
 #!/usr/bin/env bats
 #
-# SX-17 / SX-18 / SX-19: external-tool usability, failure reporting, and
-# the --fastq-list interface of bin/assign_with_sintax.sh.
+# SX-09 / SX-17 / SX-18 / SX-19: the vsearch version floor, external-tool
+# usability, failure reporting, and the --fastq-list interface of
+# bin/assign_with_sintax.sh.
 #
 # Scope: these tests deliberately do NOT use the real cutadapt/vsearch.
 # They need tools that misbehave in specific ways (a launcher that cannot
@@ -91,7 +92,23 @@ if [[ "${mode}" == "broken" ]] ; then
     exit 1
 fi
 if [[ "${1:-}" == "--version" ]] ; then
-    echo "vsearch v2.31.0_linux_x86_64" 1>&2
+    echo "vsearch v2.32.0_linux_x86_64" 1>&2
+    exit 0
+fi
+cat > /dev/null
+exit 0
+STUB
+    chmod +x "${STUBS}/vsearch"
+}
+
+# A healthy vsearch stub that reports the given version, in the shape the
+# real binary prints it (on stderr, with a platform suffix).
+make_vsearch_version() {
+    local -r version="${1}"
+    cat > "${STUBS}/vsearch" <<STUB
+#!/usr/bin/env bash
+if [[ "\${1:-}" == "--version" ]] ; then
+    echo "vsearch v${version}_linux_x86_64, 32.3GB RAM, 12 cores" 1>&2
     exit 0
 fi
 cat > /dev/null
@@ -108,6 +125,35 @@ run_script() {
 }
 
 reads() { echo "${FIXDIR}/barcode01/reads.fastq.gz" ; }
+
+# --------------------------------------------------------------------- SX-09
+
+@test "SX-09a a vsearch older than 2.32.0 is rejected, naming both versions" {
+    # 2.31.0 is the last release whose sintax is not reproducible under
+    # multithreading (SX-45), so it must not slip through.
+    make_cutadapt ok
+    make_vsearch_version 2.31.0
+    run_script "$(reads)"
+    [ "${status}" -ne 0 ]
+    [[ "${stderr}" == *"vsearch 2.31.0 is older than required 2.32.0"* ]]
+    [ ! -e "bc.sintax" ]
+    [ ! -e "${CUTADAPT_STUB_LOG}" ]
+}
+
+@test "SX-09b vsearch 2.32.0, the minimum itself, is accepted" {
+    make_cutadapt ok
+    make_vsearch_version 2.32.0
+    run_script "$(reads)"
+    [ "${status}" -eq 0 ]
+    [ -e "bc.sintax" ]
+}
+
+@test "SX-09c the version comparison is numeric, not lexical (2.100.0 > 2.32.0)" {
+    make_cutadapt ok
+    make_vsearch_version 2.100.0
+    run_script "$(reads)"
+    [ "${status}" -eq 0 ]
+}
 
 # --------------------------------------------------------------------- SX-17
 

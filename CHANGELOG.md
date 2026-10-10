@@ -3,6 +3,33 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### `Changed`
+
+- **vsearch 2.32.0 is now required** (was 2.31.0), in `environment.yml`,
+  the CI pins and the `assign_with_sintax.sh` runtime check alike (SX-09).
+  A bare-PATH run against an older vsearch now stops at startup with
+  `vsearch X is older than required 2.32.0`. Expect assignment changes
+  against runs made with 2.31.0, even single-threaded and with the same
+  seed: 2.32.0 draws sintax's random numbers from a per-query substream, so
+  the bootstrap draws for reads near a taxonomic boundary differ.
+
+- **A fixed `randseed` now makes a run exactly reproducible, whatever the
+  number of threads.** This was the upstream fix `D04` was waiting for:
+  2.31.0 shared one random generator between the sintax threads, so a
+  seeded multithreaded run differed from one run to the next. With 2.32.0,
+  the same seed gives the same assignments at 1, 4 or 20 threads (SX-45);
+  only the row order of a `.sintax` file still follows thread scheduling.
+  The startup warning that told users to cap the threads with
+  `--max_cpus 1` is gone (CFG-06f).
+
+- **`--subsample` lets vsearch cap the pool** (`--fastx_subsample
+  --allow_fewer`, new in 2.32.0) instead of counting reads with `wc -l`
+  first and skipping vsearch when the pool was small enough. It is the same
+  subsample for the same seed, one pass fewer over the pooled file, and no
+  miscount can turn into a vsearch fatal error (SX-15c).
+
 ## v1.14.0 - 2026-09-14
 
 ### `Fixed`

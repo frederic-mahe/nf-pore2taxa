@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 #
 # CFG-06: the startup run summary, and the randseed reproducibility
-# warning it carries.
+# warning it no longer carries.
 #
 # Run with:
 #   bats tests/config/summary.bats
@@ -12,12 +12,12 @@
 # the thing a lab reads six months later to answer "what did this table
 # come from?". So its content is worth pinning.
 #
-# The randseed warning exists because vsearch sintax is order-dependent
-# across threads: a fixed seed does NOT make a multithreaded run
-# replayable. Warning only in the README would leave a user believing they
-# had reproducibility they do not have. It must fire on the EFFECTIVE
-# thread count, so `--max_cpus 1` — which genuinely does make a seeded run
-# replayable — must NOT warn.
+# Up to v1.14.0 a fixed randseed on several SINTAX threads warned that the
+# run was not replayable: vsearch <= 2.31.0 sintax was order-dependent
+# across threads. vsearch 2.32.0 seeds every query from its own RNG
+# substream, so a seeded run is replayable at any thread count (SX-45) and
+# the warning is gone. CFG-06e/f/g pin its absence, so it cannot come back
+# and teach users to doubt a guarantee they now have.
 #
 # Every case here aborts on a deliberately missing reference, which happens
 # after the summary is printed, so none of them need cutadapt/vsearch.
@@ -98,17 +98,19 @@ run_summary() {
     [[ "${output}" != *"not exactly reproducible"* ]]
 }
 
-@test "CFG-06f a fixed randseed on multiple threads warns" {
-    run_summary --randseed 42
-    [[ "${output}" == *"randseed = 42 is set"* ]]
-    [[ "${output}" == *"not exactly reproducible above one thread"* ]]
-    # The warning must be actionable, not just discouraging.
-    [[ "${output}" == *"--max_cpus 1"* ]]
+@test "CFG-06f a fixed randseed on multiple threads does NOT warn" {
+    # SINTAX asks for 20 threads; on any host with more than one core the
+    # thread count in force is above one, which is what used to warn.
+    run_summary --randseed 42 --max_cpus 2
+    [[ "${output}" == *"SINTAX gets 2 thread(s)"* ]]
+    [[ "${output}" == *"randseed"* ]]
+    [[ "${output}" != *"not exactly reproducible"* ]]
+    [[ "${output}" != *"--max_cpus 1"* ]]
 }
 
 @test "CFG-06g a fixed randseed with a single thread does NOT warn" {
-    # --max_cpus 1 clamps SINTAX to one thread, which genuinely makes a
-    # seeded run replayable. Warning here would train users to ignore it.
+    # --max_cpus 1 clamps SINTAX to one thread. This never warned, and the
+    # summary must still report the single thread in force.
     run_summary --randseed 42 --max_cpus 1
     [[ "${output}" == *"randseed"* ]]
     [[ "${output}" != *"not exactly reproducible"* ]]

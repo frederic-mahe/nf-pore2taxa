@@ -81,7 +81,7 @@ when you add a spec, in the same commit.
 | `SX-06` | --references that does not exist or is not readable yields a clear error. | — | TODO |
 | `SX-07` | A primer containing non-IUPAC characters yields an error. | — | TODO |
 | `SX-08` | A primer shorter than 10 nt emits a *warning* to stderr but does not abort. | — | TODO |
-| `SX-09` | If vsearch is older than the documented minimum (2.32.0, the first release whose sint... | `bin/assign_with_sintax_tools.bats` | red |
+| `SX-09` | If vsearch is older than the documented minimum (2.32.0, the first release whose sint... | `bin/assign_with_sintax_tools.bats` | done |
 | `SX-10` | Unknown long flags exit non-zero with Unknown option: on stderr. | — | TODO |
 | `SX-11` | Missing --barcode yields a clear error (positional args are fastq files, so they are... | `bin/assign_with_sintax_cli.bats` | done |
 | `SX-12` | --references is sniffed at startup and must be sintax-formatted: its first FASTA head... | `bin/assign_with_sintax_cli.bats`, `bin/reference_format.bats` | done |
@@ -105,7 +105,7 @@ when you add a spec, in the same commit.
 | `SX-40` | A barcode split across several fastq files is trimmed file-by-file, concatenated, and... | `bin/assign_with_sintax_cli.bats`, `modules/sintax.nf.test` | done |
 | `SX-41` | End-to-end (main.nf): a flat fastq_pass/ (barcode embedded in the filename) with a mu... | `workflow/main.nf.test` | done |
 | `SX-44` | With params.subsample = n > 0, the module caps each barcode at n reads (pool → subsam... | `modules/sintax.nf.test` | done |
-| `SX-45` | With a fixed --randseed, the assignments are exactly reproducible whatever the thread... | `bin/assign_with_sintax_cli.bats` | red |
+| `SX-45` | With a fixed --randseed, the assignments are exactly reproducible whatever the thread... | `bin/assign_with_sintax_cli.bats` | done |
 | `DSC-01` | The barcode token is found whether it is a directory component (barcode01/reads.fastq... | `bin/test_discover_barcodes.py` | done |
 | `DSC-02` | Files of one barcode are grouped together; a multi-file barcode yields multiple rows... | `bin/test_discover_barcodes.py` | done |
 | `DSC-03` | A barcode-like token in a parent directory is not picked up (matching is on the path... | `bin/test_discover_barcodes.py` | done |

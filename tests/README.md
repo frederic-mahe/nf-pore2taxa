@@ -57,7 +57,7 @@ tests/
 │   ├── resources.bats      ← resource ceiling / resourceLimits clamping
 │   ├── resume.bats         ← two successive runs against a mutating input dir
 │   ├── sintax_fastq_list.bats ← the fastq set reaches SINTAX as a list file
-│   ├── summary.bats        ← startup run summary + randseed warning
+│   ├── summary.bats        ← startup run summary
 │   └── version.bats
 ├── modules/              ← nf-test files for processes + shared functions
 │   ├── dump_params.nf.test
@@ -79,7 +79,7 @@ tests/
 | resume (SX-35/DSC-06)| `nextflow`, `cutadapt`, `vsearch`; skips if absent   |
 | provenance (PRV-05..08)| `nextflow`, `cutadapt`, `vsearch`; skips if absent |
 | cluster profiles (CLU) | `nextflow` only — config resolution, no scheduler or engine |
-| SINTAX module        | `nextflow`, `nf-test`, `cutadapt`, `vsearch >= 2.31.0` |
+| SINTAX module        | `nextflow`, `nf-test`, `cutadapt`, `vsearch >= 2.32.0` |
 | Krona (KR-40..42)    | `ktImportText` (KronaTools); skips if absent         |
 | Workflow             | all of the above (WF-13/WF-15 need `ktImportText`)   |
 
