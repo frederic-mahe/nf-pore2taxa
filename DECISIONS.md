@@ -81,6 +81,15 @@ no `--reproducible` flag, and treat the pin bump as the real fix.
 strengthen the `SINTAX` tests to assert **exact** `.sintax` content for a
 fixed seed. Tracked as `SX-45`.
 
+**Follow-on done** (2026-10-10). vsearch 2.32.0 (released 2026-09-18) seeds
+each query from its own RNG substream and drops its own `--sintax
+--randseed` multithreading warning. Measured before adopting it: the same
+seeded run gave identical sorted rows at 1, 4 and 12 threads, where 2.31.0
+differed on every multi-threaded run. Row *order* still follows thread
+scheduling, so `SX-45` compares rows sorted, and asserts thread-invariance
+rather than a golden file — a golden file would break on any release that
+changes the RNG stream, which 2.32.0 itself did.
+
 ## D05 — the `publish_mode` allowed set
 
 **Status:** `resolved` (2026-07-29, revised) — *drop `move` only; keep the
@@ -192,9 +201,8 @@ user who hits it is not left guessing.
 
 *(none)*
 
-Two things are waiting on the outside world rather than on a decision:
+One thing is waiting on the outside world rather than on a decision:
 
-- **vsearch 2.32.0** — see `D04`. Blocks `SX-45`.
 - **A real `sbatch` submission and a real container image build.** Config
   resolution is fully tested (`CLU-01`..`CLU-09`); neither of those two can
   be, here. They stay manual smoke tests at the first adopting site — a fake
