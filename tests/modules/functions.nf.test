@@ -208,10 +208,11 @@ nextflow_function {
     // ------------------------------------------------------------- FN-06
     //
     // The thread count a process really gets: its configured request,
-    // reduced by the ceiling. The randseed reproducibility warning keys
-    // off this rather than the configured value, so that `--max_cpus 1`
-    // (which genuinely does make a seeded run replayable) is not warned
-    // about.
+    // reduced by the ceiling. The startup run summary reports this rather
+    // than the configured value ("SINTAX gets N thread(s)"), because
+    // Nextflow clamps silently. (It also gated the randseed warning,
+    // removed when vsearch 2.32.0 made sintax reproducible at any thread
+    // count — SX-45.)
 
     test("FN-06a effective_threads: the ceiling wins when it is lower") {
         function "effective_threads"
@@ -239,10 +240,9 @@ nextflow_function {
     }
 
     test("FN-06e effective_threads: an unreadable request assumes the ceiling") {
-        // e.g. someone set `cpus = { ... }` as a closure. For a warning,
-        // assuming the whole ceiling is the conservative reading — better
-        // to mention reproducibility when it may not hold than to stay
-        // silent when it does not.
+        // e.g. someone set `cpus = { ... }` as a closure. The summary
+        // cannot evaluate the closure, and the ceiling is the most such a
+        // request can get, so that is what it reports.
         function "effective_threads"
         when { function { """ input[0] = "not-a-number" ; input[1] = 8 """ } }
         then { assert function.success; assert function.result == 8 }
