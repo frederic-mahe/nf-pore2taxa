@@ -68,6 +68,7 @@ when you add a spec, in the same commit.
 | `BC-10` | A model already present in --models-dir is not downloaded again (a), and the model di... | `bin/basecall_cli.bats` | done |
 | `BC-11` | The script confines itself to --output-dir. clean_up and compress_fastq used to walk... | `bin/basecall_cli.bats` | done |
 | `BC-12` | The model-prefix logic in bin/basecall_pod5_files.sh and in modules/local/functions.n... | `bin/basecall_cli.bats` | done |
+| `BC-13` | The basecalled fastq files are compressed with pigz when it is on PATH, and with plain... | `bin/basecall_cli.bats` | red |
 
 ## 3. `SINTAX` module + `assign_with_sintax.sh`
 
