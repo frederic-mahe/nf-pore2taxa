@@ -306,9 +306,10 @@ nextflow run main.nf -profile abims,apptainer -config myproject.config
 `apptainer`, `singularity`, `docker` and `podman` are all available.
 
 Otherwise, ensure `cutadapt` and `vsearch` (>= 2.32.0) are on your `PATH`.
-Basecalling (`dorado`, `pigz`) is **not** provided by the `conda` profile —
+Basecalling (`dorado`) is **not** provided by the `conda` profile —
 `dorado` is an Oxford Nanopore GPU binary — so it must be installed
-separately when `skip_basecall = false`.
+separately when `skip_basecall = false`. The basecalled reads are compressed
+with `pigz` if it is on your `PATH`, and with the slower `gzip` otherwise.
 
 
 ## Pipeline output

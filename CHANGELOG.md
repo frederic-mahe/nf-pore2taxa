@@ -30,6 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   subsample for the same seed, one pass fewer over the pooled file, and no
   miscount can turn into a vsearch fatal error (SX-15c).
 
+- **Basecalling no longer requires `pigz`.** The basecalled fastq files are
+  compressed with `pigz` when it is on `PATH`, and with plain `gzip`
+  otherwise, with a note on stderr saying so. The `.fastq.gz` is the same
+  either way, only slower to make; before, a machine without `pigz` could
+  not basecall at all (BC-13).
+
 ## v1.14.0 - 2026-09-14
 
 ### `Fixed`

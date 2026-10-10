@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# BC-01..BC-07, BC-10, BC-11: bin/basecall_pod5_files.sh.
+# BC-01..BC-07, BC-10, BC-11, BC-13: bin/basecall_pod5_files.sh.
 #
 # Run with:
 #   bats tests/bin/basecall_cli.bats
@@ -30,8 +30,6 @@ setup() {
     touch "${IN}/reads.pod5"
 
     export DORADO_STUB_LOG="${BATS_TEST_TMPDIR}/dorado.log"
-    # pigz is needed by compress_fastq; skip rather than fail misleadingly.
-    command -v pigz > /dev/null 2>&1 || skip "pigz not in PATH"
 }
 
 # Run the script with the stubbed dorado on PATH.
@@ -220,4 +218,75 @@ stub_call() {
     [ -n "${bash_prefix}" ]
     [ -n "${nf_prefix}" ]
     [ "${bash_prefix}" = "${nf_prefix}" ]
+}
+
+# --------------------------------------------------------------------- BC-13
+
+# A copy of PATH with the named tools left out: a directory of symlinks to
+# every command on PATH, first occurrence winning as in a real lookup.
+# Prepending a stub can shadow a tool but never hide it, and pigz has to
+# be absent even on a machine that has it installed.
+path_without() {
+    local -r bin="${BATS_TEST_TMPDIR}/path_without"
+    mkdir -p "${bin}"
+    local -a exclude=()
+    local tool
+    for tool in "$@" ; do
+        exclude+=( ! -name "${tool}" )
+    done
+    local dir
+    local -a dirs
+    IFS=: read -r -a dirs <<< "${PATH}"
+    for dir in "${dirs[@]}" ; do
+        [[ -d "${dir}" ]] || continue
+        # ln refuses names already linked from an earlier PATH entry,
+        # which is the lookup order we want; its complaints are noise.
+        find "${dir}" -maxdepth 1 -mindepth 1 "${exclude[@]}" \
+            -exec ln -s -t "${bin}" '{}' + 2> /dev/null || true
+    done
+    echo "${bin}"
+}
+
+@test "BC-13a without pigz the fastq are compressed with gzip, with a note" {
+    local reduced
+    reduced="$(path_without pigz)"
+    run --separate-stderr env PATH="${STUBS}:${reduced}" bash "${SCRIPT}" \
+        --input-dir "${IN}" --output-dir "${OUT}" --models-dir "${MODELS}"
+    [ "${status}" -eq 0 ]
+    [[ "${stderr}" == *"pigz not found"* ]]
+    [[ "${stderr}" == *"gzip"* ]]
+    # Same .fastq.gz as pigz would make, and the originals are gone.
+    gzip -t "${OUT}/fastq_pass/barcode01/barcode01.fastq.gz"
+    gzip -t "${OUT}/fastq_pass/barcode02/barcode02.fastq.gz"
+    [ -z "$(find "${OUT}" -name '*.fastq')" ]
+}
+
+@test "BC-13b pigz is preferred when present, and nothing is printed" {
+    # A pigz that records its calls and hands the work to gzip, so the
+    # test runs on machines with no pigz installed.
+    local -r fake="${BATS_TEST_TMPDIR}/fake_pigz"
+    mkdir -p "${fake}"
+    cat > "${fake}/pigz" <<STUB
+#!/usr/bin/env bash
+printf '%s\\n' "\$*" >> "${BATS_TEST_TMPDIR}/pigz.log"
+exec gzip "\$@"
+STUB
+    chmod +x "${fake}/pigz"
+    run --separate-stderr env PATH="${STUBS}:${fake}:${PATH}" bash "${SCRIPT}" \
+        --input-dir "${IN}" --output-dir "${OUT}" --models-dir "${MODELS}"
+    [ "${status}" -eq 0 ]
+    [ "$(wc -l < "${BATS_TEST_TMPDIR}/pigz.log")" -eq 2 ]
+    [[ "${stderr}" != *"pigz not found"* ]]
+    gzip -t "${OUT}/fastq_pass/barcode01/barcode01.fastq.gz"
+}
+
+@test "BC-13c with neither pigz nor gzip the script stops before dorado runs" {
+    local reduced
+    reduced="$(path_without pigz gzip)"
+    run --separate-stderr env PATH="${STUBS}:${reduced}" bash "${SCRIPT}" \
+        --input-dir "${IN}" --output-dir "${OUT}" --models-dir "${MODELS}"
+    [ "${status}" -ne 0 ]
+    [[ "${stderr}" == *"pigz"* ]]
+    [[ "${stderr}" == *"gzip"* ]]
+    [ ! -e "${DORADO_STUB_LOG}" ]
 }

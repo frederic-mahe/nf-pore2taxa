@@ -101,12 +101,29 @@ validate_inputs() {
 
 check_commands() {
     local -a missing=()
-    for cmd in dorado pigz ; do
-        command -v "${cmd}" > /dev/null 2>&1 || missing+=("${cmd}")
-    done
+    command -v dorado > /dev/null 2>&1 || missing+=("dorado")
+    # Either compressor will do (see pick_compressor).
+    if ! command -v pigz > /dev/null 2>&1 &&
+       ! command -v gzip > /dev/null 2>&1 ; then
+        missing+=("pigz (or gzip)")
+    fi
     if (( ${#missing[@]} > 0 )) ; then
         echo "Error: required command(s) not found in PATH: ${missing[*]}" 1>&2
         exit 1
+    fi
+}
+
+
+pick_compressor() {
+    # pigz compresses each file on several cores; gzip writes the same
+    # .fastq.gz on one, and is present nearly everywhere. Both replace
+    # FILE with FILE.gz, so compress_fastq treats them alike. The note
+    # explains a slow compression step rather than leaving it a mystery.
+    if command -v pigz > /dev/null 2>&1 ; then
+        echo "pigz"
+    else
+        echo "Note: pigz not found, compressing the fastq files with gzip (slower)" 1>&2
+        echo "gzip"
     fi
 }
 
@@ -184,7 +201,7 @@ compress_fastq() {
         "${OUTPUT_DIR}" \
         -name "*.fastq" \
         -type f \
-        -exec pigz '{}' \;
+        -exec "${COMPRESSOR}" '{}' \;
 }
 
 
@@ -265,6 +282,8 @@ unset input_dir output_dir model kit_name device models_dir
 
 validate_inputs
 check_commands
+COMPRESSOR="$(pick_compressor)"
+declare -r COMPRESSOR
 create_output_folder
 download_model
 basecall
