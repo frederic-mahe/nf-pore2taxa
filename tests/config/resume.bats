@@ -153,6 +153,8 @@ column_total() {
     # The invalidation is targeted, not a blanket cache miss: only the
     # barcode whose files changed is re-assigned. Asserted on which tasks
     # ran rather than on a task count, so it survives new processes.
+    run not_cached
+    echo "${output}"
     [[ "${output}" == *"SINTAX (barcode02)"* ]]
     [[ "${output}" != *"SINTAX (barcode01)"* ]]
     [[ "${output}" != *"SINTAX (barcode03)"* ]]
